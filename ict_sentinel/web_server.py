@@ -376,6 +376,13 @@ class BotController:
         # Calculate Consecutive Losses across all sessions
         cons_losses = max([w.get("consecutive_losses", 0) for w in weights], default=0)
 
+        # Multi-Asset AI Market Diagnostics & Decision Matrix
+        diagnostics = []
+        for a in ASSET_SPECS:
+            c_list = self.data_feed.candle_cache.get(a, [])
+            diag = self.ipda.diagnose_market(a, c_list, memory_engine=self.memory_engine)
+            diagnostics.append(diag)
+
         # Micro-state string
         if not self.is_running:
             micro_state = "Engine Idle (Click 'Start Engine' to activate live tape scanning)"
@@ -405,6 +412,7 @@ class BotController:
             },
             "eq": eq, "assets": assets, "pos": pos,
             "trades": tds, "logs": lg,
+            "diagnostics": diagnostics,
             "mem": weights, "ref": reflections,
             "activity": self.activity_events,
             "risk_guards": {
@@ -543,6 +551,24 @@ svg.es{width:100%;height:100%;overflow:visible}
 .pbb{background:#1B2234;height:5px;border-radius:3px;overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-right:6px}
 .pbf{height:100%;background:var(--gr);border-radius:3px}
 
+/* Diagnostic Radar Cards */
+.diag-card{background:#090D15;border:1px solid var(--bdr);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.diag-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.diag-asset{font-size:14px;font-weight:800;letter-spacing:.02em;margin-right:8px}
+.diag-px{font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--tx2);margin-right:8px}
+.diag-score-wrap{display:flex;align-items:center;font-size:11px}
+.diag-score-lbl{color:var(--tx3);margin-right:4px}
+.diag-levels{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;font-family:'JetBrains Mono',monospace;color:#CBD5E1;background:#0D1322;padding:6px 10px;border-radius:6px;border:1px solid #1A2438}
+.diag-checklist{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;font-size:10.5px;font-family:'JetBrains Mono',monospace}
+.chk-item{background:rgba(255,255,255,.02);border:1px solid var(--bdr);border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;gap:6px}
+.chk-k{color:var(--tx3)}
+.chk-v.g{color:var(--gr);font-weight:600}
+.chk-v.y{color:var(--am);font-weight:600}
+.chk-v.r{color:var(--rd);font-weight:600}
+.diag-decision-box{background:#0D1424;border-left:3px solid var(--ac);padding:8px 12px;border-radius:0 6px 6px 0;display:flex;flex-direction:column;gap:4px}
+.diag-dec-title{font-size:11px;color:var(--ac);font-family:'JetBrains Mono',monospace}
+.diag-thesis{font-size:11.5px;color:#CBD5E1;line-height:1.4}
+
 /* ── Live Activity Radar (Sidebar) ── */
 .radar-card{background:var(--card);border:1px solid var(--bdr);border-radius:12px;overflow:hidden}
 .radar-header{padding:14px 16px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;background:rgba(99,102,241,.03)}
@@ -664,6 +690,17 @@ svg.es{width:100%;height:100%;overflow:visible}
     <div class="pn">
       <div class="ph"><div class="pt">📡 Institutional Market Feeds</div><span class="sub" id="cyc">Streaming live...</span></div>
       <div class="mg" id="mG"></div>
+    </div>
+
+    <!-- AI Market Diagnostics & Decision Radar -->
+    <div class="pn">
+      <div class="ph">
+        <div class="pt">🧭 AI Market Diagnostics & Decision Radar</div>
+        <span class="b b-p">Continuous Live Surveillance</span>
+      </div>
+      <div id="diagList" style="display:flex;flex-direction:column;gap:12px;padding:14px">
+        <div class="empty">Evaluating market structure across CME & Forex feeds...</div>
+      </div>
     </div>
 
     <!-- Self-Learning Bayesian Intelligence -->
@@ -927,6 +964,48 @@ function U(d){
       <span>${a.last_bar_time}</span>
     </div>
   </div>`).join('');
+
+  // AI Market Diagnostics & Decision Matrix
+  const dg=$('diagList');
+  if(dg && d.diagnostics && d.diagnostics.length){
+    dg.innerHTML=d.diagnostics.map(x=>{
+      const chkHtml = Object.entries(x.checklist).map(([k,v])=>{
+        let cls = 'chk-v';
+        if(v.includes('CLEAR')||v.includes('VALID')||v.includes('PASS')||v.includes('CONFIRMED')||v.includes('SWEPT')||v.includes('RESPECTED')) cls += ' g';
+        else if(v.includes('STANDBY')||v.includes('WAITING')||v.includes('PENDING')||v.includes('COMPRESSED')) cls += ' y';
+        else cls += ' r';
+        return `<div class="chk-item"><span class="chk-k">${k}</span><span class="${cls}">${v}</span></div>`;
+      }).join('');
+
+      const scCol = x.score>=75?'var(--gr)':(x.score>=40?'var(--am)':'#94A3B8');
+
+      return `<div class="diag-card">
+        <div class="diag-top">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="diag-asset">${x.asset}</span>
+            <span class="diag-px">${fx(x.asset, x.current_price)}</span>
+            <span class="b ${x.badge}">${x.status_label}</span>
+          </div>
+          <div class="diag-score-wrap">
+            <span class="diag-score-lbl">Confluence Readiness:</span>
+            <div class="pbb" style="width:70px;margin:0 6px"><div class="pbf" style="width:${x.score}%;background:${scCol}"></div></div>
+            <b style="font-family:'JetBrains Mono',monospace;color:${scCol}">${x.score}/100</b>
+          </div>
+        </div>
+        <div class="diag-levels">
+          <span><b>Ref High:</b> ${fx(x.asset, x.ref_high)}</span>
+          <span><b>Ref Low:</b> ${fx(x.asset, x.ref_low)}</span>
+          <span><b>Range:</b> ${x.ref_range.toFixed(2)} pts (Min: ${x.min_range_needed})</span>
+          <span><b>Zone:</b> ${x.quadrant}</span>
+        </div>
+        <div class="diag-checklist">${chkHtml}</div>
+        <div class="diag-decision-box">
+          <div class="diag-dec-title"><b>AI Executive Decision:</b> <span style="color:#F1F5F9">${x.decision}</span></div>
+          <div class="diag-thesis">${x.thesis}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
 
   // Memory
   const mt=$('mTb');
