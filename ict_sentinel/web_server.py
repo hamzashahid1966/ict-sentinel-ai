@@ -381,6 +381,9 @@ class BotController:
             micro_state = "Engine Idle (Click 'Start Engine' to activate live tape scanning)"
         elif len(open_pos) > 0:
             micro_state = f"Managing {len(open_pos)} active Double Tap position(s) with Defensive Shields"
+        elif session == "OFF-SESSION":
+            next_name = session_info.get("label", "Next Session")
+            micro_state = f"Engine Armed & Monitoring Tape — Standing by for {next_name}"
         else:
             micro_state = f"Actively scanning 5m bars in {session} for sweeps & body MSS"
 
