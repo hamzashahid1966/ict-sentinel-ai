@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ict-sentinel-ai
+    env: docker
+    plan: starter
+    region: oregon
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+
