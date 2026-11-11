@@ -1,0 +1,106 @@
+{
+  "title": "ICT 2024 Mentorship - Complete Lecture Knowledge Catalog (Lectures 1–52)",
+  "version": "1.0",
+  "lectures": [
+    {
+      "lecture": 26,
+      "topic": "The 2024 Model Introduction & Economic Calendar Gating",
+      "key_takeaways": "NFP (Non-Farm Payrolls) week trading boundaries. Standing down on Thursdays and Fridays of NFP week due to institutional Seek & Destroy volatility profiles."
+    },
+    {
+      "lecture": 27,
+      "topic": "Interbank Order Flow & Session Reference Ranges",
+      "key_takeaways": "Mapping the 20:00 to 02:00 EST Asian range. Why high and low boundaries act as institutional magnet pools for the London open."
+    },
+    {
+      "lecture": 28,
+      "topic": "The Judas Swing Mechanics",
+      "key_takeaways": "Detailed dissection of the 02:00-03:00 EST false breakout. How to differentiate between a runaway expansion and a liquidity raid."
+    },
+    {
+      "lecture": 29,
+      "topic": "Market Structure Shifts on the 5-Minute Timeframe",
+      "key_takeaways": "Displacement criteria: energetic expansion candle with dominant body and small wicks leaving an imbalance (FVG)."
+    },
+    {
+      "lecture": 31,
+      "topic": "Fair Value Gap Classification (BISI vs SIBI)",
+      "key_takeaways": "3-bar gap geometry. Why the second bar must be completely free of overlapping wicks from bar 1 and bar 3."
+    },
+    {
+      "lecture": 32,
+      "topic": "Consequent Encroachment (C.E.) Deep Dive",
+      "key_takeaways": "The 50% midpoint of an FVG is the institutional line in the sand. Price can wick to C.E., but bodies closing beyond C.E. signals structural failure."
+    },
+    {
+      "lecture": 33,
+      "topic": "Premium vs Discount Relative Valuation",
+      "key_takeaways": "Using Fib 0.50 level on the reference range. Disqualifying any short signal that triggers below Equilibrium."
+    },
+    {
+      "lecture": 34,
+      "topic": "Gray Pools & Internal Range Liquidity",
+      "key_takeaways": "Hidden liquidity pockets inside consolidating ranges. When to target internal liquidity vs external liquidity."
+    },
+    {
+      "lecture": 35,
+      "topic": "Advanced Consequent Encroachment Rules & Rejection Blocks",
+      "key_takeaways": "Body closes are the sole arbiter of institutional intent. Rejection blocks formed at swing extremes."
+    },
+    {
+      "lecture": 36,
+      "topic": "London Killzone Timing & Asset Correlation",
+      "key_takeaways": "Correlation between EUR/USD, GBP/USD, and Dollar Index (DXY). SMT Divergences at the London open."
+    },
+    {
+      "lecture": 37,
+      "topic": "New York AM Killzone Order Flow",
+      "key_takeaways": "08:00 AM EST pre-market injection. The 08:30 AM macro and red folder news releases."
+    },
+    {
+      "lecture": 38,
+      "topic": "The 09:30 AM Cash Open Dynamics",
+      "key_takeaways": "Equities open volatility. Why waiting for the initial 15-minute price discovery provides superior risk-to-reward."
+    },
+    {
+      "lecture": 40,
+      "topic": "Asian Macro & CME Evening Trading",
+      "key_takeaways": "18:50 to 20:15 EST CME re-open. Why Asian macro setups must be target-based with early partials at 1.5R."
+    },
+    {
+      "lecture": 41,
+      "topic": "Strict Consequent Encroachment Defense Checks",
+      "key_takeaways": "Rules for invalidating an entry if the 5m candle immediately violates the FVG midpoint."
+    },
+    {
+      "lecture": 42,
+      "topic": "Multi-Asset Execution on Micro Futures",
+      "key_takeaways": "Micro Gold (MGC), Micro Silver (SIL), Micro Nasdaq (MNQ). Contract sizing and tick value risk management."
+    },
+    {
+      "lecture": 43,
+      "topic": "SMT Divergence (Smart Money Technique)",
+      "key_takeaways": "Comparing correlated assets (e.g. NQ making a higher high while ES makes a lower high) to spot accumulation."
+    },
+    {
+      "lecture": 44,
+      "topic": "Trade Management & Stop Loss Discipline",
+      "key_takeaways": "Never widening a stop loss. Protecting capital at all costs. The psychology of systematic execution."
+    },
+    {
+      "lecture": 48,
+      "topic": "Candle Body MSS vs Wick Fakeouts Final Rule",
+      "key_takeaways": "Codifying the absolute requirement for 5m candle body closure across swing points."
+    },
+    {
+      "lecture": 51,
+      "topic": "The 10:00 AM Gate Rule",
+      "key_takeaways": "Quarantining trades when the 09:30 AM open is trapped inside the 09:00-09:30 AM range. The definitive filter against opening chop."
+    },
+    {
+      "lecture": 52,
+      "topic": "The Double Tap Framework & Defensive Shields",
+      "key_takeaways": "Center Mass 1.5R partials + Head Shot 3.0R runners + Breakeven + 2 ticks buffer. The complete synthesis of the 2024 model."
+    }
+  ]
+}

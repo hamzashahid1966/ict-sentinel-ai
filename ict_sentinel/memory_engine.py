@@ -49,6 +49,22 @@ class MemoryEngine:
             action=action_taken
         )
 
+        # Sync to persistent machine-readable knowledge ledger
+        if hasattr(self.advisor, 'knowledge') and self.advisor.knowledge:
+            self.advisor.knowledge.record_learning_episode({
+                "episode_id": ep_id,
+                "asset": tr.asset,
+                "session": session_name,
+                "day_of_week": day_name,
+                "direction": tr.direction,
+                "outcome": tr.outcome,
+                "dollar_pnl": tr.dollar_pnl,
+                "reflection_type": reflection_type,
+                "lesson": lesson,
+                "action_taken": action_taken,
+                "recorded_at": datetime.datetime.utcnow().isoformat()
+            })
+
         # 3. Dynamic Bayesian Updating & Circuit Breaker Logic
         self._update_regime_weights(tr.asset, session_name, tr.outcome, tr.dollar_pnl)
 

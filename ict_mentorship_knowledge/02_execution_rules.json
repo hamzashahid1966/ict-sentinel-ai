@@ -1,0 +1,61 @@
+{
+  "title": "ICT 2024 Mentorship - Execution Rules & Invalidation Checklists",
+  "version": "1.0",
+  "rules": [
+    {
+      "id": "RULE_10AM_GATE",
+      "lecture": 51,
+      "name": "10:00 AM New York Gate Filter",
+      "condition": "Evaluate the 09:30 AM cash open relative to the 09:00 - 09:30 AM pre-market opening candle range.",
+      "action": "If the 09:30 AM open price is contained inside the 09:00 - 09:30 AM range, QUARANTINE all executions until 10:00:00 AM EST.",
+      "rationale": "Prevents whipsaw losses during opening equilibrium traps."
+    },
+    {
+      "id": "RULE_CANDLE_BODY_MSS",
+      "lecture": 48,
+      "name": "Candle Body Market Structure Shift (MSS)",
+      "condition": "Price must close with a full candle body across the key swing point on the 5-minute chart.",
+      "invalidation": "If price only wicks through a swing point without closing beyond it, the shift is FALSE (Turtle Soup). Reject setup immediately.",
+      "quote": "The body tells the truth, the wick lies."
+    },
+    {
+      "id": "RULE_CONSEQUENT_ENCROACHMENT",
+      "lecture": 35,
+      "name": "50% Consequent Encroachment (C.E.) Respect",
+      "condition": "Fair Value Gaps (SIBI/BISI) have a sensitive 50% midpoint (Consequent Encroachment).",
+      "invalidation": {
+        "bearish_sibi": "Subsequent candle bodies MUST NOT close above the 50% C.E. level.",
+        "bullish_bisi": "Subsequent candle bodies MUST NOT close below the 50% C.E. level."
+      },
+      "rationale": "Body closure through 50% C.E. indicates institutional failure to defend the imbalance."
+    },
+    {
+      "id": "RULE_QUADRANT_PRICING",
+      "lecture": 48,
+      "name": "Premium vs Discount Quadrant Filter",
+      "condition": "Divide the session reference range into Equilibrium (50%), Premium (upper 50%), and Discount (lower 50%).",
+      "rules": [
+        "BUYS (Longs) are strictly permitted ONLY in the Discount quadrant.",
+        "SELLS (Shorts) are strictly permitted ONLY in the Premium quadrant."
+      ],
+      "rationale": "Institutions accumulate cheap assets and distribute expensive assets. Never sell in discount or buy in premium."
+    },
+    {
+      "id": "RULE_DOUBLE_TAP_OMS",
+      "lecture": 52,
+      "name": "Double Tap Order Execution & Defensive Shields",
+      "structure": {
+        "Center_Mass": {
+          "target": "+1.5R",
+          "size_pct": 50,
+          "shield": "When hit, immediately advance stop loss to Breakeven + 2 ticks buffer. The trade is now risk-free."
+        },
+        "Head_Shot": {
+          "target": "+3.0R",
+          "size_pct": 50,
+          "trail": "Trail stop loss behind successive 5m Fair Value Gap Consequent Encroachments until full 3.0R expansion completes."
+        }
+      }
+    }
+  ]
+}

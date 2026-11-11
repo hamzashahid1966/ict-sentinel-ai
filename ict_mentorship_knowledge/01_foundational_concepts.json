@@ -1,0 +1,56 @@
+{
+  "title": "ICT 2024 Mentorship - Foundational Concepts & Algorithmic Mechanics",
+  "version": "1.0",
+  "concepts": [
+    {
+      "id": "IPDA_TIME_THEORY",
+      "name": "Interbank Price Delivery Algorithm Time Windows",
+      "summary": "Institutions do not trade 24/7. Price delivery is governed by algorithmic clocks called Killzones. Trading outside these windows results in spread widening, whipsaws, and low liquidity.",
+      "sessions": {
+        "LONDON": {
+          "ref_range_est": "20:00 - 02:00",
+          "execution_window_est": "02:00 - 04:30",
+          "exit_deadline_est": "06:00",
+          "role": "Manipulation (Judas Swing) raiding Asian session liquidity. Sets the high or low of the daily range for Forex & Gold."
+        },
+        "NEW_YORK_AM": {
+          "ref_range_est": "00:00 - 08:00",
+          "execution_window_est": "08:00 - 10:30",
+          "exit_deadline_est": "11:45",
+          "role": "Distribution & primary expansion for US Index Futures (NQ) and Metals (GC, SI)."
+        },
+        "ASIAN_MACRO": {
+          "ref_range_est": "15:00 - 18:00",
+          "execution_window_est": "18:50 - 20:15",
+          "exit_deadline_est": "22:00",
+          "role": "CME Futures re-open macro; trades early Asian imbalance before entering consolidation."
+        }
+      },
+      "dead_zones": [
+        "11:30 - 13:30 EST (New York Lunch): High churn, book rebalancing, no edge.",
+        "04:30 - 08:00 EST (Inter-Session Transition): European close to US pre-open lull.",
+        "17:00 - 18:00 EST (CME Daily Maintenance Halt): Exchange closed."
+      ]
+    },
+    {
+      "id": "AMD_CYCLE",
+      "name": "Accumulation, Manipulation, Distribution (AMD)",
+      "summary": "The master daily liquidity template of the market maker.",
+      "phases": {
+        "A_Accumulation": "Asian session builds a tight consolidation, engineering resting Buy Stops above and Sell Stops below.",
+        "M_Manipulation": "London Open stages an aggressive false breakout (Judas Swing) into the Asian liquidity pool to accumulate orders.",
+        "D_Distribution": "New York session expands price in the true institutional direction into higher-timeframe targets."
+      }
+    },
+    {
+      "id": "LIQUIDITY_POOLS",
+      "name": "Buy-Side Liquidity (BSL) & Sell-Side Liquidity (SSL)",
+      "summary": "Resting stop orders that provide the counterparty volume needed for large institutional orders to fill.",
+      "types": {
+        "BSL": "Buy Stop orders resting above swing highs, session highs, and equal highs.",
+        "SSL": "Sell Stop orders resting below swing lows, session lows, and equal lows."
+      },
+      "rule": "Never trade until price has wicked through a major liquidity pool. Entering before the sweep means becoming the liquidity."
+    }
+  ]
+}

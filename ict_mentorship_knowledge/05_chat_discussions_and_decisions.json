@@ -1,0 +1,43 @@
+{
+  "title": "ICT Sentinel AI - Chat Discussions & Architectural Decisions Ledger",
+  "version": "1.0",
+  "last_updated": "2026-11-11",
+  "discussions": [
+    {
+      "topic_id": "TIMEZONE_SYNCHRONIZATION",
+      "question": "What time do sessions open in user local time (UTC+3) and how does the bot know when to trade?",
+      "resolution": "All internal engines operate on New York EST (UTC-5) per ICT doctrine. London opens at 02:00 EST (10:00 UTC+3); New York opens at 08:00 EST (16:00 UTC+3); Asian Macro runs 18:50-20:15 EST (02:50-04:15 UTC+3). Live countdown clocks are displayed in the UI.",
+      "affected_modules": ["ipda_engine.py", "web_server.py", "config.py"]
+    },
+    {
+      "topic_id": "ASIA_ZERO_TRADES_EXPLANATION",
+      "question": "Why did the bot not take any trades during the Asian session? Was there a bug?",
+      "resolution": "Under ICT AMD theory, Asia is Accumulation (A). Volume is low and the algorithm engineers range extremes to build resting stop orders. The Judas Swing (M) occurs in London (02:00 EST) and Distribution (D) occurs in NY (08:00 EST). CME futures halt from 17:00-18:00 EST. The bot correctly stayed in Standby mode.",
+      "affected_modules": ["ipda_engine.py", "ai_advisor.py"]
+    },
+    {
+      "topic_id": "FOUR_OUT_OF_FIVE_CONDITIONS",
+      "question": "What if 4 out of 5 conditions are met and 1 is missing? Does the bot still trade?",
+      "resolution": "Hard Invariants (Time Gate, Liquidity Sweep, Candle Body MSS) require 100% compliance with zero tolerance. Entering without a sweep or with only a wick fakeout leads to account liquidation. Soft confluences (Fibonacci Discount, Multi-Timeframe Alignment) contribute to a weighted Confluence Score.",
+      "affected_modules": ["ipda_engine.py"]
+    },
+    {
+      "topic_id": "MULTI_ASSET_SPECIALIZATION",
+      "question": "Which assets should be traded in London vs New York? How is risk managed on $500 starting balance?",
+      "resolution": "London trades EUR/USD, GBP/USD, and Gold (GC). New York AM trades Nasdaq (NQ), Gold, and Silver (SI). For a $500 balance, risk is capped at $25 (5%) using Micro Futures (MNQ, MGC, SIL) or fractional Forex lots (0.02-0.03).",
+      "affected_modules": ["config.py", "order_manager.py"]
+    },
+    {
+      "topic_id": "RENDER_CLOUD_AUTONOMOUS_EXECUTION",
+      "question": "How to make the bot run 24/7 autonomously on Render even when the computer is off without the 'Waking Up' screen?",
+      "resolution": "Render free tier spins down after 15 minutes of inactivity. Adding an external HTTP keep-alive ping every 10 minutes via cron-job.org keeps the Docker container hot 24/7.",
+      "affected_modules": ["Dockerfile", "render.yaml", "web_server.py"]
+    },
+    {
+      "topic_id": "SQLITE_WAL_LOCK_RESILIENCY",
+      "question": "How to resolve OperationalError('unable to open database file') and rate limiting?",
+      "resolution": "Added auto-purging of orphaned SQLite WAL files (.db-shm, .db-wal) in py-yfinance caches on startup, added connection.close() in storage, throttled live polling to 45s, and pre-seeded candle caches from local CSV data.",
+      "affected_modules": ["data_feed.py", "storage.py"]
+    }
+  ]
+}

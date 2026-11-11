@@ -7,19 +7,21 @@ import datetime
 from typing import Dict, List, Optional
 from .models import Candle, Position, PDArray, AILogEntry
 from .config import ASSET_SPECS
+from .knowledge_engine import KnowledgeEngine
 
 class AIAdvisor:
-    def __init__(self):
-        pass
+    def __init__(self, knowledge: Optional[KnowledgeEngine] = None):
+        self.knowledge = knowledge or KnowledgeEngine()
 
     def explain_trade_entry(self, asset: str, session: str, direction: str, entry_price: float, risk_pts: float, pd_array: PDArray, rationale: str) -> AILogEntry:
         timestamp_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         spec = ASSET_SPECS[asset]
         dollar_risk = risk_pts * spec['point_value']
+        ce_citation = self.knowledge.format_citation("RULE_CONSEQUENT_ENCROACHMENT")
 
         msg = f"ORDER ENTRY: {direction} {spec['display_name']} @ {entry_price:.2f}"
         reasoning = (
-            f"Institutional Setup Triggered in {session}.\n"
+            f"Institutional Setup Triggered in {session} {ce_citation}.\n"
             f"• Array Type: {pd_array.array_type} (Formed: {pd_array.formation_time.strftime('%H:%M:%S EST')})\n"
             f"• Array High: {pd_array.high:.2f} | Low: {pd_array.low:.2f} | 50% CE: {pd_array.consequent_encroachment:.2f}\n"
             f"• Capital Allocation: Risk = {risk_pts:.2f} pts (${dollar_risk:.2f}). Max risk strictly bounded.\n"
@@ -36,9 +38,10 @@ class AIAdvisor:
 
     def explain_defensive_trail(self, pos: Position, new_trail_price: float, shield_name: str) -> AILogEntry:
         timestamp_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        oms_citation = self.knowledge.format_citation("RULE_DOUBLE_TAP_OMS")
         msg = f"DEFENSIVE SHIELD ADVANCED: {pos.asset} Trailing Stop moved to {new_trail_price:.2f}"
         reasoning = (
-            f"Center Mass (1.5R) was banked successfully. In accordance with Lecture 52, "
+            f"Center Mass (1.5R) was banked successfully. In accordance with {oms_citation}, "
             f"stop loss is migrated to Defensive Shield: {shield_name}. "
             f"This insulates accumulated profits and prevents a winning trade from becoming a loss."
         )

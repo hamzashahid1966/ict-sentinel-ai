@@ -26,5 +26,6 @@ quagmyre*
 ictsharks*
 lecture*
 deploy_*.py
-test_*.py
+/test_*.py
+!tests/
 

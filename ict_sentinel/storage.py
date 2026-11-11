@@ -37,128 +37,138 @@ class StorageEngine:
 
     def _init_db(self):
         with self._lock:
-            with self._get_connection() as conn:
+            conn = self._get_connection()
+            with conn:
                 cursor = conn.cursor()
-            # 1. Account Table
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS account (
-                account_id TEXT PRIMARY KEY,
-                balance REAL,
-                peak_balance REAL,
-                realized_pnl REAL,
-                max_drawdown_dollars REAL,
-                max_drawdown_pct REAL,
-                updated_at TEXT
-            )
-            """)
-
-            # 2. Open Positions Table
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS positions (
-                position_id TEXT PRIMARY KEY,
-                asset TEXT,
-                direction TEXT,
-                quantity INTEGER,
-                entry_price REAL,
-                entry_time TEXT,
-                initial_stop_loss REAL,
-                active_trailing_stop REAL,
-                target_center_mass REAL,
-                target_head_shot REAL,
-                center_mass_filled INTEGER,
-                head_shot_filled INTEGER,
-                realized_pnl REAL,
-                status TEXT,
-                defensive_shields TEXT
-            )
-            """)
-
-            # 3. Trade History Table
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS trade_history (
-                trade_id TEXT PRIMARY KEY,
-                asset TEXT,
-                session TEXT,
-                direction TEXT,
-                entry_time TEXT,
-                entry_price REAL,
-                exit_time TEXT,
-                exit_price REAL,
-                risk_pts REAL,
-                pnl_pts REAL,
-                dollar_pnl REAL,
-                outcome TEXT,
-                ai_reasoning TEXT
-            )
-            """)
-
-            # 4. AI Reasoning Log Table
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ai_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                asset TEXT,
-                session TEXT,
-                category TEXT,
-                message TEXT,
-                reasoning TEXT
-            )
-            """)
-
-            # 5. Adaptive Memory: Trade Episodes Table
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS trade_episodes (
-                episode_id TEXT PRIMARY KEY,
-                asset TEXT,
-                session TEXT,
-                day_of_week TEXT,
-                direction TEXT,
-                array_type TEXT,
-                risk_pts REAL,
-                outcome TEXT,
-                dollar_pnl REAL,
-                created_at TEXT
-            )
-            """)
-
-            # 6. Adaptive Memory: Learned Reflections Table
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS memory_reflections (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                asset TEXT,
-                session TEXT,
-                reflection_type TEXT,
-                lesson TEXT,
-                action_taken TEXT
-            )
-            """)
-
-            # 7. Adaptive Memory: Dynamic Weights Table
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS adaptive_weights (
-                key_pair TEXT PRIMARY KEY,
-                asset TEXT,
-                session TEXT,
-                wins INTEGER,
-                losses INTEGER,
-                quality_score REAL,
-                status TEXT,
-                consecutive_losses INTEGER,
-                updated_at TEXT
-            )
-            """)
-
-            # Seed default account if empty
-            cursor.execute("SELECT COUNT(*) as count FROM account WHERE account_id = 'primary'")
-            row = cursor.fetchone()
-            if row['count'] == 0:
-                now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                # 1. Account Table
                 cursor.execute("""
-                INSERT INTO account (account_id, balance, peak_balance, realized_pnl, max_drawdown_dollars, max_drawdown_pct, updated_at)
-                VALUES ('primary', ?, ?, 0.0, 0.0, 0.0, ?)
-                """, (INITIAL_CAPITAL, INITIAL_CAPITAL, now_str))
-            conn.commit()
+                CREATE TABLE IF NOT EXISTS account (
+                    account_id TEXT PRIMARY KEY,
+                    balance REAL,
+                    peak_balance REAL,
+                    realized_pnl REAL,
+                    max_drawdown_dollars REAL,
+                    max_drawdown_pct REAL,
+                    updated_at TEXT
+                )
+                """)
+
+                # 2. Open Positions Table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS positions (
+                    position_id TEXT PRIMARY KEY,
+                    asset TEXT,
+                    direction TEXT,
+                    quantity INTEGER,
+                    entry_price REAL,
+                    entry_time TEXT,
+                    initial_stop_loss REAL,
+                    active_trailing_stop REAL,
+                    target_center_mass REAL,
+                    target_head_shot REAL,
+                    center_mass_filled INTEGER,
+                    head_shot_filled INTEGER,
+                    realized_pnl REAL,
+                    status TEXT,
+                    defensive_shields TEXT
+                )
+                """)
+
+                # 3. Trade History Table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS trade_history (
+                    trade_id TEXT PRIMARY KEY,
+                    asset TEXT,
+                    session TEXT,
+                    direction TEXT,
+                    entry_time TEXT,
+                    entry_price REAL,
+                    exit_time TEXT,
+                    exit_price REAL,
+                    risk_pts REAL,
+                    pnl_pts REAL,
+                    dollar_pnl REAL,
+                    outcome TEXT,
+                    ai_reasoning TEXT
+                )
+                """)
+
+                # 4. AI Reasoning Log Table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT,
+                    asset TEXT,
+                    session TEXT,
+                    category TEXT,
+                    message TEXT,
+                    reasoning TEXT
+                )
+                """)
+
+                # 5. Adaptive Memory: Trade Episodes Table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS trade_episodes (
+                    episode_id TEXT PRIMARY KEY,
+                    asset TEXT,
+                    session TEXT,
+                    day_of_week TEXT,
+                    direction TEXT,
+                    array_type TEXT,
+                    risk_pts REAL,
+                    outcome TEXT,
+                    dollar_pnl REAL,
+                    created_at TEXT
+                )
+                """)
+
+                # 6. Adaptive Memory: Learned Reflections Table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS memory_reflections (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT,
+                    asset TEXT,
+                    session TEXT,
+                    reflection_type TEXT,
+                    lesson TEXT,
+                    action_taken TEXT
+                )
+                """)
+
+                # 7. Adaptive Memory: Dynamic Weights Table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS adaptive_weights (
+                    key_pair TEXT PRIMARY KEY,
+                    asset TEXT,
+                    session TEXT,
+                    wins INTEGER,
+                    losses INTEGER,
+                    quality_score REAL,
+                    status TEXT,
+                    consecutive_losses INTEGER,
+                    updated_at TEXT
+                )
+                """)
+
+                # Seed default account if empty
+                cursor.execute("SELECT COUNT(*) as count FROM account WHERE account_id = 'primary'")
+                row = cursor.fetchone()
+                if row['count'] == 0:
+                    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    cursor.execute("""
+                    INSERT INTO account (account_id, balance, peak_balance, realized_pnl, max_drawdown_dollars, max_drawdown_pct, updated_at)
+                    VALUES ('primary', ?, ?, 0.0, 0.0, 0.0, ?)
+                    """, (INITIAL_CAPITAL, INITIAL_CAPITAL, now_str))
+
+    def close(self):
+        """Closes thread-local connection and releases lock files."""
+        with self._lock:
+            if hasattr(self._local, "conn") and self._local.conn is not None:
+                try:
+                    self._local.conn.close()
+                except Exception:
+                    pass
+                self._local.conn = None
 
     def get_account_state(self) -> AccountState:
         with self._get_connection() as conn:

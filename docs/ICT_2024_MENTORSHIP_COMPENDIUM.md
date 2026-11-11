@@ -133,3 +133,4 @@ Every closed trade triggers an automated post-mortem reflection:
 * `ict_sentinel/data_feed.py` — Real-time CME & Forex ingestion with smart cache throttling.
 * `ict_sentinel/web_server.py` — Unified Browser Command Center with Live Radar and Diagnostics.
 * `docs/transcripts_and_research/` — Raw lecture transcripts (26–45), OCR captures, and forum research.
+

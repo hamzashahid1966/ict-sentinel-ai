@@ -1,0 +1,41 @@
+{
+  "system": "ICT Sentinel AI - Self-Learning Autonomous Agent Framework",
+  "version": "1.0",
+  "cognitive_loop": [
+    {
+      "stage": 1,
+      "name": "CONTINUOUS_TAPE_PERCEPTION",
+      "action": "24/7 multi-asset streaming of 5m OHLCV data across London, NY AM, and Asian macro sessions."
+    },
+    {
+      "stage": 2,
+      "name": "KNOWLEDGE_RETRIEVAL",
+      "action": "Querying ict_mentorship_knowledge JSON files for lecture citations, FVG C.E. rules, and AMD phase templates."
+    },
+    {
+      "stage": 3,
+      "name": "COGNITIVE_EVALUATION",
+      "action": "Evaluating Hard Invariants (Time, Sweep, Body MSS) and Confluence Scores. Running Shadow Tracking for soft near-misses."
+    },
+    {
+      "stage": 4,
+      "name": "DOUBLE_TAP_EXECUTION",
+      "action": "Executing Stage 1 Risk Bracket, Stage 2 Center Mass (1.5R) with Breakeven Shield, and Stage 3 Head Shot (3.0R) runner."
+    },
+    {
+      "stage": 5,
+      "name": "EPISODIC_REFLECTION_AND_BAYESIAN_UPDATE",
+      "action": "Deconstructing trade post-mortem, updating Beta(2,2) Bayesian Quality Scores, and logging reflections to adaptive learning ledger."
+    }
+  ],
+  "learning_mechanisms": {
+    "bayesian_quality_score": "BQS = (alpha + wins) / (alpha + beta + total) - (consecutive_losses * 0.15)",
+    "circuit_breakers": {
+      "consecutive_losses_threshold": 2,
+      "action": "QUARANTINE asset/session regime until simulation recovers quality score."
+    },
+    "shadow_tracking": {
+      "purpose": "Log 4-out-of-5 condition setups without risk to learn empirical probabilities of borderline market structures."
+    }
+  }
+}

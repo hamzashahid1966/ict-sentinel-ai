@@ -1,0 +1,120 @@
+{
+  "system": "ICT Sentinel AI - Adaptive Learning & Self-Improving Memory Ledger",
+  "version": "1.0",
+  "learning_principles": [
+    "Every closed trade episode is decomposed into an automated post-mortem reflection.",
+    "Regime Bayesian Quality Scores (BQS) dynamically update via Beta(2,2) conjugate priors.",
+    "Consecutive losses (>1) automatically quarantine an asset/session regime until recovery proof.",
+    "Market observations are dynamically logged to continuously refine entry timing."
+  ],
+  "episodes": [
+    {
+      "episode_id": "ep_pos1",
+      "asset": "NASDAQ",
+      "session": "NEW_YORK_AM",
+      "day_of_week": "Tuesday",
+      "direction": "SHORT",
+      "outcome": "LOSS",
+      "dollar_pnl": -40.0,
+      "reflection_type": "INVALIDATION_POST_MORTEM",
+      "lesson": "Full stop loss triggered on NASDAQ (NEW_YORK_AM, Tuesday) resulting in -$40.00. Setup breached initial institutional invalidation point. Possible premature entry, low liquidity chop, or higher timeframe macroeconomic realignment.",
+      "action_taken": "Decremented Bayesian score for NASDAQ::NEW_YORK_AM. Incremented consecutive loss tracker. Applied cooldown throttle if threshold breached.",
+      "recorded_at": "2026-11-11T11:35:07.589185"
+    },
+    {
+      "episode_id": "ep_pos2",
+      "asset": "NASDAQ",
+      "session": "NEW_YORK_AM",
+      "day_of_week": "Tuesday",
+      "direction": "SHORT",
+      "outcome": "LOSS",
+      "dollar_pnl": -40.0,
+      "reflection_type": "INVALIDATION_POST_MORTEM",
+      "lesson": "Full stop loss triggered on NASDAQ (NEW_YORK_AM, Tuesday) resulting in -$40.00. Setup breached initial institutional invalidation point. Possible premature entry, low liquidity chop, or higher timeframe macroeconomic realignment.",
+      "action_taken": "Decremented Bayesian score for NASDAQ::NEW_YORK_AM. Incremented consecutive loss tracker. Applied cooldown throttle if threshold breached.",
+      "recorded_at": "2026-11-11T11:35:07.591187"
+    },
+    {
+      "episode_id": "ep_test_win_pos",
+      "asset": "GOLD",
+      "session": "LONDON",
+      "day_of_week": "Tuesday",
+      "direction": "LONG",
+      "outcome": "FULL_WIN",
+      "dollar_pnl": 75.0,
+      "reflection_type": "EXPANSION_SUCCESS",
+      "lesson": "Full 3.0R Head Shot achieved on GOLD during LONDON (Tuesday). Candle body displacement cleanly expanded without violating Consequent Encroachment (C.E.). Institutional order flow confirmed strong delivery into target pool.",
+      "action_taken": "Reinforced Bayesian weight for GOLD::LONDON. Retained standard risk allocation.",
+      "recorded_at": "2026-11-11T11:35:07.595375"
+    },
+    {
+      "episode_id": "ep_pos1",
+      "asset": "NASDAQ",
+      "session": "NEW_YORK_AM",
+      "day_of_week": "Tuesday",
+      "direction": "SHORT",
+      "outcome": "LOSS",
+      "dollar_pnl": -40.0,
+      "reflection_type": "INVALIDATION_POST_MORTEM",
+      "lesson": "Full stop loss triggered on NASDAQ (NEW_YORK_AM, Tuesday) resulting in -$40.00. Setup breached initial institutional invalidation point. Possible premature entry, low liquidity chop, or higher timeframe macroeconomic realignment.",
+      "action_taken": "Decremented Bayesian score for NASDAQ::NEW_YORK_AM. Incremented consecutive loss tracker. Applied cooldown throttle if threshold breached.",
+      "recorded_at": "2026-11-11T11:35:59.898027"
+    },
+    {
+      "episode_id": "ep_pos2",
+      "asset": "NASDAQ",
+      "session": "NEW_YORK_AM",
+      "day_of_week": "Tuesday",
+      "direction": "SHORT",
+      "outcome": "LOSS",
+      "dollar_pnl": -40.0,
+      "reflection_type": "INVALIDATION_POST_MORTEM",
+      "lesson": "Full stop loss triggered on NASDAQ (NEW_YORK_AM, Tuesday) resulting in -$40.00. Setup breached initial institutional invalidation point. Possible premature entry, low liquidity chop, or higher timeframe macroeconomic realignment.",
+      "action_taken": "Decremented Bayesian score for NASDAQ::NEW_YORK_AM. Incremented consecutive loss tracker. Applied cooldown throttle if threshold breached.",
+      "recorded_at": "2026-11-11T11:35:59.898293"
+    },
+    {
+      "episode_id": "ep_test_win_pos",
+      "asset": "GOLD",
+      "session": "LONDON",
+      "day_of_week": "Tuesday",
+      "direction": "LONG",
+      "outcome": "FULL_WIN",
+      "dollar_pnl": 75.0,
+      "reflection_type": "EXPANSION_SUCCESS",
+      "lesson": "Full 3.0R Head Shot achieved on GOLD during LONDON (Tuesday). Candle body displacement cleanly expanded without violating Consequent Encroachment (C.E.). Institutional order flow confirmed strong delivery into target pool.",
+      "action_taken": "Reinforced Bayesian weight for GOLD::LONDON. Retained standard risk allocation.",
+      "recorded_at": "2026-11-11T11:35:59.903153"
+    }
+  ],
+  "current_regime_weights": {
+    "EURUSD::LONDON": {
+      "wins": 1,
+      "losses": 0,
+      "quality_score": 0.6,
+      "status": "PRIME",
+      "notes": "Full 3.0R Head Shot expansion achieved. Clean body MSS with zero C.E. violations."
+    },
+    "GBPUSD::LONDON": {
+      "wins": 0,
+      "losses": 0,
+      "quality_score": 0.5,
+      "status": "OBSERVATION",
+      "notes": "Awaiting initial trade episode."
+    },
+    "GOLD::NEW_YORK_AM": {
+      "wins": 0,
+      "losses": 0,
+      "quality_score": 0.5,
+      "status": "PRIME",
+      "notes": "High liquidity tier asset. Priority monitoring during 08:00 - 10:30 EST."
+    },
+    "NASDAQ::NEW_YORK_AM": {
+      "wins": 0,
+      "losses": 0,
+      "quality_score": 0.5,
+      "status": "PRIME",
+      "notes": "Primary index momentum. Enforces Lecture 51 10:00 AM Gate."
+    }
+  }
+}
