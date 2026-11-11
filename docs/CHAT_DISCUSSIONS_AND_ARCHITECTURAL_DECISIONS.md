@@ -149,3 +149,4 @@ The user configured an automated HTTP keepalive ping via **cron-job.org**:
 2. **AI Market Diagnostics & Radar:** Real-time visibility into the bot's thoughts, reasons for holding back, and 5-point confluence status.
 3. **Double Tap OMS:** Strict capital protection with 1.5R partials, Breakeven Shields, and 3.0R runners.
 4. **Permanent Institutional Knowledge:** Fully structured knowledge directory (`ict_mentorship_knowledge/`) and exhaustive documentation in `docs/`.
+

@@ -59,6 +59,10 @@ class Position:
     realized_pnl: float = 0.0
     status: str = 'OPEN'      # 'OPEN', 'PARTIAL', 'CLOSED'
     defensive_shields: List[str] = field(default_factory=list)
+    defending_fvg_ce: Optional[float] = None
+    target_liquidity_pool: Optional[str] = None
+    invalidation_reason: Optional[str] = None
+    session_origin: Optional[str] = None
 
 @dataclass
 class TradeRecord:
@@ -73,8 +77,25 @@ class TradeRecord:
     risk_pts: float
     pnl_pts: float
     dollar_pnl: float
-    outcome: str            # 'FULL_WIN', 'DEFENSIVE_STOP', 'LOSS', 'TIME_EXIT'
+    outcome: str            # 'FULL_WIN', 'DEFENSIVE_STOP', 'EARLY_SCRATCH', 'LOSS', 'SESSION_EXPIRATION'
     ai_reasoning: str
+    target_tp1_price: Optional[float] = None
+    target_tp2_price: Optional[float] = None
+    invalidation_reason: Optional[str] = None
+    target_liquidity_pool: Optional[str] = None
+
+@dataclass
+class SessionDebrief:
+    session_name: str       # 'LONDON', 'NEW_YORK_AM', 'ASIAN_MACRO'
+    date: str               # 'YYYY-MM-DD'
+    session_high: float
+    session_low: float
+    asian_sweep_type: str   # 'BSL_SWEPT', 'SSL_SWEPT', 'BOTH', 'NONE'
+    trades_taken: int
+    net_dollar_pnl: float
+    cross_session_bias: str # e.g. 'BEARISH_EXPANSION_CONTINUATION'
+    ai_debrief_summary: str
+    created_at: str
 
 @dataclass
 class AccountState:

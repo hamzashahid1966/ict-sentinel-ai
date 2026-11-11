@@ -40,6 +40,7 @@ class BotController:
         self.stop_event = threading.Event()
         self.last_cycle_time: Optional[str] = None
         self.current_prices: Dict[str, float] = {a: 0.0 for a in ASSET_SPECS}
+        self.last_checked_session: Optional[str] = None
         self.lock = threading.Lock()
 
         # Real-time Activity Event Buffer (stores latest 50 live micro-events)
@@ -125,6 +126,27 @@ class BotController:
         ).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         state_changed = False
+        now_et = datetime.datetime.now(datetime.timezone.utc).astimezone(
+            datetime.timezone(datetime.timedelta(hours=-5))
+        )
+        current_session = self.ipda.get_current_session(now_et.time())
+
+        # Inter-session transition detection & automated debrief generation
+        if self.last_checked_session and current_session != self.last_checked_session:
+            prev_session = self.last_checked_session
+            sample_asset = 'EURUSD' if prev_session == 'LONDON' else 'NASDAQ'
+            c_list = self.data_feed.candle_cache.get(sample_asset, [])
+            rec_trades = self.storage.get_trade_history(limit=20)
+            s_trades = [t for t in rec_trades if t.session == prev_session]
+            d_str = now_et.strftime('%Y-%m-%d')
+            debrief = self.ipda.generate_session_debrief(prev_session, c_list, s_trades, d_str)
+            self.storage.record_session_debrief(debrief)
+            debrief_log = self.advisor.explain_session_debrief(debrief)
+            self.storage.log_ai_thought(debrief_log)
+            self._add_activity("SESSION", f"Session Closed: {prev_session}", f"Bias for next session: {debrief.cross_session_bias}", "warning")
+            state_changed = True
+
+        self.last_checked_session = current_session
         assets_synced = 0
         for asset in ASSET_SPECS:
             if self.stop_event.is_set():
@@ -355,6 +377,8 @@ class BotController:
                 "cm": p.target_center_mass, "hs": p.target_head_shot,
                 "cmf": p.center_mass_filled, "rp": p.realized_pnl,
                 "unr": round(unr, 2), "st": p.status,
+                "ce": p.defending_fvg_ce, "targ": p.target_liquidity_pool,
+                "inv": p.invalidation_reason, "orig": p.session_origin
             })
 
         tds = []
@@ -364,6 +388,8 @@ class BotController:
                 "d": t.direction, "et": t.entry_time, "ep": t.entry_price,
                 "xt": t.exit_time, "xp": t.exit_price,
                 "pnl": t.dollar_pnl, "out": t.outcome, "ai": t.ai_reasoning,
+                "tp1": t.target_tp1_price, "tp2": t.target_tp2_price,
+                "inv": t.invalidation_reason, "targ": t.target_liquidity_pool
             })
 
         lg = []
@@ -413,6 +439,7 @@ class BotController:
             "eq": eq, "assets": assets, "pos": pos,
             "trades": tds, "logs": lg,
             "diagnostics": diagnostics,
+            "debriefs": self.storage.get_latest_session_debriefs(limit=5),
             "mem": weights, "ref": reflections,
             "activity": self.activity_events,
             "risk_guards": {
@@ -679,9 +706,9 @@ svg.es{width:100%;height:100%;overflow:visible}
       <div class="ph"><div class="pt">🎯 Active Open Positions (Double Tap Architecture)</div><span class="b b-p" id="pCt">0</span></div>
       <div class="tw">
         <table><thead><tr>
-          <th>ID</th><th>Asset</th><th>Dir</th><th>Entry</th><th>Stop</th><th>CM 1.5R</th><th>HS 3.0R</th><th>Unreal PnL</th><th>Status</th><th>Action</th>
+          <th>ID</th><th>Asset</th><th>Dir</th><th>Entry</th><th>Stop</th><th>50% CE Defense</th><th>CM 1.5R</th><th>HS 3.0R</th><th>Unreal PnL</th><th>Status</th><th>Action</th>
         </tr></thead><tbody id="pTb">
-          <tr><td colspan="10" class="empty">No open positions. Real-time tape monitoring active...</td></tr>
+          <tr><td colspan="11" class="empty">No open positions. Real-time tape monitoring active...</td></tr>
         </tbody></table>
       </div>
     </div>
@@ -713,6 +740,17 @@ svg.es{width:100%;height:100%;overflow:visible}
       <div style="padding:12px 16px;border-top:1px solid var(--bdr);background:#090D15">
         <div class="kl" style="margin-bottom:4px">Latest AI Post-Mortem Reflection</div>
         <div id="ref" style="color:#CBD5E1;font-size:11px;font-family:'JetBrains Mono',monospace">Awaiting first reflection...</div>
+      </div>
+    </div>
+
+    <!-- Cross-Session Transition Debriefs -->
+    <div class="pn">
+      <div class="ph">
+        <div class="pt">🔄 Cross-Session Transition Debriefs & Macro Synthesis</div>
+        <span class="b b-p">Inter-Session Order Flow</span>
+      </div>
+      <div id="debriefList" style="display:flex;flex-direction:column;gap:10px;padding:14px">
+        <div class="empty">Awaiting session close to compile cross-session debrief...</div>
       </div>
     </div>
 
@@ -940,12 +978,14 @@ function U(d){
   // Positions
   $('pCt').innerText=d.pos.length+' Open';
   const pt=$('pTb');
-  if(!d.pos.length){pt.innerHTML='<tr><td colspan="10" class="empty">No open positions. Real-time tape monitoring active...</td></tr>'}
+  if(!d.pos.length){pt.innerHTML='<tr><td colspan="11" class="empty">No open positions. Real-time tape monitoring active...</td></tr>'}
   else{pt.innerHTML=d.pos.map(p=>`<tr>
     <td>#${p.id}</td><td><b>${p.a}</b></td>
     <td><span class="b ${p.d==='LONG'?'b-l':'b-s'}">${p.d}</span></td>
     <td>${fx(p.a,p.ep)}</td><td class="r">${fx(p.a,p.ts)}</td>
-    <td class="g">${fx(p.a,p.cm)}</td><td class="g">${fx(p.a,p.hs)}</td>
+    <td><span style="color:var(--am);font-weight:600">${p.ce ? fx(p.a, p.ce) : '-'}</span><br><span style="font-size:9px;color:var(--tx3)">Early Scratch</span></td>
+    <td class="g">${fx(p.a,p.cm)}<br><span style="font-size:9px;color:var(--tx3)">50% Scale</span></td>
+    <td class="g">${fx(p.a,p.hs)}<br><span style="font-size:9px;color:var(--tx3)">Runner</span></td>
     <td class="${p.unr>=0?'g':'r'}">${p.unr>=0?'+':''}$${p.unr.toFixed(2)}</td>
     <td><span class="b ${p.st==='PARTIAL'?'b-d':'b-p'}">${p.st}</span></td>
     <td><button class="btn btn-x" style="padding:2px 6px;font-size:9px" onclick="cpos('${p.id}')">Close</button></td>
@@ -1020,6 +1060,34 @@ function U(d){
   const rf=$('ref');
   if(d.ref&&d.ref.length){const r=d.ref[0];rf.innerHTML=`<b>[${r.asset}::${r.session}] ${r.reflection_type}:</b> ${r.lesson}`}
 
+  // Cross-Session Transition Debriefs
+  const dbList=$('debriefList');
+  if(dbList){
+    if(!d.debriefs || !d.debriefs.length){
+      dbList.innerHTML='<div class="empty">Awaiting session close to compile cross-session debrief...</div>';
+    }else{
+      dbList.innerHTML=d.debriefs.map(b=>`
+        <div style="background:var(--s2);border:1px solid var(--bdr);border-radius:6px;padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="display:flex;gap:8px;align-items:center">
+              <b style="color:#F1F5F9;font-family:'JetBrains Mono',monospace">${b.session_name} DEBRIEF</b>
+              <span class="b b-d">${b.date}</span>
+              <span class="b ${b.net_dollar_pnl>=0?'b-p':'b-q'}">${b.net_dollar_pnl>=0?'+':''}$${b.net_dollar_pnl.toFixed(2)} (${b.trades_taken} trades)</span>
+            </div>
+            <span class="b b-p" style="font-size:10px">${b.asian_sweep_type}</span>
+          </div>
+          <div style="font-size:11px;color:var(--tx2);margin-bottom:6px">
+            <b>Session Range:</b> Low ${b.session_low.toFixed(2)} ──► High ${b.session_high.toFixed(2)} | 
+            <b>Next Bias:</b> <span style="color:var(--am);font-weight:600">${b.cross_session_bias}</span>
+          </div>
+          <div style="font-size:11px;color:#94A3B8;line-height:1.5;background:#090D15;padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,.03)">
+            ${b.ai_debrief_summary}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
   // ── Render Live Activity Stream (Right Sidebar) ──
   const actList=$('activityList');
   if(d.activity&&d.activity.length){
@@ -1074,15 +1142,21 @@ function filt(){
   const tb=$('tTb');
   if(!f.length){tb.innerHTML='<tr><td colspan="8" class="empty">No matching trades.</td></tr>';return}
   tb.innerHTML=f.map(t=>{
-    let bc='b-w';if(t.out==='DEFENSIVE_STOP')bc='b-d';else if(t.out==='LOSS')bc='b-x';
+    let bc='b-w';
+    if(t.out==='DEFENSIVE_STOP') bc='b-d';
+    else if(t.out==='EARLY_SCRATCH') bc='b-d';
+    else if(t.out==='SESSION_EXPIRATION') bc='b-p';
+    else if(t.out==='LOSS') bc='b-x';
     const pc=t.pnl>=0?'g':'r',sg=t.pnl>=0?'+':'';
+    const targets = (t.tp1 && t.tp2) ? `<span style="font-size:9px;color:var(--tx3)">TP1: ${fx(t.a,t.tp1)} | TP2: ${fx(t.a,t.tp2)}</span>` : '';
+    const inv = t.inv ? `<br><span style="font-size:9px;color:var(--am)">Trigger: ${t.inv}</span>` : '';
     return`<tr>
       <td>${t.xt}</td><td><b>${t.a}</b></td><td>${t.ss}</td>
       <td><span class="b ${t.d==='LONG'?'b-l':'b-s'}">${t.d}</span></td>
-      <td>${fx(t.a,t.ep)} ➔ ${fx(t.a,t.xp)}</td>
+      <td>${fx(t.a,t.ep)} ➔ ${fx(t.a,t.xp)}<br>${targets}</td>
       <td class="${pc}"><b>${sg}$${t.pnl.toFixed(2)}</b></td>
-      <td><span class="b ${bc}">${t.out}</span></td>
-      <td style="color:var(--tx2);font-size:10.5px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.ai}</td>
+      <td><span class="b ${bc}">${t.out}</span>${inv}</td>
+      <td style="color:var(--tx2);font-size:10.5px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.ai}">${t.ai}</td>
     </tr>`}).join('');
 }
 
@@ -1119,6 +1193,8 @@ class Handler(BaseHTTPRequestHandler):
             self._html(HTML)
         elif self.path == "/api/state":
             self._json(BOT.get_full_state())
+        elif self.path == "/api/session-debriefs":
+            self._json(BOT.storage.get_latest_session_debriefs(limit=10))
         elif self.path == "/api/stream":
             self._handle_sse_stream()
         else:

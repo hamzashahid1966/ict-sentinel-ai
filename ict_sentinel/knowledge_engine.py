@@ -139,3 +139,4 @@ class KnowledgeEngine:
         except Exception as e:
             logger.error(f"Failed to record learning episode: {e}")
             return False
+

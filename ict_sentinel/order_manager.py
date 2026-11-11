@@ -59,7 +59,10 @@ class OrderManager:
             head_shot_filled=False,
             realized_pnl=0.0,
             status='OPEN',
-            defensive_shields=['Initial Institutional Stop']
+            defensive_shields=['Initial Institutional Stop'],
+            defending_fvg_ce=sig.pd_array.consequent_encroachment if sig.pd_array else None,
+            target_liquidity_pool=sig.ai_rationale,
+            session_origin=sig.session
         )
         self._sync_position(pos)
 
@@ -92,6 +95,93 @@ class OrderManager:
         for pos in open_positions:
             is_long = pos.direction == 'LONG'
             risk_pts = abs(pos.entry_price - pos.initial_stop_loss)
+
+            # ---------------- STAGE 0: CHECK EARLY SCRATCH INVALIDATION (FVG 50% CE) ----------------
+            if not pos.center_mass_filled and pos.defending_fvg_ce is not None:
+                ce_breached = (current_bar.close < pos.defending_fvg_ce) if is_long else (current_bar.close > pos.defending_fvg_ce)
+                if ce_breached:
+                    exit_price = current_bar.close
+                    outcome = 'EARLY_SCRATCH'
+                    pos.invalidation_reason = '50_PCT_CE_BREACH'
+                    pnl_pts = (exit_price - pos.entry_price) if is_long else (pos.entry_price - exit_price)
+                    dollar_pnl = (pnl_pts * spec['point_value']) - friction
+                    
+                    self.storage.update_account_balance(dollar_pnl)
+                    tr = TradeRecord(
+                        trade_id=pos.position_id,
+                        asset=pos.asset,
+                        session=pos.session_origin or "LIVE",
+                        direction=pos.direction,
+                        entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        entry_price=pos.entry_price,
+                        exit_time=current_bar.timestamp_et.strftime('%Y-%m-%d %H:%M:%S'),
+                        exit_price=exit_price,
+                        risk_pts=risk_pts,
+                        pnl_pts=pnl_pts,
+                        dollar_pnl=dollar_pnl,
+                        outcome=outcome,
+                        ai_reasoning=f"Early scratch triggered: 50% CE breached ({pos.defending_fvg_ce:.2f}). Capital protected.",
+                        target_tp1_price=pos.target_center_mass,
+                        target_tp2_price=pos.target_head_shot,
+                        invalidation_reason=pos.invalidation_reason,
+                        target_liquidity_pool=pos.target_liquidity_pool
+                    )
+                    self.storage.record_closed_trade(tr)
+                    scratch_log = self.advisor.explain_early_scratch(pos, exit_price, pnl_pts, dollar_pnl, pos.invalidation_reason)
+                    self.storage.log_ai_thought(scratch_log)
+                    self._remove_position(pos.position_id)
+                    if self.memory_engine:
+                        self.memory_engine.process_trade_completion(tr, pos, current_bar)
+                    closed_trades.append(tr)
+                    continue
+
+            # ---------------- STAGE 0B: CHECK SESSION EXIT DEADLINE ----------------
+            from .config import SESSION_WINDOWS
+            session_expired = False
+            if pos.session_origin and pos.session_origin in SESSION_WINDOWS:
+                deadline = SESSION_WINDOWS[pos.session_origin].get('exit_time')
+                if deadline and current_bar.timestamp_et.time() >= deadline:
+                    session_expired = True
+
+            if session_expired:
+                exit_price = current_bar.close
+                outcome = 'SESSION_EXPIRATION'
+                pos.invalidation_reason = 'SESSION_DEADLINE_REACHED'
+                pts = (exit_price - pos.entry_price) if is_long else (pos.entry_price - exit_price)
+                if pos.center_mass_filled:
+                    dollar_pnl = pos.realized_pnl + (0.5 * pts * spec['point_value']) - (0.5 * friction)
+                else:
+                    dollar_pnl = (pts * spec['point_value']) - friction
+                pnl_pts = dollar_pnl / spec['point_value']
+
+                self.storage.update_account_balance(dollar_pnl)
+                tr = TradeRecord(
+                    trade_id=pos.position_id,
+                    asset=pos.asset,
+                    session=pos.session_origin or "LIVE",
+                    direction=pos.direction,
+                    entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    entry_price=pos.entry_price,
+                    exit_time=current_bar.timestamp_et.strftime('%Y-%m-%d %H:%M:%S'),
+                    exit_price=exit_price,
+                    risk_pts=risk_pts,
+                    pnl_pts=pnl_pts,
+                    dollar_pnl=dollar_pnl,
+                    outcome=outcome,
+                    ai_reasoning="Session exit deadline reached. Closed at market to avoid dead zone chop.",
+                    target_tp1_price=pos.target_center_mass,
+                    target_tp2_price=pos.target_head_shot,
+                    invalidation_reason=pos.invalidation_reason,
+                    target_liquidity_pool=pos.target_liquidity_pool
+                )
+                self.storage.record_closed_trade(tr)
+                close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
+                self.storage.log_ai_thought(close_log)
+                self._remove_position(pos.position_id)
+                if self.memory_engine:
+                    self.memory_engine.process_trade_completion(tr, pos, current_bar)
+                closed_trades.append(tr)
+                continue
 
             # ---------------- STAGE 1: CHECK CENTER MASS (1.5R) ----------------
             if not pos.center_mass_filled:
@@ -134,10 +224,11 @@ class OrderManager:
                     pnl_pts = dollar_pnl / spec['point_value']
 
                 self.storage.update_account_balance(dollar_pnl)
+                pos.invalidation_reason = 'HARD_STOP_BREACH' if not pos.center_mass_filled else 'DEFENSIVE_TRAILING_STOP'
                 tr = TradeRecord(
                     trade_id=pos.position_id,
                     asset=pos.asset,
-                    session="LIVE",
+                    session=pos.session_origin or "LIVE",
                     direction=pos.direction,
                     entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
                     entry_price=pos.entry_price,
@@ -147,7 +238,11 @@ class OrderManager:
                     pnl_pts=pnl_pts,
                     dollar_pnl=dollar_pnl,
                     outcome=outcome,
-                    ai_reasoning=f"Closed on Stop trigger @ {exit_price:.2f}. Outcome: {outcome}"
+                    ai_reasoning=f"Closed on Stop trigger @ {exit_price:.2f}. Outcome: {outcome}",
+                    target_tp1_price=pos.target_center_mass,
+                    target_tp2_price=pos.target_head_shot,
+                    invalidation_reason=pos.invalidation_reason,
+                    target_liquidity_pool=pos.target_liquidity_pool
                 )
                 self.storage.record_closed_trade(tr)
                 close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
@@ -173,7 +268,7 @@ class OrderManager:
                     tr = TradeRecord(
                         trade_id=pos.position_id,
                         asset=pos.asset,
-                        session="LIVE",
+                        session=pos.session_origin or "LIVE",
                         direction=pos.direction,
                         entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
                         entry_price=pos.entry_price,
@@ -183,7 +278,11 @@ class OrderManager:
                         pnl_pts=pnl_pts,
                         dollar_pnl=dollar_pnl,
                         outcome=outcome,
-                        ai_reasoning="Full algorithmic objective reached at Head Shot terminus (3.0R)."
+                        ai_reasoning="Full algorithmic objective reached at Head Shot terminus (3.0R).",
+                        target_tp1_price=pos.target_center_mass,
+                        target_tp2_price=pos.target_head_shot,
+                        invalidation_reason="TARGET_COMPLETED",
+                        target_liquidity_pool=pos.target_liquidity_pool
                     )
                     self.storage.record_closed_trade(tr)
                     close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)

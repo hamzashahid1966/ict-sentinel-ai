@@ -150,6 +150,40 @@ class StorageEngine:
                 )
                 """)
 
+                # 8. Cross-Session Debriefs Table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS session_debriefs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_name TEXT,
+                    date TEXT,
+                    session_high REAL,
+                    session_low REAL,
+                    asian_sweep_type TEXT,
+                    trades_taken INTEGER,
+                    net_dollar_pnl REAL,
+                    cross_session_bias TEXT,
+                    ai_debrief_summary TEXT,
+                    created_at TEXT,
+                    UNIQUE(session_name, date)
+                )
+                """)
+
+                # Defensive migrations for active position and history extensions
+                for col_sql in [
+                    "ALTER TABLE positions ADD COLUMN defending_fvg_ce REAL",
+                    "ALTER TABLE positions ADD COLUMN target_liquidity_pool TEXT",
+                    "ALTER TABLE positions ADD COLUMN invalidation_reason TEXT",
+                    "ALTER TABLE positions ADD COLUMN session_origin TEXT",
+                    "ALTER TABLE trade_history ADD COLUMN target_tp1_price REAL",
+                    "ALTER TABLE trade_history ADD COLUMN target_tp2_price REAL",
+                    "ALTER TABLE trade_history ADD COLUMN invalidation_reason TEXT",
+                    "ALTER TABLE trade_history ADD COLUMN target_liquidity_pool TEXT"
+                ]:
+                    try:
+                        cursor.execute(col_sql)
+                    except sqlite3.OperationalError:
+                        pass
+
                 # Seed default account if empty
                 cursor.execute("SELECT COUNT(*) as count FROM account WHERE account_id = 'primary'")
                 row = cursor.fetchone()
@@ -217,13 +251,15 @@ class StorageEngine:
             INSERT OR REPLACE INTO positions (
                 position_id, asset, direction, quantity, entry_price, entry_time,
                 initial_stop_loss, active_trailing_stop, target_center_mass, target_head_shot,
-                center_mass_filled, head_shot_filled, realized_pnl, status, defensive_shields
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                center_mass_filled, head_shot_filled, realized_pnl, status, defensive_shields,
+                defending_fvg_ce, target_liquidity_pool, invalidation_reason, session_origin
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 pos.position_id, pos.asset, pos.direction, pos.quantity, pos.entry_price,
                 pos.entry_time.isoformat(), pos.initial_stop_loss, pos.active_trailing_stop,
                 pos.target_center_mass, pos.target_head_shot, 1 if pos.center_mass_filled else 0,
-                1 if pos.head_shot_filled else 0, pos.realized_pnl, pos.status, shields_json
+                1 if pos.head_shot_filled else 0, pos.realized_pnl, pos.status, shields_json,
+                pos.defending_fvg_ce, pos.target_liquidity_pool, pos.invalidation_reason, pos.session_origin
             ))
             conn.commit()
 
@@ -250,7 +286,11 @@ class StorageEngine:
                     head_shot_filled=bool(r['head_shot_filled']),
                     realized_pnl=r['realized_pnl'],
                     status=r['status'],
-                    defensive_shields=shields
+                    defensive_shields=shields,
+                    defending_fvg_ce=r['defending_fvg_ce'] if 'defending_fvg_ce' in r.keys() else None,
+                    target_liquidity_pool=r['target_liquidity_pool'] if 'target_liquidity_pool' in r.keys() else None,
+                    invalidation_reason=r['invalidation_reason'] if 'invalidation_reason' in r.keys() else None,
+                    session_origin=r['session_origin'] if 'session_origin' in r.keys() else None
                 )
                 positions.append(pos)
             return positions
@@ -261,15 +301,48 @@ class StorageEngine:
             cursor.execute("""
             INSERT OR REPLACE INTO trade_history (
                 trade_id, asset, session, direction, entry_time, entry_price,
-                exit_time, exit_price, risk_pts, pnl_pts, dollar_pnl, outcome, ai_reasoning
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                exit_time, exit_price, risk_pts, pnl_pts, dollar_pnl, outcome, ai_reasoning,
+                target_tp1_price, target_tp2_price, invalidation_reason, target_liquidity_pool
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 tr.trade_id, tr.asset, tr.session, tr.direction, tr.entry_time,
                 tr.entry_price, tr.exit_time, tr.exit_price, tr.risk_pts,
-                tr.pnl_pts, tr.dollar_pnl, tr.outcome, tr.ai_reasoning
+                tr.pnl_pts, tr.dollar_pnl, tr.outcome, tr.ai_reasoning,
+                tr.target_tp1_price, tr.target_tp2_price, tr.invalidation_reason, tr.target_liquidity_pool
             ))
             cursor.execute("UPDATE positions SET status = 'CLOSED' WHERE position_id = ?", (tr.trade_id,))
             conn.commit()
+
+    def record_session_debrief(self, debrief):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT OR REPLACE INTO session_debriefs (
+                session_name, date, session_high, session_low, asian_sweep_type,
+                trades_taken, net_dollar_pnl, cross_session_bias, ai_debrief_summary, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                debrief.session_name, debrief.date, debrief.session_high, debrief.session_low,
+                debrief.asian_sweep_type, debrief.trades_taken, debrief.net_dollar_pnl,
+                debrief.cross_session_bias, debrief.ai_debrief_summary, debrief.created_at
+            ))
+            conn.commit()
+
+    def get_latest_session_debriefs(self, limit: int = 10) -> List[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM session_debriefs ORDER BY id DESC LIMIT ?", (limit,))
+            return [dict(r) for r in cursor.fetchall()]
+
+    def get_latest_session_debrief(self, session_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            if session_name:
+                cursor.execute("SELECT * FROM session_debriefs WHERE session_name = ? ORDER BY id DESC LIMIT 1", (session_name,))
+            else:
+                cursor.execute("SELECT * FROM session_debriefs ORDER BY id DESC LIMIT 1")
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
     def log_ai_thought(self, entry: AILogEntry):
         with self._get_connection() as conn:
@@ -317,7 +390,11 @@ class StorageEngine:
                     pnl_pts=r['pnl_pts'],
                     dollar_pnl=r['dollar_pnl'],
                     outcome=r['outcome'],
-                    ai_reasoning=r['ai_reasoning']
+                    ai_reasoning=r['ai_reasoning'],
+                    target_tp1_price=r['target_tp1_price'] if 'target_tp1_price' in r.keys() else None,
+                    target_tp2_price=r['target_tp2_price'] if 'target_tp2_price' in r.keys() else None,
+                    invalidation_reason=r['invalidation_reason'] if 'invalidation_reason' in r.keys() else None,
+                    target_liquidity_pool=r['target_liquidity_pool'] if 'target_liquidity_pool' in r.keys() else None
                 ))
             return trades
 

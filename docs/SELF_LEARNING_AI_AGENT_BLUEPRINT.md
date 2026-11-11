@@ -91,3 +91,4 @@ As new market observations, mentorship transcripts, or custom user rules are add
 1. **Adding New Rules:** Simply add a new rule object to `ict_mentorship_knowledge/02_execution_rules.json`. The `KnowledgeEngine` automatically reloads and evaluates it on the next market tick.
 2. **Reviewing Lessons:** The user or agent can inspect `ict_mentorship_knowledge/04_adaptive_learning_log.json` to review why specific trades succeeded or failed.
 3. **Autonomous Growth:** With continuous cloud runtime and keepalive pings, the agent accumulates real-world trade reflections, continuously refining its edge over months and years of market cycles.
+

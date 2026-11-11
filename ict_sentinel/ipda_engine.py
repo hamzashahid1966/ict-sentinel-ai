@@ -7,7 +7,7 @@ import datetime
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Any
 from .config import ASSET_SPECS, SESSION_WINDOWS
-from .models import Candle, PDArray
+from .models import Candle, PDArray, SessionDebrief, TradeRecord
 
 @dataclass
 class AlgorithmicSignal:
@@ -373,4 +373,101 @@ class IPDAEngine:
             "decision": decision,
             "thesis": thesis
         }
+
+    def generate_session_debrief(self, session_name: str, candles: List[Candle], trades: List[TradeRecord], date_str: str) -> SessionDebrief:
+        """
+        Synthesizes an inter-session liquidity and market structure debrief at session close.
+        Calculates session extremes, determines whether the Asian range was swept,
+        and computes the directional bias for the upcoming session.
+        """
+        win = SESSION_WINDOWS.get(session_name)
+        now_utc = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        
+        # Filter candles within this session's execution window
+        if win and candles:
+            if win['exec_start'] < win['exec_end']:
+                session_bars = [c for c in candles if win['exec_start'] <= c.timestamp_et.time() <= win['exec_end']]
+            else:
+                session_bars = [c for c in candles if (c.timestamp_et.time() >= win['exec_start']) or (c.timestamp_et.time() <= win['exec_end'])]
+        else:
+            session_bars = candles[-30:] if candles else []
+
+        if not session_bars:
+            session_bars = candles[-10:] if candles else []
+
+        s_high = max(c.high for c in session_bars) if session_bars else 0.0
+        s_low = min(c.low for c in session_bars) if session_bars else 0.0
+
+        # Asian Range reference (20:00 - 02:00 EST)
+        asian_bars = [c for c in candles if (c.timestamp_et.time() >= datetime.time(20, 0)) or (c.timestamp_et.time() < datetime.time(2, 0))]
+        if asian_bars:
+            a_high = max(c.high for c in asian_bars)
+            a_low = min(c.low for c in asian_bars)
+            bsl_swept = s_high > a_high
+            ssl_swept = s_low < a_low
+            if bsl_swept and ssl_swept:
+                sweep_type = "BOTH_POOLS_SWEPT"
+            elif bsl_swept:
+                sweep_type = "ASIAN_BSL_SWEPT"
+            elif ssl_swept:
+                sweep_type = "ASIAN_SSL_SWEPT"
+            else:
+                sweep_type = "NO_SWEEP_CONFINED"
+        else:
+            sweep_type = "NO_ASIAN_REF"
+
+        trades_count = len(trades)
+        net_pnl = sum(t.dollar_pnl for t in trades)
+
+        # Cross-Session Predictive Bias
+        last_close = session_bars[-1].close if session_bars else s_high
+        midpoint = s_low + 0.5 * (s_high - s_low) if s_high > s_low else s_high
+
+        if session_name == "LONDON":
+            if sweep_type == "ASIAN_BSL_SWEPT" and last_close < midpoint:
+                bias = "BEARISH_EXPANSION_CONTINUATION"
+                summary = (
+                    f"London engineered a Judas Swing by raiding Asian Buy-Side Liquidity (High: {s_high:.2f}) "
+                    f"and closed in Discount ({last_close:.2f} < {midpoint:.2f}). "
+                    f"Established probable High of the Day. New York AM should seek Sell-Side Liquidity into Asian Low."
+                )
+            elif sweep_type == "ASIAN_SSL_SWEPT" and last_close > midpoint:
+                bias = "BULLISH_EXPANSION_CONTINUATION"
+                summary = (
+                    f"London engineered a Judas Swing by raiding Asian Sell-Side Liquidity (Low: {s_low:.2f}) "
+                    f"and closed in Premium ({last_close:.2f} > {midpoint:.2f}). "
+                    f"Established probable Low of the Day. New York AM should seek Buy-Side Liquidity into Asian High."
+                )
+            else:
+                bias = "EQUILIBRIUM_REBALANCING"
+                summary = (
+                    f"London range delivered balanced oscillation between {s_low:.2f} and {s_high:.2f}. "
+                    f"New York AM will establish independent price discovery at 09:30 AM open."
+                )
+        elif session_name == "NEW_YORK_AM":
+            bias = "SESSION_COMPLETED_LUNCH_STANDBY"
+            summary = (
+                f"New York AM completed primary institutional distribution (Range: {s_low:.2f} - {s_high:.2f}). "
+                f"Total net session PnL: ${net_pnl:+.2f} across {trades_count} executions. "
+                f"Standing down for 11:30 - 13:30 EST Lunch Dead Zone."
+            )
+        else: # ASIAN_MACRO
+            bias = "LONDON_OPEN_PREPARATION"
+            summary = (
+                f"Asian Macro established initial session boundaries ({s_low:.2f} - {s_high:.2f}). "
+                f"Asian Range liquidity pools active. Standing by for 02:00 EST London Judas Swing."
+            )
+
+        return SessionDebrief(
+            session_name=session_name,
+            date=date_str,
+            session_high=s_high,
+            session_low=s_low,
+            asian_sweep_type=sweep_type,
+            trades_taken=trades_count,
+            net_dollar_pnl=net_pnl,
+            cross_session_bias=bias,
+            ai_debrief_summary=summary,
+            created_at=now_utc
+        )
 

@@ -149,3 +149,4 @@ Markets are not driven by retail buying/selling pressure or classic supply and d
 | [`memory_engine.py`](file:///Users/hamzashahid/Documents/Per/Projects/ict_sentinel_ai/ict_sentinel/memory_engine.py) | 26, 44, 45 | Bayesian quality scorer (BQS), episodic post-mortems, circuit breakers for consecutive losses. |
 | [`knowledge_engine.py`](file:///Users/hamzashahid/Documents/Per/Projects/ict_sentinel_ai/ict_sentinel/knowledge_engine.py) | 1 – 52 | Ingests all lecture concepts, execution checklists, and dynamic learning logs for the AI Advisor. |
 | [`ai_advisor.py`](file:///Users/hamzashahid/Documents/Per/Projects/ict_sentinel_ai/ict_sentinel/ai_advisor.py) | 48, 51, 52 | Real-time narrative generator explaining tape conditions and why trades are taken or withheld. |
+
