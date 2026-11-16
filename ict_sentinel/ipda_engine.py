@@ -105,130 +105,185 @@ class IPDAEngine:
         if ref_range < spec['min_pre_range']:
             return None
 
-        # 5. Check last 3 completed bars: b0, b1, b2
-        b0 = candles[-3]
-        b1 = candles[-2]
-        b2 = candles[-1]
+        # 5. Extract Session Execution Bars (Session-Wide Memory Window)
+        if win['exec_start'] < win['exec_end']:
+            session_bars = [c for c in today_bars if win['exec_start'] <= c.timestamp_et.time() <= win['exec_end']]
+        else:
+            session_bars = [c for c in candles if (c.timestamp_et.time() >= win['exec_start']) or (c.timestamp_et.time() <= win['exec_end'])]
 
-        # Sweep of session liquidity
-        swept_high = b0.high > ref_high and b0.close < ref_high
-        swept_low = b0.low < ref_low and b0.close > ref_low
+        if len(session_bars) < 3:
+            return None
+
+        session_set = set(id(c) for c in session_bars)
+        session_indices = [idx for idx, c in enumerate(candles) if id(c) in session_set]
+
+        # Scan for sweeps across the active session
+        swept_high_indices = [
+            idx for idx in session_indices
+            if candles[idx].high > ref_high and candles[idx].close < ref_high
+        ]
+        swept_low_indices = [
+            idx for idx in session_indices
+            if candles[idx].low < ref_low and candles[idx].close > ref_low
+        ]
 
         # ---------------- BEARISH SIGNAL (SHORT) ----------------
-        if swept_high:
-            # Bearish SIBI: b0.low > b2.high
-            if b0.low > b2.high:
-                fvg_high = b0.low
-                fvg_low = b2.high
-                fvg_ce = fvg_low + 0.5 * (fvg_high - fvg_low)
+        if swept_high_indices:
+            first_sweep_idx = swept_high_indices[0]
+            s_bar = candles[first_sweep_idx]
+            sweep_max_high = max(c.high for c in session_bars if c.high > ref_high)
 
-                # Rule A: Consequent Encroachment (50%) Respect (Lectures 35, 41, 51)
-                # Candle bodies MUST NOT close above C.E.
-                if b1.close > fvg_ce or b2.close > fvg_ce:
-                    return None
+            # Search for a valid FVG (SIBI) formed at or after first_sweep_idx
+            # Evaluate backwards from latest completed formation
+            for i in range(len(candles) - 3, first_sweep_idx - 1, -1):
+                c0 = candles[i]
+                c1 = candles[i + 1]
+                c2 = candles[i + 2]
 
-                # Rule B: Candle Body MSS Validation (Lecture 48, 51)
-                # Disqualifies wick sweeps! The body must close below b0.low
-                if b1.body_bottom > b0.low and b2.body_bottom > b0.low:
-                    return None
+                # Bearish SIBI: c0.low > c2.high
+                if c0.low > c2.high:
+                    fvg_high = c0.low
+                    fvg_low = c2.high
+                    fvg_ce = fvg_low + 0.5 * (fvg_high - fvg_low)
 
-                # Rule C: Upper Quadrant / Premium Filter (Lecture 48)
-                range_eq = ref_low + 0.50 * ref_range
-                if fvg_low < range_eq:
-                    return None # Shorting in discount is strictly forbidden!
+                    # Rule A: Consequent Encroachment (50%) Respect (Lectures 35, 41, 51)
+                    # Candle bodies MUST NOT close above C.E. for any bar from i+1 to end
+                    if any(c.close > fvg_ce for c in candles[i + 1:]):
+                        continue
 
-                entry_price = fvg_low
-                sl = ref_high + (2 * spec['tick_size'])
-                risk = sl - entry_price
+                    # Rule B: Candle Body MSS Validation (Lectures 48, 51)
+                    # Disqualifies wick sweeps! At least one candle body closed below s_bar.low or c0.low
+                    mss_threshold = min(s_bar.low, c0.low)
+                    if not any(c.body_bottom < mss_threshold for c in candles[first_sweep_idx + 1:]):
+                        continue
 
-                if spec['min_risk_pts'] <= risk <= spec['max_risk_pts']:
-                    # Self-Learning Memory Engine Gating
-                    if memory_engine:
-                        approved, confidence, reason = memory_engine.evaluate_setup_viability(asset, session_name, 'SIBI')
-                        if not approved:
-                            return None # Gated by learned history / circuit breaker!
+                    # Rule C: Upper Quadrant / Premium Filter (Lecture 48)
+                    range_eq = ref_low + 0.50 * ref_range
+                    if fvg_low < range_eq:
+                        continue # Shorting in discount is strictly forbidden!
+
+                    # Rule D: Entry / Retest Trigger
+                    current = candles[-1]
+                    if i == len(candles) - 3:
+                        is_retest = True
                     else:
-                        confidence = 0.85
-                        reason = "Default clearance"
+                        is_retest = (current.high >= fvg_low and current.close <= fvg_high)
 
-                    target_cm = entry_price - (risk * 1.5)
-                    target_hs = entry_price - (risk * 3.0)
-                    pd_array = PDArray(
-                        array_type='SIBI',
-                        high=fvg_high,
-                        low=fvg_low,
-                        consequent_encroachment=fvg_ce,
-                        formation_time=b2.timestamp_et
-                    )
-                    rationale = (
-                        f"[Adaptive Confidence: {confidence*100:.1f}%] "
-                        f"Bearish SIBI confirmed following BSL sweep above {ref_high:.2f}. "
-                        f"Candle bodies respected 50% CE ({fvg_ce:.2f}). "
-                        f"Body MSS closure confirmed. Premium quadrant satisfied. {reason}"
-                    )
-                    return AlgorithmicSignal(
-                        asset=asset, session=session_name, direction='SHORT',
-                        entry_price=entry_price, stop_loss=sl, risk_pts=risk,
-                        target_center_mass=target_cm, target_head_shot=target_hs,
-                        pd_array=pd_array, ai_rationale=rationale
-                    )
+                    if not is_retest:
+                        continue
+
+                    entry_price = fvg_low
+                    sl = sweep_max_high + (2 * spec['tick_size'])
+                    risk = sl - entry_price
+
+                    if spec['min_risk_pts'] <= risk <= spec['max_risk_pts']:
+                        # Self-Learning Memory Engine Gating
+                        if memory_engine:
+                            approved, confidence, reason = memory_engine.evaluate_setup_viability(asset, session_name, 'SIBI')
+                            if not approved:
+                                return None # Gated by learned history / circuit breaker!
+                        else:
+                            confidence = 0.85
+                            reason = "Default clearance"
+
+                        target_cm = entry_price - (risk * 1.5)
+                        target_hs = entry_price - (risk * 3.0)
+                        pd_array = PDArray(
+                            array_type='SIBI',
+                            high=fvg_high,
+                            low=fvg_low,
+                            consequent_encroachment=fvg_ce,
+                            formation_time=c2.timestamp_et
+                        )
+                        rationale = (
+                            f"[Adaptive Confidence: {confidence*100:.1f}%] "
+                            f"Bearish SIBI confirmed following BSL sweep above {ref_high:.2f} at {s_bar.timestamp_et.strftime('%H:%M')} EST. "
+                            f"Candle bodies respected 50% CE ({fvg_ce:.2f}). "
+                            f"Body MSS closure confirmed. Premium quadrant satisfied. {reason}"
+                        )
+                        return AlgorithmicSignal(
+                            asset=asset, session=session_name, direction='SHORT',
+                            entry_price=entry_price, stop_loss=sl, risk_pts=risk,
+                            target_center_mass=target_cm, target_head_shot=target_hs,
+                            pd_array=pd_array, ai_rationale=rationale
+                        )
 
         # ---------------- BULLISH SIGNAL (LONG) ----------------
-        elif swept_low:
-            # Bullish BISI: b2.low > b0.high
-            if b2.low > b0.high:
-                fvg_low = b0.high
-                fvg_high = b2.low
-                fvg_ce = fvg_low + 0.5 * (fvg_high - fvg_low)
+        elif swept_low_indices:
+            first_sweep_idx = swept_low_indices[0]
+            s_bar = candles[first_sweep_idx]
+            sweep_min_low = min(c.low for c in session_bars if c.low < ref_low)
 
-                # Rule A: Consequent Encroachment (50%) Respect
-                if b1.close < fvg_ce or b2.close < fvg_ce:
-                    return None
+            # Search for a valid FVG (BISI) formed at or after first_sweep_idx
+            for i in range(len(candles) - 3, first_sweep_idx - 1, -1):
+                c0 = candles[i]
+                c1 = candles[i + 1]
+                c2 = candles[i + 2]
 
-                # Rule B: Candle Body MSS Validation
-                if b1.body_top < b0.high and b2.body_top < b0.high:
-                    return None
+                # Bullish BISI: c2.low > c0.high
+                if c2.low > c0.high:
+                    fvg_low = c0.high
+                    fvg_high = c2.low
+                    fvg_ce = fvg_low + 0.5 * (fvg_high - fvg_low)
 
-                # Rule C: Lowest Quadrant / Discount Filter (Lecture 48)
-                range_eq = ref_low + 0.50 * ref_range
-                if fvg_high > range_eq:
-                    return None # Buying in premium is strictly forbidden!
+                    # Rule A: Consequent Encroachment (50%) Respect
+                    if any(c.close < fvg_ce for c in candles[i + 1:]):
+                        continue
 
-                entry_price = fvg_high
-                sl = ref_low - (2 * spec['tick_size'])
-                risk = entry_price - sl
+                    # Rule B: Candle Body MSS Validation
+                    mss_threshold = max(s_bar.high, c0.high)
+                    if not any(c.body_top > mss_threshold for c in candles[first_sweep_idx + 1:]):
+                        continue
 
-                if spec['min_risk_pts'] <= risk <= spec['max_risk_pts']:
-                    # Self-Learning Memory Engine Gating
-                    if memory_engine:
-                        approved, confidence, reason = memory_engine.evaluate_setup_viability(asset, session_name, 'BISI')
-                        if not approved:
-                            return None # Gated by learned history / circuit breaker!
+                    # Rule C: Lowest Quadrant / Discount Filter (Lecture 48)
+                    range_eq = ref_low + 0.50 * ref_range
+                    if fvg_high > range_eq:
+                        continue # Buying in premium is strictly forbidden!
+
+                    # Rule D: Entry / Retest Trigger
+                    current = candles[-1]
+                    if i == len(candles) - 3:
+                        is_retest = True
                     else:
-                        confidence = 0.85
-                        reason = "Default clearance"
+                        is_retest = (current.low <= fvg_high and current.close >= fvg_low)
 
-                    target_cm = entry_price + (risk * 1.5)
-                    target_hs = entry_price + (risk * 3.0)
-                    pd_array = PDArray(
-                        array_type='BISI',
-                        high=fvg_high,
-                        low=fvg_low,
-                        consequent_encroachment=fvg_ce,
-                        formation_time=b2.timestamp_et
-                    )
-                    rationale = (
-                        f"[Adaptive Confidence: {confidence*100:.1f}%] "
-                        f"Bullish BISI confirmed following SSL sweep below {ref_low:.2f}. "
-                        f"Candle bodies respected 50% CE ({fvg_ce:.2f}). "
-                        f"Body MSS closure confirmed. Lowest discount quadrant satisfied. {reason}"
-                    )
-                    return AlgorithmicSignal(
-                        asset=asset, session=session_name, direction='LONG',
-                        entry_price=entry_price, stop_loss=sl, risk_pts=risk,
-                        target_center_mass=target_cm, target_head_shot=target_hs,
-                        pd_array=pd_array, ai_rationale=rationale
-                    )
+                    if not is_retest:
+                        continue
+
+                    entry_price = fvg_high
+                    sl = sweep_min_low - (2 * spec['tick_size'])
+                    risk = entry_price - sl
+
+                    if spec['min_risk_pts'] <= risk <= spec['max_risk_pts']:
+                        if memory_engine:
+                            approved, confidence, reason = memory_engine.evaluate_setup_viability(asset, session_name, 'BISI')
+                            if not approved:
+                                return None # Gated by learned history / circuit breaker!
+                        else:
+                            confidence = 0.85
+                            reason = "Default clearance"
+
+                        target_cm = entry_price + (risk * 1.5)
+                        target_hs = entry_price + (risk * 3.0)
+                        pd_array = PDArray(
+                            array_type='BISI',
+                            high=fvg_high,
+                            low=fvg_low,
+                            consequent_encroachment=fvg_ce,
+                            formation_time=c2.timestamp_et
+                        )
+                        rationale = (
+                            f"[Adaptive Confidence: {confidence*100:.1f}%] "
+                            f"Bullish BISI confirmed following SSL sweep below {ref_low:.2f} at {s_bar.timestamp_et.strftime('%H:%M')} EST. "
+                            f"Candle bodies respected 50% CE ({fvg_ce:.2f}). "
+                            f"Body MSS closure confirmed. Lowest discount quadrant satisfied. {reason}"
+                        )
+                        return AlgorithmicSignal(
+                            asset=asset, session=session_name, direction='LONG',
+                            entry_price=entry_price, stop_loss=sl, risk_pts=risk,
+                            target_center_mass=target_cm, target_head_shot=target_hs,
+                            pd_array=pd_array, ai_rationale=rationale
+                        )
 
         return None
 
@@ -292,23 +347,75 @@ class IPDAEngine:
         eq = ref_low + 0.5 * ref_range
         quadrant = "PREMIUM (Upper 50%)" if current_px > eq else "DISCOUNT (Lower 50%)"
 
-        # 4. Sweep Inspection
-        b0 = candles[-3] if len(candles) >= 3 else candles[-1]
-        b1 = candles[-2] if len(candles) >= 2 else candles[-1]
-        b2 = candles[-1]
+        # 4. Session-Wide Sweep & Structure Inspection
+        session_bars: List[Candle] = []
+        if session_name:
+            if win['exec_start'] < win['exec_end']:
+                session_bars = [c for c in today_bars if win['exec_start'] <= c.timestamp_et.time() <= win['exec_end']]
+            else:
+                session_bars = [c for c in candles if (c.timestamp_et.time() >= win['exec_start']) or (c.timestamp_et.time() <= win['exec_end'])]
 
-        swept_high = any(c.high > ref_high and c.close < ref_high for c in [b0, b1, b2])
-        swept_low = any(c.low < ref_low and c.close > ref_low for c in [b0, b1, b2])
+        high_sweeps = [c for c in session_bars if c.high > ref_high and c.close < ref_high]
+        low_sweeps = [c for c in session_bars if c.low < ref_low and c.close > ref_low]
+
+        # Fallback to recent 3 bars if session bars are being initialized
+        if not high_sweeps and not low_sweeps:
+            recent_3 = candles[-3:] if len(candles) >= 3 else candles
+            high_sweeps = [c for c in recent_3 if c.high > ref_high and c.close < ref_high]
+            low_sweeps = [c for c in recent_3 if c.low < ref_low and c.close > ref_low]
+
+        # Prioritize the most significant liquidity raid
+        swept_high_bar = max(high_sweeps, key=lambda c: c.high) if high_sweeps else None
+        swept_low_bar = min(low_sweeps, key=lambda c: c.low) if low_sweeps else None
+        swept_high = swept_high_bar is not None
+        swept_low = swept_low_bar is not None
+
+        # Check Candle Body MSS after sweep (Lecture 48)
+        mss_confirmed = False
+        if swept_high_bar:
+            mss_confirmed = any(c.body_bottom < swept_high_bar.low for c in session_bars if c.timestamp_et > swept_high_bar.timestamp_et)
+        elif swept_low_bar:
+            mss_confirmed = any(c.body_top > swept_low_bar.high for c in session_bars if c.timestamp_et > swept_low_bar.timestamp_et)
+
+        # Check 50% Consequent Encroachment (C.E.) of active Fair Value Gap (Lectures 35 & 41)
+        ce_respected = False
+        if swept_high_bar and mss_confirmed:
+            for i in range(len(session_bars) - 2):
+                c0 = session_bars[i]
+                c2 = session_bars[i + 2]
+                if c0.low > c2.high:
+                    fvg_ce = c2.high + 0.5 * (c0.low - c2.high)
+                    if all(c.close <= fvg_ce for c in session_bars[i + 1:]):
+                        ce_respected = True
+                        break
+        elif swept_low_bar and mss_confirmed:
+            for i in range(len(session_bars) - 2):
+                c0 = session_bars[i]
+                c2 = session_bars[i + 2]
+                if c2.low > c0.high:
+                    fvg_ce = c0.high + 0.5 * (c2.low - c0.high)
+                    if all(c.close >= fvg_ce for c in session_bars[i + 1:]):
+                        ce_respected = True
+                        break
 
         # 5. Diagnostic Checklist
         is_range_valid = ref_range >= spec['min_pre_range']
+        if swept_high_bar:
+            t_str = swept_high_bar.timestamp_et.strftime('%H:%M')
+            sweep_label = f"BSL SWEPT ({t_str} EST)"
+        elif swept_low_bar:
+            t_str = swept_low_bar.timestamp_et.strftime('%H:%M')
+            sweep_label = f"SSL SWEPT ({t_str} EST)"
+        else:
+            sweep_label = "NO (Inside Range)"
+
         checklist = {
             "Calendar Risk": "STANDBY (Pre-NFP)" if is_nfp else "CLEAR (No NFP Risk)",
             "Session Timing": f"ACTIVE ({session_name})" if session_name else f"STANDBY (Next: {target_session})",
             "Volatility Range": f"VALID ({ref_range:.2f} pts >= {spec['min_pre_range']:.2f})" if is_range_valid else f"COMPRESSED ({ref_range:.2f} < {spec['min_pre_range']:.2f})",
-            "Liquidity Sweep": "BSL SWEPT (Bearish Fuel)" if swept_high else ("SSL SWEPT (Bullish Fuel)" if swept_low else "NO (Inside Range)"),
-            "Candle Body MSS": "CONFIRMED" if (swept_high and (b1.body_bottom < b0.low or b2.body_bottom < b0.low)) or (swept_low and (b1.body_top > b0.high or b2.body_top > b0.high)) else "WAITING",
-            "50% C.E. Respect": "RESPECTED" if (swept_high and b2.close <= eq) or (swept_low and b2.close >= eq) else "PENDING"
+            "Liquidity Sweep": sweep_label,
+            "Candle Body MSS": "CONFIRMED" if mss_confirmed else "WAITING",
+            "50% C.E. Respect": "RESPECTED" if ce_respected else "PENDING"
         }
 
         # Confluence Score (0 to 100)
@@ -317,7 +424,8 @@ class IPDAEngine:
         if session_name: score += 25
         if is_range_valid: score += 20
         if swept_high or swept_low: score += 20
-        if checklist["Candle Body MSS"] == "CONFIRMED": score += 20
+        if checklist["Candle Body MSS"] == "CONFIRMED": score += 10
+        if checklist["50% C.E. Respect"] == "RESPECTED": score += 10
 
         # AI Executive Decision & Market Thesis
         if not session_name:
@@ -348,13 +456,14 @@ class IPDAEngine:
                 f"Waiting for smart money to wick above {ref_high:.2f} or below {ref_low:.2f} before taking any action."
             )
         else:
+            sweep_type = "BSL (High)" if swept_high else "SSL (Low)"
             status = "EVALUATING_MSS"
-            status_label = "Sweep Detected — Checking MSS"
+            status_label = f"{sweep_type} Swept — Hunting FVG Retest"
             badge = "b-l" if swept_low else "b-s"
             decision = "CONFIRMING DISPLACEMENT & 50% C.E."
             thesis = (
-                f"Liquidity pool raided! {'High swept' if swept_high else 'Low swept'}. "
-                f"Evaluating 5m candle body closure against 50% Consequent Encroachment ({eq:.2f}) to confirm genuine smart money participation."
+                f"Liquidity pool raided! {sweep_type} swept in current session. "
+                f"Monitoring 5m displacement and Fair Value Gap retest respecting 50% Consequent Encroachment ({eq:.2f})."
             )
 
         return {
