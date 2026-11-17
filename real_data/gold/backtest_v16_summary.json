@@ -1,0 +1,2493 @@
+{
+  "period": "2026-05-01 to 2026-11-17",
+  "initial_capital": 10000.0,
+  "final_equity": 6494.2200000000585,
+  "net_pnl": -3505.7799999999893,
+  "profit_factor": 0.6716235329380604,
+  "win_rate": 36.29032258064516,
+  "total_trades": 248,
+  "max_drawdown_pct": 36.70609975030189,
+  "gold_return_pct": -16.292522824253783,
+  "trades": [
+    {
+      "entry_time": "2026-05-01 07:25",
+      "exit_time": "2026-05-01 07:50",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4585.42,
+      "exit": 4576.44,
+      "pnl": -66.36000000000283,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-01 07:50",
+      "exit_time": "2026-05-01 08:20",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4575.0,
+      "exit": 4565.160000000001,
+      "pnl": 78.07999999999389,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-01 12:15",
+      "exit_time": "2026-05-01 13:50",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4584.57,
+      "exit": 4604.089999999999,
+      "pnl": 77.75999999999812,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-04 08:00",
+      "exit_time": "2026-05-04 10:00",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4572.2,
+      "exit": 4556.744,
+      "pnl": 76.88000000000065,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-05 07:20",
+      "exit_time": "2026-05-05 07:35",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4546.45,
+      "exit": 4550.14,
+      "pnl": -80.78000000000713,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-05 07:40",
+      "exit_time": "2026-05-05 08:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4546.3,
+      "exit": 4552.98,
+      "pnl": -61.31999999999567,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-05 10:15",
+      "exit_time": "2026-05-05 10:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4546.47,
+      "exit": 4542.678000000001,
+      "pnl": 77.95199999998869,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-06 07:55",
+      "exit_time": "2026-05-06 08:50",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4669.55,
+      "exit": 4688.830000000001,
+      "pnl": 76.80000000000263,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-07 08:05",
+      "exit_time": "2026-05-07 08:15",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4735.26,
+      "exit": 4725.004000000001,
+      "pnl": 81.40799999999523,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-07 12:40",
+      "exit_time": "2026-05-07 13:10",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4743.07,
+      "exit": 4728.38,
+      "pnl": -50.3099999999988,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-07 13:45",
+      "exit_time": "2026-05-07 14:10",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4733.91,
+      "exit": 4745.01,
+      "pnl": -65.90000000000182,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-12 07:10",
+      "exit_time": "2026-05-12 12:20",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4688.76,
+      "exit": 4705.176,
+      "pnl": 81.68000000000083,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-12 13:25",
+      "exit_time": "2026-05-12 13:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4687.48,
+      "exit": 4680.95,
+      "pnl": -68.87999999999796,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-12 13:35",
+      "exit_time": "2026-05-12 13:55",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4692.49,
+      "exit": 4680.31,
+      "pnl": -57.03999999999753,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-13 09:25",
+      "exit_time": "2026-05-13 09:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4684.89,
+      "exit": 4689.962,
+      "pnl": 79.87200000000186,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-13 12:30",
+      "exit_time": "2026-05-13 15:30",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4678.33,
+      "exit": 4689.3,
+      "pnl": -65.25000000000128,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-14 07:40",
+      "exit_time": "2026-05-14 07:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4701.24,
+      "exit": 4686.423999999999,
+      "pnl": 73.68000000000356,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-15 08:35",
+      "exit_time": "2026-05-15 09:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4559.68,
+      "exit": 4553.5,
+      "pnl": -66.08000000000233,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-15 09:35",
+      "exit_time": "2026-05-15 09:50",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4550.63,
+      "exit": 4537.702,
+      "pnl": 77.0879999999993,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-15 10:05",
+      "exit_time": "2026-05-15 13:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4561.57,
+      "exit": 4547.64,
+      "pnl": -64.03999999999752,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-18 07:40",
+      "exit_time": "2026-05-18 08:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4546.41,
+      "exit": 4551.87,
+      "pnl": -67.86000000000033,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-18 08:55",
+      "exit_time": "2026-05-18 09:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4547.63,
+      "exit": 4537.774,
+      "pnl": 78.20799999999814,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-18 12:00",
+      "exit_time": "2026-05-18 12:05",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4548.36,
+      "exit": 4553.2,
+      "pnl": -69.20000000000145,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-19 10:45",
+      "exit_time": "2026-05-19 10:55",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4531.8,
+      "exit": 4541.608,
+      "pnl": 77.82399999999994,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-19 14:50",
+      "exit_time": "2026-05-19 15:00",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4491.25,
+      "exit": 4501.36,
+      "pnl": -60.94999999999836,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-21 07:50",
+      "exit_time": "2026-05-21 08:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4517.35,
+      "exit": 4526.134000000002,
+      "pnl": 78.33600000001323,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-21 10:40",
+      "exit_time": "2026-05-21 12:25",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4515.15,
+      "exit": 4503.49,
+      "pnl": -54.95999999999942,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-21 15:05",
+      "exit_time": "2026-05-21 15:10",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4499.3,
+      "exit": 4509.21,
+      "pnl": -59.94999999999927,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-22 14:05",
+      "exit_time": "2026-05-22 14:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4506.83,
+      "exit": 4500.5,
+      "pnl": -67.27999999999942,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-22 14:55",
+      "exit_time": "2026-05-22 15:05",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4499.01,
+      "exit": 4504.1,
+      "pnl": -71.70000000000145,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-22 15:05",
+      "exit_time": "2026-05-22 17:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4507.75,
+      "exit": 4522.95,
+      "pnl": 75.59999999999908,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-26 08:35",
+      "exit_time": "2026-05-26 09:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4520.7,
+      "exit": 4516.92,
+      "pnl": -76.17999999999668,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-26 09:15",
+      "exit_time": "2026-05-26 09:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4522.5,
+      "exit": 4516.06,
+      "pnl": -68.1599999999968,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-26 09:55",
+      "exit_time": "2026-05-26 10:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4520.5,
+      "exit": 4528.884,
+      "pnl": 83.04000000000015,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-27 07:20",
+      "exit_time": "2026-05-27 07:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4488.48,
+      "exit": 4484.49,
+      "pnl": -78.90999999999715,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-27 07:40",
+      "exit_time": "2026-05-27 08:15",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4482.69,
+      "exit": 4489.49,
+      "pnl": -62.160000000001276,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-27 08:15",
+      "exit_time": "2026-05-27 10:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4488.92,
+      "exit": 4483.51,
+      "pnl": -67.40999999999869,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-28 14:20",
+      "exit_time": "2026-05-28 14:45",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4456.09,
+      "exit": 4467.74,
+      "pnl": -54.919999999998545,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-29 07:45",
+      "exit_time": "2026-05-29 08:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4518.58,
+      "exit": 4515.955999999999,
+      "pnl": 76.32000000002117,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-05-29 08:00",
+      "exit_time": "2026-05-29 09:10",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4514.62,
+      "exit": 4519.74,
+      "pnl": -71.9999999999989,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-05-29 09:20",
+      "exit_time": "2026-05-29 09:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4518.34,
+      "exit": 4524.94,
+      "pnl": -69.43999999999563,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-01 07:55",
+      "exit_time": "2026-06-01 08:20",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4497.67,
+      "exit": 4489.51,
+      "pnl": -61.439999999999124,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-01 08:45",
+      "exit_time": "2026-06-01 09:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4498.25,
+      "exit": 4490.36,
+      "pnl": -59.82000000000196,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-01 10:05",
+      "exit_time": "2026-06-01 13:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4498.2,
+      "exit": 4492.0,
+      "pnl": -66.23999999999855,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-02 07:15",
+      "exit_time": "2026-06-02 07:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4532.25,
+      "exit": 4527.066000000001,
+      "pnl": 76.5599999999893,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-03 07:30",
+      "exit_time": "2026-06-03 08:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4456.24,
+      "exit": 4450.5,
+      "pnl": -70.37999999999803,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-03 08:00",
+      "exit_time": "2026-06-03 08:20",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4454.65,
+      "exit": 4448.5,
+      "pnl": -65.83999999999709,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-03 08:20",
+      "exit_time": "2026-06-03 08:55",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4448.01,
+      "exit": 4438.0740000000005,
+      "pnl": 78.84799999999755,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-04 14:35",
+      "exit_time": "2026-06-04 14:45",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4476.09,
+      "exit": 4465.482,
+      "pnl": 84.2240000000014,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-05 11:55",
+      "exit_time": "2026-06-05 12:15",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4462.08,
+      "exit": 4467.56,
+      "pnl": -68.04000000000426,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-05 12:20",
+      "exit_time": "2026-06-05 12:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4461.78,
+      "exit": 4449.844,
+      "pnl": 82.99199999999786,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-05 13:20",
+      "exit_time": "2026-06-05 13:35",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4407.51,
+      "exit": 4390.566,
+      "pnl": 84.32000000000207,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-09 14:20",
+      "exit_time": "2026-06-09 14:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4310.36,
+      "exit": 4297.17,
+      "pnl": -61.0799999999984,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-09 15:20",
+      "exit_time": "2026-06-09 16:05",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4280.07,
+      "exit": 4258.614,
+      "pnl": 85.50400000000053,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-10 08:15",
+      "exit_time": "2026-06-10 10:05",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4174.0,
+      "exit": 4161.79,
+      "pnl": -57.160000000000146,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-10 10:05",
+      "exit_time": "2026-06-10 10:45",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4160.5,
+      "exit": 4171.89,
+      "pnl": -53.88000000000131,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-10 10:45",
+      "exit_time": "2026-06-10 11:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4175.41,
+      "exit": 4164.57,
+      "pnl": -64.60000000000073,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-15 08:55",
+      "exit_time": "2026-06-15 09:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4328.66,
+      "exit": 4333.74,
+      "pnl": -71.59999999999927,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-15 09:00",
+      "exit_time": "2026-06-15 11:45",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4335.53,
+      "exit": 4328.14,
+      "pnl": -66.28999999999593,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-15 11:45",
+      "exit_time": "2026-06-15 12:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4327.85,
+      "exit": 4340.98,
+      "pnl": -60.8399999999968,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-16 08:05",
+      "exit_time": "2026-06-16 09:05",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4329.59,
+      "exit": 4339.718,
+      "pnl": 80.38399999999761,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-16 14:15",
+      "exit_time": "2026-06-16 15:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4314.28,
+      "exit": 4328.02,
+      "pnl": -63.280000000002765,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-17 08:50",
+      "exit_time": "2026-06-17 13:20",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4317.3,
+      "exit": 4328.82,
+      "pnl": 80.07999999999669,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-17 14:45",
+      "exit_time": "2026-06-17 15:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4338.97,
+      "exit": 4349.03,
+      "pnl": -60.69999999999745,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-17 15:55",
+      "exit_time": "2026-06-17 16:40",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4355.16,
+      "exit": 4349.66,
+      "pnl": -68.22,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-18 09:25",
+      "exit_time": "2026-06-18 11:00",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4261.33,
+      "exit": 4249.858,
+      "pnl": 79.74399999999827,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-23 07:50",
+      "exit_time": "2026-06-23 09:20",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4099.01,
+      "exit": 4112.37,
+      "pnl": -61.75999999999869,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-23 13:05",
+      "exit_time": "2026-06-23 13:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4112.04,
+      "exit": 4103.82,
+      "pnl": -61.800000000001525,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-23 13:20",
+      "exit_time": "2026-06-23 13:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4110.64,
+      "exit": 4127.3600000000015,
+      "pnl": 83.20000000000582,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-24 11:35",
+      "exit_time": "2026-06-24 11:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4053.51,
+      "exit": 4045.79,
+      "pnl": -58.800000000001525,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-24 11:50",
+      "exit_time": "2026-06-24 12:05",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4056.26,
+      "exit": 4041.39,
+      "pnl": -50.85000000000104,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-24 12:05",
+      "exit_time": "2026-06-24 12:25",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4042.37,
+      "exit": 4019.8579999999997,
+      "pnl": 89.72800000000069,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-25 13:30",
+      "exit_time": "2026-06-25 15:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4014.26,
+      "exit": 4028.64,
+      "pnl": -49.379999999998965,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-26 07:40",
+      "exit_time": "2026-06-26 09:10",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4030.39,
+      "exit": 4037.46,
+      "pnl": -64.05000000000115,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-29 11:55",
+      "exit_time": "2026-06-29 12:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4037.78,
+      "exit": 4045.3480000000004,
+      "pnl": 82.36800000000233,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-06-29 12:30",
+      "exit_time": "2026-06-29 13:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4040.96,
+      "exit": 4035.06,
+      "pnl": -63.84000000000073,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-06-30 15:00",
+      "exit_time": "2026-06-30 17:10",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4033.32,
+      "exit": 4019.32,
+      "pnl": 83.52,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-01 07:15",
+      "exit_time": "2026-07-01 07:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3968.98,
+      "exit": 3960.5,
+      "pnl": -63.360000000000106,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-01 07:35",
+      "exit_time": "2026-07-01 10:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3968.57,
+      "exit": 3988.0580000000004,
+      "pnl": 77.63200000000114,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-02 08:55",
+      "exit_time": "2026-07-02 09:15",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4074.29,
+      "exit": 4067.8099999999995,
+      "pnl": 76.80000000000568,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-02 13:45",
+      "exit_time": "2026-07-02 14:10",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4136.73,
+      "exit": 4122.04,
+      "pnl": -50.3099999999988,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-06 09:55",
+      "exit_time": "2026-07-06 10:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4139.88,
+      "exit": 4145.64,
+      "pnl": 79.52000000000305,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-06 13:00",
+      "exit_time": "2026-07-06 13:55",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4139.14,
+      "exit": 4133.29,
+      "pnl": -71.37000000000327,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-06 15:00",
+      "exit_time": "2026-07-06 17:40",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4140.72,
+      "exit": 4156.176,
+      "pnl": 76.88000000000065,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-08 09:05",
+      "exit_time": "2026-07-08 11:40",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4049.0,
+      "exit": 4062.97,
+      "pnl": -64.19999999999919,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-09 07:30",
+      "exit_time": "2026-07-09 07:40",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4102.28,
+      "exit": 4105.3,
+      "pnl": -86.70000000000742,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-09 08:00",
+      "exit_time": "2026-07-09 08:05",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4102.15,
+      "exit": 4105.03,
+      "pnl": -84.32000000000185,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-09 09:05",
+      "exit_time": "2026-07-09 09:15",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4101.61,
+      "exit": 4104.74,
+      "pnl": -83.36000000000175,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-10 10:20",
+      "exit_time": "2026-07-10 10:55",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4105.17,
+      "exit": 4099.76,
+      "pnl": -67.40999999999869,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-10 12:10",
+      "exit_time": "2026-07-10 12:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4109.63,
+      "exit": 4095.38,
+      "pnl": -65.32,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-10 15:45",
+      "exit_time": "2026-07-10 17:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4104.92,
+      "exit": 4098.92,
+      "pnl": -64.64,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-13 15:40",
+      "exit_time": "2026-07-13 16:25",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4012.62,
+      "exit": 4004.316,
+      "pnl": 82.24000000000088,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-15 07:40",
+      "exit_time": "2026-07-15 07:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4018.91,
+      "exit": 4022.0299999999997,
+      "pnl": 79.03999999999716,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-15 08:15",
+      "exit_time": "2026-07-15 10:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4020.68,
+      "exit": 4030.1999999999994,
+      "pnl": 75.51999999999622,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-15 13:10",
+      "exit_time": "2026-07-15 15:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4056.66,
+      "exit": 4037.3959999999997,
+      "pnl": 76.7360000000005,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-16 12:25",
+      "exit_time": "2026-07-16 12:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4020.96,
+      "exit": 4013.24,
+      "pnl": -58.800000000001525,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-16 14:10",
+      "exit_time": "2026-07-16 14:25",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 3988.63,
+      "exit": 3996.27,
+      "pnl": -68.03999999999911,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-17 13:00",
+      "exit_time": "2026-07-17 13:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3974.28,
+      "exit": 3997.0800000000004,
+      "pnl": 90.88000000000073,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-17 15:05",
+      "exit_time": "2026-07-17 15:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4004.6,
+      "exit": 4011.37,
+      "pnl": -61.949999999999875,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-20 08:25",
+      "exit_time": "2026-07-20 11:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4020.39,
+      "exit": 4027.43,
+      "pnl": -63.83999999999975,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-20 11:45",
+      "exit_time": "2026-07-20 12:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4023.66,
+      "exit": 4013.964,
+      "pnl": 76.9279999999993,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-22 13:45",
+      "exit_time": "2026-07-22 15:45",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4140.47,
+      "exit": 4156.9980000000005,
+      "pnl": 82.24000000000123,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-24 09:10",
+      "exit_time": "2026-07-24 09:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4048.51,
+      "exit": 4052.75,
+      "pnl": -75.83999999999739,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-24 11:45",
+      "exit_time": "2026-07-24 11:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4048.36,
+      "exit": 4051.84,
+      "pnl": -77.84000000000026,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-24 12:00",
+      "exit_time": "2026-07-24 13:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4048.29,
+      "exit": 4054.96,
+      "pnl": -61.25000000000051,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-27 12:25",
+      "exit_time": "2026-07-27 13:25",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4082.35,
+      "exit": 4075.9,
+      "pnl": -68.23999999999855,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-27 13:35",
+      "exit_time": "2026-07-27 13:55",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4081.17,
+      "exit": 4070.12,
+      "pnl": -65.65000000000092,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-27 16:25",
+      "exit_time": "2026-07-27 16:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4080.48,
+      "exit": 4087.872,
+      "pnl": 80.43199999999808,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-28 09:50",
+      "exit_time": "2026-07-28 09:55",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4026.85,
+      "exit": 4019.9379999999996,
+      "pnl": 81.98400000000315,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-28 15:10",
+      "exit_time": "2026-07-28 19:25",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4031.66,
+      "exit": 4019.91,
+      "pnl": -55.32,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-29 07:50",
+      "exit_time": "2026-07-29 08:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4039.33,
+      "exit": 4033.026,
+      "pnl": 80.91200000000113,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-29 14:05",
+      "exit_time": "2026-07-29 14:15",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4000.0,
+      "exit": 4007.99,
+      "pnl": -60.41999999999869,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-29 14:20",
+      "exit_time": "2026-07-29 16:55",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4008.58,
+      "exit": 4025.8759999999997,
+      "pnl": 86.0799999999991,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-07-30 13:40",
+      "exit_time": "2026-07-30 13:45",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4085.23,
+      "exit": 4095.73,
+      "pnl": -62.9,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-30 14:15",
+      "exit_time": "2026-07-30 14:35",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4087.21,
+      "exit": 4098.05,
+      "pnl": -64.60000000000073,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-07-30 14:40",
+      "exit_time": "2026-07-30 15:05",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4105.33,
+      "exit": 4091.42,
+      "pnl": -63.95999999999942,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-03 09:35",
+      "exit_time": "2026-08-03 11:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4050.31,
+      "exit": 4057.9899999999993,
+      "pnl": 75.99999999999382,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-03 13:10",
+      "exit_time": "2026-08-03 19:20",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4038.56,
+      "exit": 4052.26,
+      "pnl": -63.12000000000109,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-04 12:00",
+      "exit_time": "2026-08-04 12:35",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4065.25,
+      "exit": 4072.89,
+      "pnl": -68.03999999999911,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-04 12:55",
+      "exit_time": "2026-08-04 13:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4066.95,
+      "exit": 4072.72,
+      "pnl": -70.64999999999984,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-04 13:35",
+      "exit_time": "2026-08-04 14:35",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4082.35,
+      "exit": 4071.32,
+      "pnl": -65.54999999999873,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-05 11:50",
+      "exit_time": "2026-08-05 12:15",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4181.05,
+      "exit": 4192.618000000001,
+      "pnl": 80.41600000000784,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-06 13:25",
+      "exit_time": "2026-08-06 13:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4243.68,
+      "exit": 4255.184000000001,
+      "pnl": 79.9680000000057,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-07 08:20",
+      "exit_time": "2026-08-07 08:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4292.32,
+      "exit": 4297.21,
+      "pnl": -69.70000000000327,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-07 09:20",
+      "exit_time": "2026-08-07 09:30",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4306.99,
+      "exit": 4300.62,
+      "pnl": -67.59999999999913,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-10 16:00",
+      "exit_time": "2026-08-10 18:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4352.51,
+      "exit": 4358.5,
+      "pnl": -64.55999999999825,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-11 07:25",
+      "exit_time": "2026-08-11 07:40",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4363.09,
+      "exit": 4357.5,
+      "pnl": -69.03000000000131,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-11 08:00",
+      "exit_time": "2026-08-11 10:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4364.34,
+      "exit": 4376.66,
+      "pnl": 73.43999999999825,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-12 09:25",
+      "exit_time": "2026-08-12 12:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4411.65,
+      "exit": 4421.99,
+      "pnl": -62.100000000000726,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-12 13:30",
+      "exit_time": "2026-08-12 13:45",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4407.06,
+      "exit": 4417.43,
+      "pnl": -62.24999999999945,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-12 14:10",
+      "exit_time": "2026-08-12 14:35",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4425.55,
+      "exit": 4415.23,
+      "pnl": -62.00000000000309,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-13 08:20",
+      "exit_time": "2026-08-13 09:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4370.12,
+      "exit": 4378.6,
+      "pnl": 75.60000000000426,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-13 15:20",
+      "exit_time": "2026-08-13 15:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4371.1,
+      "exit": 4364.21,
+      "pnl": -62.790000000002294,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-13 15:35",
+      "exit_time": "2026-08-13 16:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4370.36,
+      "exit": 4359.39,
+      "pnl": -65.24999999999673,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-14 10:05",
+      "exit_time": "2026-08-14 10:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4360.16,
+      "exit": 4355.152,
+      "pnl": 78.84799999999697,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-17 15:15",
+      "exit_time": "2026-08-17 17:20",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4418.16,
+      "exit": 4412.54,
+      "pnl": -69.29999999999902,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-18 14:45",
+      "exit_time": "2026-08-18 14:50",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4387.53,
+      "exit": 4377.62,
+      "pnl": -59.94999999999927,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-20 12:55",
+      "exit_time": "2026-08-20 13:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4466.09,
+      "exit": 4474.730000000001,
+      "pnl": 77.04000000001113,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-20 13:15",
+      "exit_time": "2026-08-20 13:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4467.37,
+      "exit": 4462.51,
+      "pnl": -69.39999999999672,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-20 13:30",
+      "exit_time": "2026-08-20 13:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4465.52,
+      "exit": 4473.5520000000015,
+      "pnl": 79.52000000001063,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-21 08:30",
+      "exit_time": "2026-08-21 09:10",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4572.92,
+      "exit": 4590.776,
+      "pnl": 71.10399999999908,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-24 11:55",
+      "exit_time": "2026-08-24 12:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4650.5,
+      "exit": 4645.3,
+      "pnl": 76.79999999999727,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-24 12:30",
+      "exit_time": "2026-08-24 12:40",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4648.02,
+      "exit": 4655.99,
+      "pnl": -60.29999999999607,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-24 12:40",
+      "exit_time": "2026-08-24 13:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4650.3,
+      "exit": 4662.47,
+      "pnl": -57.00000000000029,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-25 13:30",
+      "exit_time": "2026-08-25 13:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4613.21,
+      "exit": 4600.61,
+      "pnl": -58.720000000001455,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-25 14:05",
+      "exit_time": "2026-08-25 14:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4613.7,
+      "exit": 4605.85,
+      "pnl": -59.57999999999672,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-26 08:20",
+      "exit_time": "2026-08-26 09:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4620.57,
+      "exit": 4616.67,
+      "pnl": -77.73999999999526,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-26 09:45",
+      "exit_time": "2026-08-26 10:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4619.23,
+      "exit": 4614.5,
+      "pnl": -74.9099999999952,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-26 11:55",
+      "exit_time": "2026-08-26 12:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4620.0,
+      "exit": 4612.34,
+      "pnl": -68.17999999999898,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-27 07:50",
+      "exit_time": "2026-08-27 08:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4594.02,
+      "exit": 4599.268000000002,
+      "pnl": 77.52000000002117,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-27 08:50",
+      "exit_time": "2026-08-27 09:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4596.23,
+      "exit": 4591.46,
+      "pnl": -68.49999999999527,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-08-27 09:30",
+      "exit_time": "2026-08-27 09:35",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4589.07,
+      "exit": 4579.789999999999,
+      "pnl": 82.8000000000059,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-08-28 08:15",
+      "exit_time": "2026-08-28 08:40",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4602.25,
+      "exit": 4595.5779999999995,
+      "pnl": 79.10400000000577,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-01 08:00",
+      "exit_time": "2026-09-01 08:10",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4414.51,
+      "exit": 4397.39,
+      "pnl": 85.19999999999945,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-02 12:30",
+      "exit_time": "2026-09-02 13:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4344.52,
+      "exit": 4354.85,
+      "pnl": -62.049999999999635,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-03 09:15",
+      "exit_time": "2026-09-03 09:45",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4441.35,
+      "exit": 4433.478,
+      "pnl": 77.92000000000299,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-03 11:55",
+      "exit_time": "2026-09-03 12:30",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4450.61,
+      "exit": 4463.553999999998,
+      "pnl": 77.18399999999157,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-04 07:50",
+      "exit_time": "2026-09-04 08:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4484.85,
+      "exit": 4475.858,
+      "pnl": 80.2080000000017,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-07 11:35",
+      "exit_time": "2026-09-07 13:05",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4390.18,
+      "exit": 4401.108,
+      "pnl": 75.93599999999918,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-08 07:50",
+      "exit_time": "2026-09-08 08:45",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4392.81,
+      "exit": 4399.37,
+      "pnl": -69.11999999999593,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-08 09:40",
+      "exit_time": "2026-09-08 10:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4403.0,
+      "exit": 4396.94,
+      "pnl": -65.1200000000032,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-08 10:15",
+      "exit_time": "2026-09-08 11:05",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4400.86,
+      "exit": 4395.48,
+      "pnl": -67.14000000000098,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-09 08:10",
+      "exit_time": "2026-09-09 09:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4405.84,
+      "exit": 4393.936000000001,
+      "pnl": 82.76799999999679,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-09 11:35",
+      "exit_time": "2026-09-09 11:45",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4406.72,
+      "exit": 4411.08,
+      "pnl": -70.8399999999964,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-09 12:00",
+      "exit_time": "2026-09-09 12:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4406.0,
+      "exit": 4397.7919999999995,
+      "pnl": 81.28000000000539,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-11 16:15",
+      "exit_time": "2026-09-11 17:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4363.3,
+      "exit": 4372.87,
+      "pnl": -58.24999999999854,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-14 07:10",
+      "exit_time": "2026-09-14 07:25",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4328.9,
+      "exit": 4324.87,
+      "pnl": -73.31999999999695,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-14 07:30",
+      "exit_time": "2026-09-14 08:50",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4323.13,
+      "exit": 4313.786,
+      "pnl": 83.37600000000046,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-15 08:05",
+      "exit_time": "2026-09-15 10:50",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4269.42,
+      "exit": 4283.77,
+      "pnl": -49.29000000000109,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-15 11:55",
+      "exit_time": "2026-09-15 12:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4288.89,
+      "exit": 4285.49,
+      "pnl": -82.20000000000819,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-15 12:45",
+      "exit_time": "2026-09-15 14:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4294.62,
+      "exit": 4283.06,
+      "pnl": -54.55999999999796,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-16 10:25",
+      "exit_time": "2026-09-16 12:00",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4351.75,
+      "exit": 4345.79,
+      "pnl": -64.32000000000029,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-16 12:15",
+      "exit_time": "2026-09-16 12:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4345.32,
+      "exit": 4351.6,
+      "pnl": -66.88000000000524,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-16 13:40",
+      "exit_time": "2026-09-16 14:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4346.52,
+      "exit": 4334.680000000001,
+      "pnl": 82.31999999999465,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-17 08:15",
+      "exit_time": "2026-09-17 11:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4319.47,
+      "exit": 4329.46,
+      "pnl": -60.34999999999891,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-21 08:00",
+      "exit_time": "2026-09-21 08:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4343.41,
+      "exit": 4349.65,
+      "pnl": 80.07999999999716,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-21 09:40",
+      "exit_time": "2026-09-21 11:35",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4344.11,
+      "exit": 4354.685999999999,
+      "pnl": 83.9679999999929,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-21 15:00",
+      "exit_time": "2026-09-21 21:40",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4342.76,
+      "exit": 4335.0,
+      "pnl": -59.04000000000131,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-22 07:50",
+      "exit_time": "2026-09-22 08:40",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4304.72,
+      "exit": 4317.89,
+      "pnl": -61.00000000000029,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-22 09:40",
+      "exit_time": "2026-09-22 09:50",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4321.34,
+      "exit": 4333.836000000001,
+      "pnl": 74.49600000000602,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-22 11:10",
+      "exit_time": "2026-09-22 11:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4317.36,
+      "exit": 4326.735999999999,
+      "pnl": 83.66399999999365,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-23 07:25",
+      "exit_time": "2026-09-23 08:45",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4323.33,
+      "exit": 4316.482,
+      "pnl": 81.21599999999948,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-24 08:50",
+      "exit_time": "2026-09-24 10:20",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4259.62,
+      "exit": 4246.82,
+      "pnl": 76.32000000000109,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-24 12:20",
+      "exit_time": "2026-09-24 12:25",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4268.17,
+      "exit": 4264.5,
+      "pnl": -80.50000000000102,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-24 12:40",
+      "exit_time": "2026-09-24 13:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4269.04,
+      "exit": 4280.208,
+      "pnl": 77.61599999999765,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-25 09:25",
+      "exit_time": "2026-09-25 09:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4286.07,
+      "exit": 4291.65,
+      "pnl": -68.93999999999934,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-25 09:35",
+      "exit_time": "2026-09-25 10:05",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4288.25,
+      "exit": 4292.66,
+      "pnl": -71.3899999999984,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-25 13:00",
+      "exit_time": "2026-09-25 13:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4285.98,
+      "exit": 4274.027999999999,
+      "pnl": 83.10400000000158,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-28 07:15",
+      "exit_time": "2026-09-28 07:20",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4170.0,
+      "exit": 4167.15,
+      "pnl": -88.74000000000655,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-28 07:35",
+      "exit_time": "2026-09-28 09:10",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4161.2,
+      "exit": 4150.063999999999,
+      "pnl": 77.39200000000295,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-29 07:30",
+      "exit_time": "2026-09-29 10:45",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4155.67,
+      "exit": 4162.24,
+      "pnl": -69.19999999999767,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-29 16:40",
+      "exit_time": "2026-09-29 18:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4157.16,
+      "exit": 4163.76,
+      "pnl": -69.44000000000291,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-30 07:40",
+      "exit_time": "2026-09-30 08:15",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4200.27,
+      "exit": 4205.9,
+      "pnl": -69.3899999999928,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-09-30 08:50",
+      "exit_time": "2026-09-30 09:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4200.56,
+      "exit": 4192.208000000001,
+      "pnl": 82.71999999998953,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-09-30 13:25",
+      "exit_time": "2026-09-30 13:35",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4200.61,
+      "exit": 4193.105999999999,
+      "pnl": 81.66400000000897,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-02 12:55",
+      "exit_time": "2026-10-02 13:05",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4219.01,
+      "exit": 4206.65,
+      "pnl": -57.76000000000233,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-02 15:25",
+      "exit_time": "2026-10-02 15:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4151.57,
+      "exit": 4142.72,
+      "pnl": -65.57999999999672,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-02 16:15",
+      "exit_time": "2026-10-02 17:20",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4149.21,
+      "exit": 4143.85,
+      "pnl": -66.95999999999705,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-05 08:30",
+      "exit_time": "2026-10-05 11:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4169.4,
+      "exit": 4158.9839999999995,
+      "pnl": 82.68800000000134,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-06 08:45",
+      "exit_time": "2026-10-06 08:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4158.73,
+      "exit": 4161.21,
+      "pnl": -91.20000000000945,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-06 09:05",
+      "exit_time": "2026-10-06 09:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4159.35,
+      "exit": 4163.1,
+      "pnl": -75.78999999999999,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-06 09:50",
+      "exit_time": "2026-10-06 10:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4159.44,
+      "exit": 4161.69,
+      "pnl": -95.25999999999999,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-07 08:30",
+      "exit_time": "2026-10-07 08:50",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4138.94,
+      "exit": 4135.4,
+      "pnl": -78.6799999999995,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-07 08:50",
+      "exit_time": "2026-10-07 10:10",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4134.94,
+      "exit": 4128.491999999998,
+      "pnl": 76.41600000001476,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-07 12:05",
+      "exit_time": "2026-10-07 12:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4137.0,
+      "exit": 4133.36,
+      "pnl": -80.08000000000459,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-08 16:15",
+      "exit_time": "2026-10-08 17:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4124.72,
+      "exit": 4142.080000000001,
+      "pnl": 86.4000000000029,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-12 08:00",
+      "exit_time": "2026-10-12 08:05",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4180.22,
+      "exit": 4178.4,
+      "pnl": -105.3000000000167,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-14 09:15",
+      "exit_time": "2026-10-14 10:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4150.08,
+      "exit": 4146.61,
+      "pnl": -77.70000000000357,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-14 10:00",
+      "exit_time": "2026-10-14 12:00",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4142.99,
+      "exit": 4149.89,
+      "pnl": -62.86000000000382,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-14 12:00",
+      "exit_time": "2026-10-14 12:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4151.5,
+      "exit": 4142.29,
+      "pnl": -56.45000000000018,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-16 07:35",
+      "exit_time": "2026-10-16 09:15",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4182.62,
+      "exit": 4188.32,
+      "pnl": -70.01999999999836,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-16 09:20",
+      "exit_time": "2026-10-16 09:50",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4184.02,
+      "exit": 4176.260000000001,
+      "pnl": 76.79999999999309,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-16 14:25",
+      "exit_time": "2026-10-16 14:45",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4191.82,
+      "exit": 4184.38,
+      "pnl": -66.6399999999972,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-19 07:10",
+      "exit_time": "2026-10-19 07:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4179.73,
+      "exit": 4183.81,
+      "pnl": -73.92000000001005,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-19 07:30",
+      "exit_time": "2026-10-19 07:35",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4182.77,
+      "exit": 4179.99,
+      "pnl": -87.48000000001178,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-19 07:35",
+      "exit_time": "2026-10-19 07:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4179.42,
+      "exit": 4170.652000000001,
+      "pnl": 78.19199999999208,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-20 09:05",
+      "exit_time": "2026-10-20 09:50",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4121.35,
+      "exit": 4116.57,
+      "pnl": -68.60000000000655,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-20 10:10",
+      "exit_time": "2026-10-20 10:40",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4119.7,
+      "exit": 4125.364,
+      "pnl": 78.17599999999663,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-20 12:10",
+      "exit_time": "2026-10-20 12:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4119.22,
+      "exit": 4123.5560000000005,
+      "pnl": 76.60800000000432,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-21 11:05",
+      "exit_time": "2026-10-21 11:10",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4134.45,
+      "exit": 4136.37,
+      "pnl": -104.00000000000189,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-21 12:30",
+      "exit_time": "2026-10-21 13:00",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4135.48,
+      "exit": 4140.95,
+      "pnl": -67.95000000000229,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-21 14:00",
+      "exit_time": "2026-10-21 14:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4135.03,
+      "exit": 4140.83,
+      "pnl": -70.92000000000164,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-22 11:50",
+      "exit_time": "2026-10-22 12:10",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4071.01,
+      "exit": 4080.81,
+      "pnl": -59.399999999998634,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-22 12:10",
+      "exit_time": "2026-10-22 12:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4081.22,
+      "exit": 4092.755999999999,
+      "pnl": 80.19199999999404,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-23 13:20",
+      "exit_time": "2026-10-23 13:30",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4042.94,
+      "exit": 4037.132,
+      "pnl": 80.1919999999999,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-26 08:55",
+      "exit_time": "2026-10-26 12:25",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4027.46,
+      "exit": 4033.04,
+      "pnl": -68.93999999999934,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-26 12:55",
+      "exit_time": "2026-10-26 13:20",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4028.58,
+      "exit": 4019.9719999999998,
+      "pnl": 76.75200000000157,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-26 15:45",
+      "exit_time": "2026-10-26 16:55",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4029.07,
+      "exit": 4032.44,
+      "pnl": -81.74999999999837,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-27 08:10",
+      "exit_time": "2026-10-27 08:20",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4011.07,
+      "exit": 4009.14,
+      "pnl": -104.26000000000757,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-27 08:40",
+      "exit_time": "2026-10-27 09:05",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4005.66,
+      "exit": 4011.5,
+      "pnl": -71.28000000000131,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-27 09:05",
+      "exit_time": "2026-10-27 10:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4013.18,
+      "exit": 4006.38,
+      "pnl": -62.15999999999809,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-29 08:00",
+      "exit_time": "2026-10-29 08:45",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4035.61,
+      "exit": 4026.07,
+      "pnl": -58.09999999999982,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-29 08:50",
+      "exit_time": "2026-10-29 08:55",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4023.58,
+      "exit": 4032.79,
+      "pnl": -56.45000000000018,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-29 08:55",
+      "exit_time": "2026-10-29 11:10",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4029.24,
+      "exit": 4042.4719999999998,
+      "pnl": 78.91199999999982,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-10-30 08:10",
+      "exit_time": "2026-10-30 11:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3991.16,
+      "exit": 3982.87,
+      "pnl": -62.21999999999978,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-10-30 11:15",
+      "exit_time": "2026-10-30 12:15",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 3981.48,
+      "exit": 3968.2,
+      "pnl": 79.2000000000012,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-11-03 07:45",
+      "exit_time": "2026-11-03 08:00",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3920.53,
+      "exit": 3916.41,
+      "pnl": -74.40000000000416,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-03 08:10",
+      "exit_time": "2026-11-03 08:40",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3918.5,
+      "exit": 3913.63,
+      "pnl": -69.4999999999989,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-03 08:40",
+      "exit_time": "2026-11-03 09:35",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 3911.87,
+      "exit": 3918.53,
+      "pnl": -69.92000000000247,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-04 08:15",
+      "exit_time": "2026-11-04 08:40",
+      "side": "SHORT",
+      "signal": "Sweep-Sell",
+      "entry": 4028.12,
+      "exit": 4037.5,
+      "pnl": -57.300000000000544,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-04 09:05",
+      "exit_time": "2026-11-04 12:10",
+      "side": "LONG",
+      "signal": "IMP-Long",
+      "entry": 4043.23,
+      "exit": 4031.91,
+      "pnl": -53.600000000000655,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-06 14:00",
+      "exit_time": "2026-11-06 14:05",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 4035.0,
+      "exit": 4031.95,
+      "pnl": -82.08000000000291,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-11 14:15",
+      "exit_time": "2026-11-11 14:35",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 4020.0,
+      "exit": 4013.968,
+      "pnl": 77.37600000000198,
+      "result": "WIN"
+    },
+    {
+      "entry_time": "2026-11-12 07:15",
+      "exit_time": "2026-11-12 07:30",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3960.25,
+      "exit": 3954.5,
+      "pnl": -70.47,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-12 07:30",
+      "exit_time": "2026-11-12 07:55",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 3953.34,
+      "exit": 3960.89,
+      "pnl": -67.40999999999809,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-13 11:10",
+      "exit_time": "2026-11-13 11:25",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3881.69,
+      "exit": 3879.89,
+      "pnl": -108.6400000000051,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-13 11:30",
+      "exit_time": "2026-11-13 11:50",
+      "side": "SHORT",
+      "signal": "IMP-Short",
+      "entry": 3876.83,
+      "exit": 3882.95,
+      "pnl": -65.59999999999913,
+      "result": "LOSS"
+    },
+    {
+      "entry_time": "2026-11-13 13:00",
+      "exit_time": "2026-11-13 13:15",
+      "side": "LONG",
+      "signal": "Sweep-Buy",
+      "entry": 3881.0,
+      "exit": 3874.88,
+      "pnl": -65.59999999999913,
+      "result": "LOSS"
+    }
+  ]
+}

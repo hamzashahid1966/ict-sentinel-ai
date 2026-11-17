@@ -151,7 +151,7 @@ class BotController:
         for asset in ASSET_SPECS:
             if self.stop_event.is_set():
                 break
-            candles = self.data_feed.fetch_recent_bars(asset, interval="5m", limit=60)
+            candles = self.data_feed.fetch_recent_bars(asset, interval="5m", limit=180)
             if not candles:
                 continue
             assets_synced += 1
