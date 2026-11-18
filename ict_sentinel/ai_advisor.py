@@ -13,6 +13,17 @@ class AIAdvisor:
     def __init__(self, knowledge: Optional[KnowledgeEngine] = None):
         self.knowledge = knowledge or KnowledgeEngine()
 
+    def create_system_log(self, category: str, message: str, asset: str = "GLOBAL", session: str = "RISK_ENGINE") -> AILogEntry:
+        timestamp_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        return AILogEntry(
+            timestamp=timestamp_str,
+            asset=asset,
+            session=session,
+            category=category,
+            message=message,
+            reasoning=message
+        )
+
     def explain_trade_entry(self, asset: str, session: str, direction: str, entry_price: float, risk_pts: float, pd_array: PDArray, rationale: str) -> AILogEntry:
         timestamp_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         spec = ASSET_SPECS[asset]
@@ -20,10 +31,15 @@ class AIAdvisor:
         ce_citation = self.knowledge.format_citation("RULE_CONSEQUENT_ENCROACHMENT")
 
         msg = f"ORDER ENTRY: {direction} {spec['display_name']} @ {entry_price:.2f}"
+        ce_str = f"{pd_array.consequent_encroachment:.2f}" if (pd_array and pd_array.consequent_encroachment is not None) else "N/A"
+        arr_type = pd_array.array_type if pd_array else 'DIRECT'
+        f_time = pd_array.formation_time.strftime('%H:%M:%S EST') if pd_array else 'N/A'
+        arr_high = pd_array.high if pd_array else 0.0
+        arr_low = pd_array.low if pd_array else 0.0
         reasoning = (
             f"Institutional Setup Triggered in {session} {ce_citation}.\n"
-            f"• Array Type: {pd_array.array_type} (Formed: {pd_array.formation_time.strftime('%H:%M:%S EST')})\n"
-            f"• Array High: {pd_array.high:.2f} | Low: {pd_array.low:.2f} | 50% CE: {pd_array.consequent_encroachment:.2f}\n"
+            f"• Array Type: {arr_type} (Formed: {f_time})\n"
+            f"• Array High: {arr_high:.2f} | Low: {arr_low:.2f} | 50% CE: {ce_str}\n"
             f"• Capital Allocation: Risk = {risk_pts:.2f} pts (${dollar_risk:.2f}). Max risk strictly bounded.\n"
             f"• Core Thesis: {rationale}"
         )

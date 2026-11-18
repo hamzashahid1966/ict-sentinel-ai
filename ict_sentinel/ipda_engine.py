@@ -206,7 +206,7 @@ class IPDAEngine:
                     array_type='IMP_PULLBACK' if imp_long else 'ASIA_SWEEP',
                     high=asia_high,
                     low=asia_low,
-                    consequent_encroachment=(asia_high + asia_low) / 2.0,
+                    consequent_encroachment=None,
                     formation_time=curr.timestamp_et
                 )
                 return AlgorithmicSignal(
@@ -233,7 +233,7 @@ class IPDAEngine:
                     array_type='IMP_PULLBACK' if imp_short else 'ASIA_SWEEP',
                     high=asia_high,
                     low=asia_low,
-                    consequent_encroachment=(asia_high + asia_low) / 2.0,
+                    consequent_encroachment=None,
                     formation_time=curr.timestamp_et
                 )
                 return AlgorithmicSignal(
@@ -256,16 +256,6 @@ class IPDAEngine:
         if len(candles) < 15:
             return None
 
-        # Dedicated Institutional Strategy for Gold (v1.6 Dual-Engine IMP + Sweep Reclaim)
-        if asset == 'GOLD':
-            gold_signal = self.evaluate_gold_imp_sweep(candles)
-            if gold_signal:
-                return gold_signal
-
-        if len(candles) < 20:
-            return None
-
-        spec = ASSET_SPECS[asset]
         current_candle = candles[-1]
         now_et = current_candle.timestamp_et
         today_date = now_et.date()
@@ -274,13 +264,28 @@ class IPDAEngine:
 
         # 1. Calendar Filter: NFP Week Quarantine (Lecture 51)
         if self.is_nfp_week(today_date) and day_name in ['Thursday', 'Friday']:
-            return None # Stand down: Pre-NFP Seek & Destroy profile!
+            return None  # Stand down: Pre-NFP Seek & Destroy profile!
 
-        # 2. Session Window Check
+        # 2. Strict Session Window Check: Stand down in all inter-session transitions
         session_name = self.get_current_session(time_et)
         if not session_name:
             return None
 
+        # Dedicated Institutional Strategy for Gold (v1.6 Dual-Engine IMP + Sweep Reclaim)
+        if asset == 'GOLD':
+            gold_signal = self.evaluate_gold_imp_sweep(candles)
+            if gold_signal:
+                if memory_engine:
+                    sig_type = gold_signal.pd_array.array_type if gold_signal.pd_array else 'IMP'
+                    approved, confidence, reason = memory_engine.evaluate_setup_viability('GOLD', session_name, sig_type)
+                    if not approved:
+                        return None
+                return gold_signal
+
+        if len(candles) < 20:
+            return None
+
+        spec = ASSET_SPECS[asset]
         win = SESSION_WINDOWS[session_name]
 
         # 3. Apply 10:00 AM Gate Filter for NY Session (Lecture 51)

@@ -410,7 +410,11 @@ class BotController:
             diagnostics.append(diag)
 
         # Micro-state string
-        if not self.is_running:
+        current_dd = max(0.0, acct.peak_balance - acct.balance)
+        locked_for_day = current_dd >= 50.0
+        if locked_for_day:
+            micro_state = f"Daily Risk Budget Exceeded (${current_dd:.2f} / $50.00) — Circuit Breaker Locked (Capital Protected)"
+        elif not self.is_running:
             micro_state = "Engine Idle (Click 'Start Engine' to activate live tape scanning)"
         elif len(open_pos) > 0:
             micro_state = f"Managing {len(open_pos)} active Double Tap position(s) with Defensive Shields"
@@ -446,7 +450,8 @@ class BotController:
                 "consecutive_losses": cons_losses,
                 "max_consecutive_allowed": 2,
                 "daily_risk_budget": 50.00,
-                "drawdown_current": round(acct.max_drawdown_dollars, 2)
+                "drawdown_current": round(current_dd, 2),
+                "locked_for_day": locked_for_day
             }
         }
 
@@ -1112,11 +1117,15 @@ function U(d){
     lossBar.style.width=`${lossPct}%`;
     lossBar.style.background=rg.consecutive_losses>=2?'var(--rd)':'var(--gr)';
 
-    $('ddBudgetVal').innerText=`$${rg.drawdown_current.toFixed(2)} / $${rg.daily_risk_budget.toFixed(2)}`;
+    if(rg.locked_for_day){
+      $('ddBudgetVal').innerHTML=`<span style="color:var(--rd);font-weight:700">LOCKED ($${rg.drawdown_current.toFixed(2)} / $${rg.daily_risk_budget.toFixed(2)})</span>`;
+    }else{
+      $('ddBudgetVal').innerText=`$${rg.drawdown_current.toFixed(2)} / $${rg.daily_risk_budget.toFixed(2)}`;
+    }
     const ddPct=Math.min(100,(rg.drawdown_current/rg.daily_risk_budget)*100);
     const ddBar=$('ddBudgetBar');
     ddBar.style.width=`${ddPct}%`;
-    ddBar.style.background=ddPct>70?'var(--rd)':(ddPct>40?'var(--am)':'var(--gr)');
+    ddBar.style.background=rg.locked_for_day?'var(--rd)':(ddPct>70?'var(--rd)':(ddPct>40?'var(--am)':'var(--gr)'));
   }
 
   AT=d.trades;filt();

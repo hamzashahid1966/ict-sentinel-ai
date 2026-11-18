@@ -18,6 +18,7 @@ class OrderManager:
         self.advisor = advisor
         self.memory_engine = memory_engine
         self._positions_cache: Optional[List[Position]] = None
+        self._asset_cooldowns: Dict[str, datetime.datetime] = {}
 
     def _get_active_positions(self) -> List[Position]:
         if self._positions_cache is None:
@@ -37,10 +38,59 @@ class OrderManager:
         self._positions_cache = [p for p in self._get_active_positions() if p.position_id != pos_id]
 
     def open_position_from_signal(self, sig: AlgorithmicSignal, current_time: datetime.datetime) -> Optional[Position]:
+        # 1. Enforce Daily Drawdown Circuit Breaker ($50.00 max daily loss)
+        from .config import MAX_DAILY_DRAWDOWN_PCT, INITIAL_CAPITAL
+        max_daily_loss = (MAX_DAILY_DRAWDOWN_PCT / 100.0) * INITIAL_CAPITAL  # $50.00
+        acct = self.storage.get_account_state()
+        current_dd = max(0.0, acct.peak_balance - acct.balance)
+        if current_dd >= max_daily_loss:
+            log_entry = self.advisor.create_system_log(
+                category="CIRCUIT_BREAKER",
+                message=f"CIRCUIT BREAKER: Blocked order on {sig.asset}. Daily drawdown (${current_dd:.2f}) reached or exceeded risk budget (${max_daily_loss:.2f}). Capital protected.",
+                asset=sig.asset,
+                session=sig.session
+            )
+            self.storage.log_ai_thought(log_entry)
+            return None
+
+        # 2. Enforce Asset Re-Entry Cooldown (15 minutes / 900 seconds)
+        last_exit = self._asset_cooldowns.get(sig.asset)
+        if last_exit is None:
+            try:
+                recent_trades = self.storage.get_trade_history(limit=10)
+                asset_trades = [t for t in recent_trades if t.asset == sig.asset]
+                if asset_trades:
+                    t_str = asset_trades[0].exit_time
+                    dt_obj = datetime.datetime.strptime(t_str, '%Y-%m-%d %H:%M:%S')
+                    if current_time.tzinfo is not None:
+                        dt_obj = dt_obj.replace(tzinfo=current_time.tzinfo)
+                    last_exit = dt_obj
+                    self._asset_cooldowns[sig.asset] = last_exit
+            except Exception:
+                pass
+
+        if last_exit is not None:
+            time_diff = (current_time - last_exit).total_seconds()
+            if 0 <= time_diff < 900:
+                mins_left = int((900 - time_diff) / 60) + 1
+                log_entry = self.advisor.create_system_log(
+                    category="COOLDOWN",
+                    message=f"COOLDOWN ACTIVE: Blocked order on {sig.asset}. Waiting {mins_left} min(s) for tape stabilization post-exit.",
+                    asset=sig.asset,
+                    session=sig.session
+                )
+                self.storage.log_ai_thought(log_entry)
+                return None
+
         open_positions = self._get_active_positions()
         # Avoid duplicate positions on the same asset
         if any(p.asset == sig.asset for p in open_positions):
             return None
+
+        # Defending FVG CE is strictly for explicit BISI or SIBI Fair Value Gaps
+        defending_ce = None
+        if sig.pd_array and getattr(sig.pd_array, 'array_type', '') in ['BISI', 'SIBI']:
+            defending_ce = sig.pd_array.consequent_encroachment
 
         # Position Sizing: 1 micro contract or 0.10 mini lot for $500 balance
         pos_id = str(uuid.uuid4())[:8]
@@ -60,7 +110,7 @@ class OrderManager:
             realized_pnl=0.0,
             status='OPEN',
             defensive_shields=['Initial Institutional Stop'],
-            defending_fvg_ce=sig.pd_array.consequent_encroachment if sig.pd_array else None,
+            defending_fvg_ce=defending_ce,
             target_liquidity_pool=sig.ai_rationale,
             session_origin=sig.session
         )
@@ -127,6 +177,7 @@ class OrderManager:
                         target_liquidity_pool=pos.target_liquidity_pool
                     )
                     self.storage.record_closed_trade(tr)
+                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
                     scratch_log = self.advisor.explain_early_scratch(pos, exit_price, pnl_pts, dollar_pnl, pos.invalidation_reason)
                     self.storage.log_ai_thought(scratch_log)
                     self._remove_position(pos.position_id)
@@ -175,6 +226,7 @@ class OrderManager:
                     target_liquidity_pool=pos.target_liquidity_pool
                 )
                 self.storage.record_closed_trade(tr)
+                self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
                 close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                 self.storage.log_ai_thought(close_log)
                 self._remove_position(pos.position_id)
@@ -245,6 +297,7 @@ class OrderManager:
                     target_liquidity_pool=pos.target_liquidity_pool
                 )
                 self.storage.record_closed_trade(tr)
+                self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
                 close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                 self.storage.log_ai_thought(close_log)
                 self._remove_position(pos.position_id)
@@ -285,6 +338,7 @@ class OrderManager:
                         target_liquidity_pool=pos.target_liquidity_pool
                     )
                     self.storage.record_closed_trade(tr)
+                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
                     close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                     self.storage.log_ai_thought(close_log)
                     self._remove_position(pos.position_id)
