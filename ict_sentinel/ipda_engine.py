@@ -273,14 +273,19 @@ class IPDAEngine:
 
         # Dedicated Institutional Strategy for Gold (v1.6 Dual-Engine IMP + Sweep Reclaim)
         if asset == 'GOLD':
-            gold_signal = self.evaluate_gold_imp_sweep(candles)
-            if gold_signal:
-                if memory_engine:
-                    sig_type = gold_signal.pd_array.array_type if gold_signal.pd_array else 'IMP'
-                    approved, confidence, reason = memory_engine.evaluate_setup_viability('GOLD', session_name, sig_type)
-                    if not approved:
-                        return None
-                return gold_signal
+            if session_name in ('LONDON', 'LONDON_CORE'):
+                gold_signal = self.evaluate_gold_imp_sweep(candles)
+                if gold_signal:
+                    if memory_engine:
+                        sig_type = gold_signal.pd_array.array_type if gold_signal.pd_array else 'IMP'
+                        approved, confidence, reason = memory_engine.evaluate_setup_viability('GOLD', session_name, sig_type)
+                        if not approved:
+                            return None
+                    return gold_signal
+
+        # Stand down for Forex and Nasdaq during London Core (04:30 - 07:00 EST); wait for New York AM Killzone
+        if session_name == 'LONDON_CORE':
+            return None
 
         if len(candles) < 20:
             return None

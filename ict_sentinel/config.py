@@ -83,6 +83,13 @@ SESSION_WINDOWS = {
         'exec_end': datetime.time(4, 30),
         'exit_time': datetime.time(6, 0),
     },
+    'LONDON_CORE': {
+        'ref_start': datetime.time(20, 0),
+        'ref_end': datetime.time(2, 0),
+        'exec_start': datetime.time(4, 30),
+        'exec_end': datetime.time(7, 0),
+        'exit_time': datetime.time(7, 15),
+    },
     'NEW_YORK_AM': {
         'ref_start': datetime.time(0, 0),
         'ref_end': datetime.time(8, 0),

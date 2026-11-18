@@ -254,6 +254,7 @@ class BotController:
     def calculate_session_schedule(now_et: datetime.datetime) -> Dict[str, Any]:
         schedule = [
             ('LONDON', datetime.time(2, 0), datetime.time(4, 30), 'London Killzone'),
+            ('LONDON_CORE', datetime.time(4, 30), datetime.time(7, 0), 'London Core (Gold Active)'),
             ('NEW_YORK_AM', datetime.time(8, 0), datetime.time(10, 30), 'New York AM Killzone'),
             ('ASIAN_MACRO', datetime.time(18, 50), datetime.time(20, 15), 'Asian Macro / CME Open'),
         ]
