@@ -13,7 +13,7 @@ import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import Dict, Any, List, Optional, Set
 
-from .config import ASSET_SPECS, INITIAL_CAPITAL
+from .config import ASSET_SPECS, INITIAL_CAPITAL, NY_TZ, LON_TZ
 from .storage import StorageEngine
 from .data_feed import DataFeedEngine
 from .ipda_engine import IPDAEngine
@@ -21,6 +21,7 @@ from .ai_advisor import AIAdvisor
 from .order_manager import OrderManager
 from .memory_engine import MemoryEngine
 from .models import Candle
+from polymarket_sentinel.controller import POLY_BOT
 
 
 class BotController:
@@ -126,9 +127,7 @@ class BotController:
         ).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         state_changed = False
-        now_et = datetime.datetime.now(datetime.timezone.utc).astimezone(
-            datetime.timezone(datetime.timedelta(hours=-5))
-        )
+        now_et = datetime.datetime.now(NY_TZ)
         current_session = self.ipda.get_current_session(now_et.time())
 
         # Inter-session transition detection & automated debrief generation
@@ -334,9 +333,7 @@ class BotController:
         weights = self.memory_engine.get_all_weights()
         reflections = self.memory_engine.get_recent_reflections(limit=5)
 
-        now_et = datetime.datetime.now(datetime.timezone.utc).astimezone(
-            datetime.timezone(datetime.timedelta(hours=-5))
-        )
+        now_et = datetime.datetime.now(NY_TZ)
         session_info = self.calculate_session_schedule(now_et)
         session = session_info["session"]
 
@@ -649,6 +646,51 @@ svg.es{width:100%;height:100%;overflow:visible}
 .empty{padding:28px 14px;text-align:center;color:var(--tx3);font-size:11.5px}
 .si{background:#151C2C;border:1px solid var(--bdr);color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;outline:none}
 .si:focus{border-color:var(--ac)}
+
+/* Main Dual-App Navigation Tabs */
+.top-nav{background:#090D15;border-bottom:1px solid var(--bdr);padding:0 24px;display:flex;gap:4px;position:sticky;top:63px;z-index:90;backdrop-filter:blur(12px)}
+.nav-tab{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--tx2);padding:12px 20px;font-size:12.5px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .15s}
+.nav-tab:hover{color:var(--tx);background:rgba(255,255,255,.02)}
+.nav-tab.active{color:#fff;border-bottom-color:var(--ac);background:rgba(99,102,241,.06)}
+.tab-badge{font-size:9.5px;padding:2px 7px;border-radius:10px;font-family:'JetBrains Mono',monospace;font-weight:700}
+
+/* Polymarket Design System Components */
+.poly-gig-banner{background:linear-gradient(90deg,rgba(99,102,241,.12),rgba(16,185,129,.06));border:1px solid rgba(99,102,241,.3);border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.poly-gig-left{display:flex;align-items:center;gap:12px}
+.poly-pulse-dot{width:10px;height:10px;border-radius:50%;background:#10B981;box-shadow:0 0 12px #10B981;animation:p 1.5s infinite}
+.poly-chips-row{display:flex;gap:8px;overflow-x:auto;padding:2px 0;align-items:center}
+.poly-chip{background:#0E1424;border:1px solid var(--bdr);color:var(--tx2);padding:6px 14px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.poly-chip:hover{color:#fff;border-color:var(--ac)}
+.poly-chip.active{background:rgba(99,102,241,.2);border-color:var(--ac);color:#fff}
+
+/* Polymarket Cards Grid */
+.pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.pm-card{background:#0C101A;border:1px solid var(--bdr);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;transition:all .2s ease;position:relative}
+.pm-card:hover{border-color:var(--bdr-hover);transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.5)}
+.pm-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.pm-card-title{font-size:14px;font-weight:700;line-height:1.35;color:#F8FAFC}
+.pm-outcomes-wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pm-btn{background:#111726;border:1px solid var(--bdr);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all .15s}
+.pm-btn:hover{background:#182034}
+.pm-btn.yes{border-left:3px solid #38BDF8}
+.pm-btn.no{border-left:3px solid #94A3B8}
+.pm-prob-bar{height:6px;border-radius:3px;background:#1E293B;overflow:hidden;display:flex}
+.pm-bar-yes{height:100%;background:#38BDF8;transition:width .3s}
+.pm-bar-no{height:100%;background:#64748B;transition:width .3s}
+.pm-ai-box{background:#080C14;border:1px solid rgba(99,102,241,.25);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.pm-thesis{font-size:11px;color:#CBD5E1;line-height:1.4;background:rgba(255,255,255,.015);padding:6px 8px;border-radius:6px;border-left:2px solid var(--ac)}
+
+/* News & Verified Evidence Feed Grid */
+.news-feed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.news-item-card{background:#090D15;border:1px solid var(--bdr);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;transition:border .15s}
+.news-item-card:hover{border-color:var(--ac)}
+.news-top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.news-headline{font-size:12px;font-weight:700;color:#F1F5F9;line-height:1.35}
+.news-summary{font-size:11px;color:var(--tx2);line-height:1.4}
+.sentiment-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:5px;font-size:9.5px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sentiment-pill.bullish{background:rgba(16,185,129,.12);color:var(--gr);border:1px solid rgba(16,185,129,.3)}
+.sentiment-pill.bearish{background:rgba(244,63,94,.12);color:var(--rd);border:1px solid rgba(244,63,94,.3)}
+.sentiment-pill.neutral{background:rgba(148,163,184,.12);color:#94A3B8;border:1px solid rgba(148,163,184,.3)}
 </style>
 </head>
 <body>
@@ -657,8 +699,8 @@ svg.es{width:100%;height:100%;overflow:visible}
   <div class="hl">
     <div class="icon">⚡</div>
     <div>
-      <div class="brand">ICT Sentinel AI — Command Center</div>
-      <div class="sub">Event-Driven SSE Stream · Double Tap OMS · Live Activity Radar</div>
+      <div class="brand">SENTINEL AI PLATFORM</div>
+      <div class="sub">Institutional Command Center · ICT Forex &amp; Polymarket Prediction Intelligence</div>
     </div>
   </div>
   <div class="hr">
@@ -677,6 +719,20 @@ svg.es{width:100%;height:100%;overflow:visible}
     <button class="btn btn-g" onclick="reset()">🔄 Reset</button>
   </div>
 </header>
+
+<!-- Main Top Navigation Tabs -->
+<nav class="top-nav">
+  <button id="tabBtnIct" class="nav-tab active" onclick="switchMainTab('ict')">
+    <span style="font-size:14px">⚡</span> ICT Forex Sentinel
+    <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr)">CME &amp; FX LIVE</span>
+  </button>
+  <button id="tabBtnPoly" class="nav-tab" onclick="switchMainTab('poly')">
+    <span style="font-size:14px">🔮</span> Polymarket Sentinel
+    <span class="tab-badge" style="background:rgba(99,102,241,.2);color:#A5B4FC">PREDICTION INTELLIGENCE</span>
+  </button>
+</nav>
+
+<div id="view-ict">
 
 <main>
   <!-- LEFT COLUMN (Core Charts, Positions, Feeds, Trades) -->
@@ -869,6 +925,241 @@ svg.es{width:100%;height:100%;overflow:visible}
     </div>
   </div>
 </main>
+</div>
+
+<!-- ===================================================================== -->
+<!-- POLYMARKET SENTINEL COMMAND CENTER WORKSPACE                         -->
+<!-- ===================================================================== -->
+<div id="view-poly" style="display:none">
+<main style="max-width:1720px">
+  <!-- LEFT COLUMN (Radar, Cards, Evidence, Positions) -->
+  <div class="left-col">
+    <!-- Active Agent Gig & Surveillance Status Banner -->
+    <div class="poly-gig-banner">
+      <div class="poly-gig-left">
+        <div class="poly-pulse-dot"></div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">AUTONOMOUS PREDICTION AGENT · CURRENT WORKING GIG</div>
+          <div style="font-size:13.5px;font-weight:700;color:#F8FAFC" id="polyGigText">Surveillance Mode: Monitoring 29+ liquid contracts &amp; scanning breaking news</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="polyEngBtn" class="btn btn-go" onclick="polyToggleAuto()">▶ Start Auto-Pilot</button>
+        <button class="btn btn-demo" onclick="polyScan()">🔍 Sync Polymarket Tape</button>
+        <button id="polyResearchBtn" class="btn btn-demo" onclick="polyResearch()">🔬 Deep Research Cycle</button>
+        <button class="btn btn-g" onclick="polyReset()">🔄 Reset Portfolio</button>
+      </div>
+    </div>
+
+    <!-- Polymarket KPIs -->
+    <div class="krow">
+      <div class="kc a">
+        <div class="kl">Monitored Contracts</div>
+        <div class="kv" id="polyKpiMarkets">0</div>
+        <div class="ks"><span>Volume &gt; $10k/24h</span><span>Active Orders</span></div>
+      </div>
+      <div class="kc p">
+        <div class="kl">Simulated Bankroll &amp; Equity</div>
+        <div class="kv g" id="polyKpiEquity">$500.00</div>
+        <div class="ks"><span>Cash: <b id="polyKpiCash">$500.00</b></span><span>Invested: <b id="polyKpiInvested">$0.00</b></span></div>
+      </div>
+      <div class="kc">
+        <div class="kl">Edge Discrepancies</div>
+        <div class="kv" id="polyKpiEdgeOpp">0</div>
+        <div class="ks"><span>Threshold: &ge; 6%</span><span>Mispricing Detected</span></div>
+      </div>
+      <div class="kc">
+        <div class="kl">Paper PnL &amp; Calibration</div>
+        <div class="kv" id="polyKpiPnl">+$0.00</div>
+        <div class="ks"><span>Brier Score: <b class="g">0.165</b></span><span>Risk Budget: <b class="g">5% Max</b></span></div>
+      </div>
+    </div>
+
+    <!-- Polymarket Category Chips & View Switcher -->
+    <div class="pn" style="padding:12px 18px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.01);flex-wrap:wrap;gap:12px">
+      <div class="poly-chips-row" id="polyCategoryChips">
+        <div class="poly-chip active" onclick="setPolyCategory('ALL', this)">🌐 All Markets</div>
+        <div class="poly-chip" onclick="setPolyCategory('OPPORTUNITY', this)">⚡ Edge Discrepancies (&ge;6%)</div>
+        <div class="poly-chip" onclick="setPolyCategory('Economy', this)">📈 Economy &amp; Fed</div>
+        <div class="poly-chip" onclick="setPolyCategory('Tech', this)">💻 Tech &amp; AI</div>
+        <div class="poly-chip" onclick="setPolyCategory('Politics', this)">🏛️ Politics</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:flex;background:#0E1424;border:1px solid var(--bdr);border-radius:8px;padding:2px">
+          <button id="viewBtnCards" class="btn btn-demo" style="border:none;padding:5px 12px;font-size:11px" onclick="setPolyView('cards')">🗂️ Cards View</button>
+          <button id="viewBtnTable" class="btn btn-g" style="border:none;padding:5px 12px;font-size:11px" onclick="setPolyView('table')">📊 Table View</button>
+        </div>
+        <input class="si" id="polySearch" placeholder="Search questions..." oninput="filterPolyMarkets()" style="width:200px">
+      </div>
+    </div>
+
+    <!-- Live Polymarket Prediction Cards Grid (Default Polymarket View) -->
+    <div id="polyCardsWrap" class="pm-grid">
+      <div class="empty" style="grid-column:1/-1">Scanning active Polymarket order books...</div>
+    </div>
+
+    <!-- Live Polymarket Table (Alternative Institutional View) -->
+    <div id="polyTableWrap" class="pn" style="display:none">
+      <div class="ph">
+        <div class="pt">🔮 Live Prediction Market Spreadsheet</div>
+        <span class="b b-p">Order Book Depth</span>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Contract Question</th>
+              <th>Category</th>
+              <th>Market Closes</th>
+              <th>24h Volume</th>
+              <th>Market (YES / NO)</th>
+              <th>AI Forecast</th>
+              <th>Edge</th>
+              <th>Signal</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="polyMarketTb">
+            <tr><td colspan="9" class="empty">Scanning Polymarket order books...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Breaking News & Evidence Intelligence Feed (PROMINENT NEW SECTION) -->
+    <div class="pn">
+      <div class="ph" style="background:rgba(99,102,241,.03)">
+        <div class="pt">
+          <span>📰</span> Breaking News &amp; Verified Evidence Feed
+          <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr);margin-left:6px" id="polyEvidenceCount">0 Analyzed</span>
+        </div>
+        <span style="font-size:11px;color:var(--tx2);font-family:'JetBrains Mono',monospace">Live Sentiment &amp; Credibility Weighting</span>
+      </div>
+      <div style="padding:14px">
+        <div class="news-feed-grid" id="polyNewsFeed">
+          <div class="empty">Ingesting and sentiment-scoring news articles...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Paper Bets & Positions Section (Visual Trade Slips) -->
+    <div class="pn">
+      <div class="ph" style="background:rgba(99,102,241,.03)">
+        <div class="pt">
+          <span>🎯</span> Active Open Bets
+          <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr);margin-left:6px" id="polyPosCount">0 Bets Open</span>
+        </div>
+        <span style="font-size:11px;color:var(--tx2);font-family:'JetBrains Mono',monospace">Automated Risk Shield: Max $25.00 per contract</span>
+      </div>
+      <div style="padding:16px">
+        <div id="polyPositionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px">
+          <div class="empty" style="grid-column:1/-1">No active bets yet. The AI is scanning for mispriced contracts with &ge;6% edge...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paper Trades Ledger -->
+    <div class="pn">
+      <div class="ph">
+        <div class="pt">📖 Paper Trade Execution Ledger</div>
+        <span class="sub">Simulated Fill Log</span>
+      </div>
+      <div class="tw" style="max-height:300px;overflow-y:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Action</th>
+              <th>Outcome</th>
+              <th>Contract</th>
+              <th>Market Closes</th>
+              <th>Shares</th>
+              <th>Fill Price</th>
+              <th>Total Outlay</th>
+              <th>Why We Traded (AI Reason)</th>
+            </tr>
+          </thead>
+          <tbody id="polyTradesTb">
+            <tr><td colspan="9" class="empty">No simulated trades recorded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR (AI Gateway Status & Activity Stream) -->
+  <div class="right-sidebar">
+    <!-- AI Gateway Health Card -->
+    <div class="radar-card">
+      <div class="radar-header">
+        <div class="radar-title"><span>🧠</span> AI GATEWAY STATUS</div>
+        <span class="stream-pill" style="padding:2px 7px;font-size:9.5px;" id="polyGatewayPill">ACTIVE</span>
+      </div>
+      <div class="micro-box">
+        <div class="micro-lbl">Primary Inference Node</div>
+        <div class="micro-text">
+          <span style="color:var(--gr)">●</span>
+          <span id="polyAiProvider">Ollama (Local) / Heuristic Standby</span>
+        </div>
+      </div>
+      <div class="clock-box">
+        <div class="clock-grid">
+          <div class="clock-item">
+            <span class="clock-lbl">AI CALLS COMPLETED</span>
+            <span class="clock-val" id="polyAiCalls">0</span>
+          </div>
+          <div class="clock-item">
+            <span class="clock-lbl">AVG LATENCY</span>
+            <span class="clock-val" id="polyAiLatency">0 ms</span>
+          </div>
+        </div>
+        <div class="clock-status-bar active" style="font-size:10.5px">
+          <span>🛡️</span>
+          <span>Zero Paid API Dependence · Local Inference</span>
+        </div>
+      </div>
+
+      <!-- Real-Time Activity Stream -->
+      <div class="radar-header" style="border-top:1px solid var(--bdr);background:transparent">
+        <div class="radar-title"><span>📡</span> RESEARCH &amp; ORDER STREAM</div>
+      </div>
+      <div class="activity-stream" id="polyActivityList" style="max-height:420px">
+        <div class="empty">Listening for Polymarket research events...</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Deep Dive Dossier Modal -->
+<div id="polyModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(4,6,12,.85);backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#0C101A;border:1px solid var(--bdr);border-radius:14px;width:90%;max-width:880px;max-height:85vh;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:18px;box-shadow:0 20px 40px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--bdr);padding-bottom:14px">
+      <div>
+        <div class="kl" id="modalCategory" style="margin-bottom:4px">CATEGORY</div>
+        <div style="font-size:16px;font-weight:700;color:#F8FAFC" id="modalQuestion">Question</div>
+        <div style="font-size:11px;color:var(--tx2);margin-top:4px" id="modalResolution">Resolution Source: Polymarket Oracle</div>
+      </div>
+      <button class="btn btn-x" onclick="closeDeepDive()">✕ Close</button>
+    </div>
+
+    <!-- Probability Evolution Timeline -->
+    <div class="pn">
+      <div class="ph"><div class="pt">📈 Probability Revision History (Event Memory)</div></div>
+      <div id="modalTimelineList" style="display:flex;flex-direction:column;gap:8px;padding:14px;max-height:240px;overflow-y:auto">
+        <div class="empty">No prior forecast revisions recorded.</div>
+      </div>
+    </div>
+
+    <!-- Verified Evidence Dossier -->
+    <div class="pn">
+      <div class="ph"><div class="pt">📑 Verified Evidence &amp; Intelligence Citations</div></div>
+      <div id="modalEvidenceList" style="display:flex;flex-direction:column;gap:8px;padding:14px;max-height:240px;overflow-y:auto">
+        <div class="empty">No external evidence linked yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 
 <script>
 let R=false,AT=[],currentSessionInfo=null;
@@ -1227,6 +1518,540 @@ async function flatten(){if(confirm('Flatten ALL open positions at market price?
 async function cpos(id){if(confirm('Close position #'+id+'?')){await fetch('/api/bot/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});}}
 async function reset(){if(confirm('Reset account to $500 and clear all history?')){await fetch('/api/bot/reset',{method:'POST'});}}
 
+// ── Polymarket Client Intelligence & Navigation ──────────────────────
+let currentMainTab = 'ict';
+let polyInterval = null;
+let allPolyMarkets = [];
+let allPolyEvidence = [];
+let polyRunning = false;
+let currentPolyCategory = 'ALL';
+let currentPolyView = 'cards';
+
+function setPolyCategory(cat, el) {
+  currentPolyCategory = cat;
+  const chips = document.querySelectorAll('.poly-chip');
+  chips.forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  filterPolyMarkets();
+}
+
+function setPolyView(mode) {
+  currentPolyView = mode;
+  const cardsWrap = $('polyCardsWrap');
+  const tableWrap = $('polyTableWrap');
+  const btnCards = $('viewBtnCards');
+  const btnTable = $('viewBtnTable');
+  if (mode === 'cards') {
+    cardsWrap.style.display = 'grid';
+    tableWrap.style.display = 'none';
+    if (btnCards) btnCards.className = 'btn btn-demo';
+    if (btnTable) btnTable.className = 'btn btn-g';
+  } else {
+    cardsWrap.style.display = 'none';
+    tableWrap.style.display = 'block';
+    if (btnCards) btnCards.className = 'btn btn-g';
+    if (btnTable) btnTable.className = 'btn btn-demo';
+  }
+}
+
+async function polyToggleAuto() {
+  await fetch(polyRunning ? '/api/polymarket/stop' : '/api/polymarket/start', { method: 'POST' });
+  setTimeout(loadPolymarketState, 300);
+}
+
+function switchMainTab(tab) {
+  currentMainTab = tab;
+  const tabIct = $('tabBtnIct');
+  const tabPoly = $('tabBtnPoly');
+  const viewIct = $('view-ict');
+  const viewPoly = $('view-poly');
+
+  if (tab === 'ict') {
+    tabIct.classList.add('active');
+    tabPoly.classList.remove('active');
+    viewIct.style.display = 'block';
+    viewPoly.style.display = 'none';
+    if (polyInterval) { clearInterval(polyInterval); polyInterval = null; }
+  } else {
+    tabIct.classList.remove('active');
+    tabPoly.classList.add('active');
+    viewIct.style.display = 'none';
+    viewPoly.style.display = 'block';
+    loadPolymarketState();
+    if (!polyInterval) { polyInterval = setInterval(loadPolymarketState, 4000); }
+  }
+}
+
+async function loadPolymarketState() {
+  try {
+    const res = await fetch('/api/polymarket/state');
+    const d = await res.json();
+    renderPolymarket(d);
+  } catch (e) {}
+}
+
+function formatEndDate(isoStr) {
+  if (!isoStr) return 'Date TBD';
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return isoStr;
+    const now = new Date();
+    const diffMs = d.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const dateFormatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (diffDays > 0) {
+      const daysText = diffDays === 1 ? 'closes tomorrow' : `in ${diffDays}d`;
+      return `${dateFormatted} (${daysText})`;
+    } else if (diffDays === 0) {
+      return `${dateFormatted} (closes today)`;
+    } else {
+      return `${dateFormatted} (closed)`;
+    }
+  } catch (e) {
+    return isoStr;
+  }
+}
+
+function renderPolymarket(d) {
+  if (!d) return;
+  polyRunning = !!d.running;
+  const polyBtn = $('polyEngBtn');
+  if (polyBtn) {
+    polyBtn.innerText = polyRunning ? '⏹ Pause Auto-Pilot' : '▶ Start Auto-Pilot';
+    polyBtn.className = 'btn ' + (polyRunning ? 'btn-stop' : 'btn-go');
+  }
+  const gatePill = $('polyGatewayPill');
+  if (gatePill) {
+    gatePill.innerText = polyRunning ? 'AUTO-PILOT ACTIVE' : 'STANDBY';
+    gatePill.className = 'stream-pill ' + (polyRunning ? '' : 'disconnected');
+  }
+
+  // Active Working Gig Banner
+  if ($('polyGigText') && d.current_gig) {
+    $('polyGigText').innerText = d.current_gig;
+  }
+  const resBtn = $('polyResearchBtn');
+  if (resBtn) {
+    if (d.is_researching) {
+      resBtn.innerHTML = '⏳ Researching News...';
+      resBtn.style.opacity = '0.7';
+    } else {
+      resBtn.innerHTML = '🔬 Deep Research Cycle';
+      resBtn.style.opacity = '1';
+    }
+  }
+
+  // KPIs
+  if (d.kpis) {
+    const k = d.kpis;
+    if ($('polyKpiMarkets')) $('polyKpiMarkets').innerText = k.monitored_markets || 0;
+    if ($('polyKpiEquity')) $('polyKpiEquity').innerText = '$' + (k.portfolio_equity || 500).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    if ($('polyKpiCash')) $('polyKpiCash').innerText = '$' + (k.cash || 500).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    if ($('polyKpiInvested')) $('polyKpiInvested').innerText = '$' + (Math.max(0, (k.portfolio_equity - k.cash)) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    if ($('polyKpiEdgeOpp')) $('polyKpiEdgeOpp').innerText = k.opportunities || 0;
+    const pnl = k.total_pnl || 0;
+    const pnlEl = $('polyKpiPnl');
+    if (pnlEl) {
+      pnlEl.innerText = (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+      pnlEl.className = 'kv ' + (pnl >= 0 ? 'g' : 'r');
+    }
+  }
+
+  // Markets Table & Cards
+  if (d.markets) {
+    allPolyMarkets = d.markets;
+    filterPolyMarkets();
+  }
+
+  // Breaking News & Verified Evidence
+  if (d.recent_evidence) {
+    allPolyEvidence = d.recent_evidence;
+    renderPolyEvidence(allPolyEvidence);
+  }
+
+  // Active Open Bets Grid (Visual Trade Slips with End Date & Reason)
+  const posGrid = $('polyPositionsGrid');
+  const pos = (d.portfolio && d.portfolio.open_positions) || [];
+  if ($('polyPosCount')) $('polyPosCount').innerText = pos.length + ' Open';
+  if (posGrid) {
+    if (!pos.length) {
+      posGrid.innerHTML = `
+        <div class="empty" style="grid-column:1/-1;padding:32px 16px;text-align:center">
+          <div style="font-size:26px;margin-bottom:8px">🎯</div>
+          <div style="font-weight:700;color:var(--tx1);font-size:14px;margin-bottom:6px">No Active Bets Open</div>
+          <div style="font-size:12px;color:var(--tx2);max-width:540px;margin:0 auto;line-height:1.5">
+            The AI Superforecaster is scanning Polymarket for mispricings (&ge;6% edge). When an edge is detected, an automated $25 max paper order is executed with its closing date and transparent rationale shown here.
+          </div>
+        </div>
+      `;
+    } else {
+      posGrid.innerHTML = pos.map(p => {
+        const pnl = p.unrealized_pnl || 0;
+        const pc = pnl >= 0 ? 'var(--gr)' : 'var(--rd)';
+        const sg = pnl >= 0 ? '+' : '';
+        const pnlPct = p.cost_basis > 0 ? ((pnl / p.cost_basis) * 100).toFixed(1) : '0.0';
+        const isYes = p.outcome === 'YES';
+        const outcomeBg = isYes ? 'rgba(56,189,248,.12)' : 'rgba(244,63,94,.12)';
+        const outcomeColor = isYes ? '#38BDF8' : '#F43F5E';
+        const outcomeBorder = isYes ? 'rgba(56,189,248,.3)' : 'rgba(244,63,94,.3)';
+        const maxPayout = (p.shares * 1.0).toFixed(2);
+        const maxProfit = (p.shares * 1.0 - p.cost_basis).toFixed(2);
+        const endDateStr = formatEndDate(p.end_date);
+        const whyReason = p.reason || 'AI edge calculated from real-time probabilistic divergence and news sentiment.';
+
+        return `
+          <div style="background:var(--bg3);border:1px solid ${outcomeBorder};border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <div>
+                <span style="display:inline-block;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:0.5px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder}">
+                  BOUGHT ${p.outcome}
+                </span>
+                <span style="margin-left:8px;font-size:11px;color:var(--tx3);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:4px">${p.category || 'Prediction'}</span>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:10.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace">Unrealized P&L</div>
+                <div style="font-size:15px;font-weight:800;color:${pc};font-family:'JetBrains Mono',monospace">${sg}$${pnl.toFixed(2)} (${sg}${pnlPct}%)</div>
+              </div>
+            </div>
+
+            <div style="font-size:14px;font-weight:700;color:var(--tx1);line-height:1.35">${p.question || p.market_id}</div>
+
+            <!-- Resolution / Closing Date Callout -->
+            <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:6px;font-size:11.5px">
+              <span style="font-size:13px">📅</span>
+              <span style="color:var(--tx2);font-weight:600">Market Closes:</span>
+              <span style="color:#A5B4FC;font-weight:700;font-family:'JetBrains Mono',monospace">${endDateStr}</span>
+            </div>
+
+            <!-- Position Metrics Grid -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;background:var(--bg2);border-radius:6px;text-align:center">
+              <div>
+                <div style="font-size:10px;color:var(--tx3)">Shares</div>
+                <div style="font-size:12px;font-weight:700;color:var(--tx1);font-family:'JetBrains Mono',monospace">${p.shares}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--tx3)">Entry Price</div>
+                <div style="font-size:12px;font-weight:700;color:var(--tx1);font-family:'JetBrains Mono',monospace">$${p.avg_entry_price.toFixed(3)}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--tx3)">Current Price</div>
+                <div style="font-size:12px;font-weight:700;color:var(--tx1);font-family:'JetBrains Mono',monospace">$${p.current_price.toFixed(3)}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--tx3)">Total Outlay</div>
+                <div style="font-size:12px;font-weight:700;color:var(--tx1);font-family:'JetBrains Mono',monospace">$${p.cost_basis.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <!-- Potential Payout -->
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:6px 10px;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.15);border-radius:6px">
+              <span style="color:var(--tx2)">Payout if correct ($1.00):</span>
+              <span style="color:var(--gr);font-weight:700;font-family:'JetBrains Mono',monospace">$${maxPayout} (+$${maxProfit} net profit)</span>
+            </div>
+
+            <!-- Why We Bought This Callout Box -->
+            <div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:10px 12px">
+              <div style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:800;color:#A5B4FC;margin-bottom:4px;letter-spacing:0.3px">
+                <span>💡</span> WHY WE BOUGHT THIS:
+              </div>
+              <div style="font-size:12px;color:var(--tx1);line-height:1.45">${whyReason}</div>
+            </div>
+
+            <button class="btn btn-demo" style="width:100%;justify-content:center;padding:7px;margin-top:auto" onclick="openDeepDive('${p.market_id}')">
+              🔬 Inspect Research Dossier &amp; Timeline
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // Recent Paper Trades Table
+  const tradesTb = $('polyTradesTb');
+  const trades = (d.portfolio && d.portfolio.recent_trades) || [];
+  if (tradesTb) {
+    if (!trades.length) {
+      tradesTb.innerHTML = '<tr><td colspan="9" class="empty">No simulated executions yet.</td></tr>';
+    } else {
+      tradesTb.innerHTML = trades.map(t => `
+        <tr>
+          <td style="color:var(--tx3);font-family:'JetBrains Mono',monospace">${(t.timestamp || '').slice(11, 19)}</td>
+          <td><span class="b b-p">${t.action}</span></td>
+          <td><span class="b ${t.outcome === 'YES' ? 'b-l' : 'b-s'}">${t.outcome}</span></td>
+          <td><b>${t.question || t.market_id}</b></td>
+          <td style="color:#A5B4FC;font-family:'JetBrains Mono',monospace;font-size:11px">${formatEndDate(t.end_date)}</td>
+          <td style="font-family:'JetBrains Mono',monospace">${t.shares}</td>
+          <td style="font-family:'JetBrains Mono',monospace">$${t.price.toFixed(3)}</td>
+          <td style="font-family:'JetBrains Mono',monospace"><b>$${t.dollar_value.toFixed(2)}</b></td>
+          <td style="font-size:11px;color:var(--tx2);max-width:280px;line-height:1.3" title="${t.reason || ''}">${(t.reason || 'AI edge execution').slice(0, 110)}${(t.reason && t.reason.length > 110) ? '...' : ''}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  // AI Gateway stats
+  if (d.gateway_stats) {
+    if ($('polyAiCalls')) $('polyAiCalls').innerText = d.gateway_stats.total_calls || 0;
+    if ($('polyAiLatency')) $('polyAiLatency').innerText = (d.gateway_stats.avg_latency_ms || 0) + ' ms';
+  }
+
+  // Activity list
+  const actList = $('polyActivityList');
+  if (actList && d.activity && d.activity.length) {
+    actList.innerHTML = d.activity.map(act => `
+      <div class="act-item ${act.level}">
+        <div class="act-top">
+          <span class="act-tag" style="background:rgba(255,255,255,.05);color:var(--tx2);">${act.category}</span>
+          <span class="act-time">${act.timestamp || ''}</span>
+        </div>
+        <div class="act-title">${act.title}</div>
+        <div class="act-desc">${act.details}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function filterPolyMarkets() {
+  const q = ($('polySearch') ? $('polySearch').value : '').toLowerCase();
+  let f = allPolyMarkets.filter(m => (m.question || '').toLowerCase().includes(q) || (m.category || '').toLowerCase().includes(q));
+
+  if (currentPolyCategory === 'OPPORTUNITY') {
+    f = f.filter(m => Math.abs(m.edge || 0) >= 0.06);
+  } else if (currentPolyCategory !== 'ALL') {
+    f = f.filter(m => (m.category || '').toLowerCase().includes(currentPolyCategory.toLowerCase()));
+  }
+
+  renderPolyCards(f);
+  renderPolyTable(f);
+}
+
+function renderPolyCards(list) {
+  const wrap = $('polyCardsWrap');
+  if (!wrap) return;
+  if (!list.length) {
+    wrap.innerHTML = '<div class="empty" style="grid-column:1/-1">No prediction contracts match the filter criteria.</div>';
+    return;
+  }
+
+  wrap.innerHTML = list.map(m => {
+    const pYes = m.price_yes || 0.5;
+    const pNo = m.price_no || 0.5;
+    const pYesPct = Math.round(pYes * 100);
+    const pNoPct = Math.round(pNo * 100);
+    const forecast = m.forecast_probability || pYes;
+    const forecastPct = (forecast * 100).toFixed(1);
+    const edge = m.edge || 0;
+    const edgePct = (edge * 100).toFixed(1);
+    const edgeSign = edge >= 0 ? '+' : '';
+    const hasEdge = Math.abs(edge) >= 0.06;
+    const edgeColor = hasEdge ? (edge >= 0 ? 'var(--gr)' : 'var(--rd)') : 'var(--tx2)';
+    const signalBadge = edge >= 0.06 ? '<span class="b b-l">BUY YES</span>' : (edge <= -0.06 ? '<span class="b b-s">BUY NO</span>' : '<span class="b b-d">HOLD</span>');
+    const thesis = m.reasoning || 'Awaiting initial Bayesian intelligence synthesis...';
+    const closeStr = formatEndDate(m.end_date);
+
+    return `
+      <div class="pm-card">
+        <div class="pm-card-top">
+          <span class="b b-p">${m.category || 'General'}</span>
+          <span style="font-size:11px;color:#A5B4FC;font-weight:600;display:flex;align-items:center;gap:4px">
+            📅 Closes: ${closeStr}
+          </span>
+          <span class="pm-vol">$${(m.volume_24h || 0).toLocaleString('en-US', {maximumFractionDigits:0})} Vol</span>
+        </div>
+        <div class="pm-card-title">${m.question}</div>
+
+        <!-- Polymarket Probability Bar -->
+        <div class="pm-bar-wrap">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'JetBrains Mono',monospace">
+            <span style="color:#38BDF8;font-weight:700">YES ${pYesPct}%</span>
+            <span style="color:#94A3B8;font-weight:700">NO ${pNoPct}%</span>
+          </div>
+          <div class="pm-prob-bar">
+            <div class="pm-bar-yes" style="width:${pYesPct}%"></div>
+            <div class="pm-bar-no" style="width:${pNoPct}%"></div>
+          </div>
+        </div>
+
+        <!-- Outcomes Buttons (Polymarket Style) -->
+        <div class="pm-outcomes-wrap">
+          <div class="pm-btn yes">
+            <span style="font-size:12px;font-weight:700;color:#38BDF8">YES</span>
+            <span style="font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace">$${pYes.toFixed(2)}</span>
+          </div>
+          <div class="pm-btn no">
+            <span style="font-size:12px;font-weight:700;color:#94A3B8">NO</span>
+            <span style="font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace">$${pNo.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <!-- AI Superforecaster Edge Intelligence -->
+        <div class="pm-ai-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+            <span style="color:#A5B4FC;font-weight:700">AI Model Forecast: ${forecastPct}%</span>
+            <span style="color:${edgeColor};font-weight:800;font-family:'JetBrains Mono',monospace">${edgeSign}${edgePct}% Edge</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:10px;color:var(--tx3)">Confidence: ${Math.round((m.confidence || 0.75)*100)}%</span>
+            <div>${signalBadge}</div>
+          </div>
+          <div class="pm-thesis"><b>💡 Thesis:</b> ${thesis}</div>
+        </div>
+
+        <button class="btn btn-demo" style="width:100%;justify-content:center;padding:7px;margin-top:auto" onclick="openDeepDive('${m.id}')">
+          🔬 Open Evidence Dossier &amp; Timeline
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderPolyTable(list) {
+  const tb = $('polyMarketTb');
+  if (!tb) return;
+  if (!list.length) {
+    tb.innerHTML = '<tr><td colspan="9" class="empty">No matching prediction contracts found.</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.map(m => {
+    const edge = m.edge || 0;
+    const edgePct = (edge * 100).toFixed(1);
+    const edgeSign = edge >= 0 ? '+' : '';
+    const edgeColor = Math.abs(edge) >= 0.06 ? (edge >= 0 ? 'g' : 'r') : 'tx2';
+    const action = edge >= 0.06 ? '<span class="b b-l">BUY YES</span>' : (edge <= -0.06 ? '<span class="b b-s">BUY NO</span>' : '<span class="b b-d">HOLD</span>');
+    return `<tr>
+      <td><b>${m.question}</b></td>
+      <td><span class="b b-p">${m.category}</span></td>
+      <td style="color:#A5B4FC;font-family:'JetBrains Mono',monospace;font-size:11px">${formatEndDate(m.end_date)}</td>
+      <td>$${(m.volume_24h || 0).toLocaleString('en-US', {maximumFractionDigits:0})}</td>
+      <td>$${m.price_yes.toFixed(2)} / $${m.price_no.toFixed(2)}</td>
+      <td style="color:#A5B4FC;font-weight:700">${((m.forecast_probability || 0.5) * 100).toFixed(1)}%</td>
+      <td class="${edgeColor}"><b>${edgeSign}${edgePct}%</b></td>
+      <td>${action}</td>
+      <td>
+        <button class="btn btn-demo" style="padding:4px 8px;font-size:10.5px;" onclick="openDeepDive('${m.id}')">Dossier</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPolyEvidence(evidenceList) {
+  const wrap = $('polyNewsFeed');
+  if (!wrap) return;
+  if ($('polyEvidenceCount')) $('polyEvidenceCount').innerText = `${evidenceList.length} Analyzed Articles`;
+  if (!evidenceList.length) {
+    wrap.innerHTML = '<div class="empty" style="grid-column:1/-1">No news evidence ingested yet. Trigger a research cycle to begin scraping.</div>';
+    return;
+  }
+
+  wrap.innerHTML = evidenceList.map(ev => {
+    const sent = ev.sentiment_impact || 0;
+    let sentClass = 'neutral';
+    let sentLabel = '⚪ NEUTRAL BASELINE';
+    if (sent > 0.1) {
+      sentClass = 'bullish';
+      sentLabel = `🟢 FAVORABLE TO 'YES' (+${Math.round(sent*100)}%)`;
+    } else if (sent < -0.1) {
+      sentClass = 'bearish';
+      sentLabel = `🔴 DELAY / FAVORABLE TO 'NO' (${Math.round(sent*100)}%)`;
+    }
+
+    const credPct = Math.round((ev.credibility_score || 0.85) * 100);
+
+    return `
+      <div class="news-item-card">
+        <div class="news-top">
+          <span class="sentiment-pill ${sentClass}">${sentLabel}</span>
+          <span style="font-size:9.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace">${credPct}% Verified</span>
+        </div>
+        <div class="news-headline">${ev.title}</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--tx3);margin-top:2px">
+          <span style="color:#A5B4FC;font-weight:600">Source: ${ev.source_name}</span>
+          <span>•</span>
+          <span style="color:var(--tx2)">Affects: ${ev.market_question ? ev.market_question.slice(0, 35) + '...' : 'General'}</span>
+        </div>
+        <div class="news-summary">${ev.summary}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function openDeepDive(marketId) {
+  try {
+    const res = await fetch('/api/polymarket/timeline?id=' + encodeURIComponent(marketId));
+    const d = await res.json();
+    const modal = $('polyModal');
+    const m = allPolyMarkets.find(x => x.id === marketId) || {};
+    $('modalQuestion').innerText = m.question || marketId;
+    $('modalCategory').innerText = m.category || 'PREDICTION CONTRACT';
+    $('modalResolution').innerText = 'Resolution Source: ' + (m.resolution_source || 'Polymarket UMA Oracle') + ' · 📅 Market Closes: ' + formatEndDate(m.end_date);
+
+    // Render Timeline
+    const tlList = $('modalTimelineList');
+    if (d.timeline && d.timeline.length) {
+      tlList.innerHTML = d.timeline.map((item, idx) => `
+        <div style="background:#090D15;border:1px solid var(--bdr);border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:700;color:#A5B4FC">Revision #${idx + 1} · Forecast: ${(item.forecast_probability * 100).toFixed(1)}%</span>
+            <span style="font-size:9.5px;color:var(--tx3)">${(item.created_at || '').slice(0, 19).replace('T', ' ')}</span>
+          </div>
+          <div style="font-size:10.5px;color:var(--tx2);line-height:1.4">${item.reasoning}</div>
+          <div style="font-size:9px;color:var(--tx3);font-family:'JetBrains Mono',monospace">Engine: ${item.model_used} | Market: ${(item.market_probability * 100).toFixed(1)}% | Edge: ${(item.edge * 100).toFixed(1)}%</div>
+        </div>
+      `).join('');
+    } else {
+      tlList.innerHTML = '<div class="empty">No prior forecast revisions recorded.</div>';
+    }
+
+    // Render Evidence
+    const evList = $('modalEvidenceList');
+    if (d.evidence && d.evidence.length) {
+      evList.innerHTML = d.evidence.map(item => `
+        <div style="background:#090D15;border:1px solid var(--bdr);border-radius:8px;padding:10px 14px;display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11.5px;font-weight:700;color:#F8FAFC">${item.title}</span>
+            <span class="b b-p">${item.source_name}</span>
+          </div>
+          <div style="font-size:10.5px;color:var(--tx2);line-height:1.35">${item.summary}</div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--tx3);margin-top:2px">
+            <span>Credibility Score: ${(item.credibility_score * 100).toFixed(0)}%</span>
+            <span>Sentiment Impact: ${(item.sentiment_impact >= 0 ? '+' : '')}${(item.sentiment_impact * 100).toFixed(0)}%</span>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      evList.innerHTML = '<div class="empty">No external evidence linked yet.</div>';
+    }
+
+    modal.style.display = 'flex';
+  } catch (e) {}
+}
+
+function closeDeepDive() {
+  $('polyModal').style.display = 'none';
+}
+
+async function polyScan() {
+  await fetch('/api/polymarket/scan', { method: 'POST' });
+  setTimeout(loadPolymarketState, 300);
+}
+
+async function polyResearch() {
+  const btn = $('polyResearchBtn');
+  if (btn) {
+    btn.innerHTML = '⏳ Research Active...';
+    btn.style.opacity = '0.7';
+  }
+  await fetch('/api/polymarket/research', { method: 'POST' });
+  setTimeout(loadPolymarketState, 300);
+}
+
+async function polyReset() {
+  if (confirm('Reset Polymarket system? This pauses auto-pilot, clears all bets and news evidence, and restores fresh $500.00 bankroll.')) {
+    await fetch('/api/polymarket/reset', { method: 'POST' });
+    setTimeout(loadPolymarketState, 300);
+  }
+}
+
 connectStream();
 </script>
 </body>
@@ -1254,6 +2079,13 @@ class Handler(BaseHTTPRequestHandler):
             self._html(HTML)
         elif self.path == "/api/state":
             self._json(BOT.get_full_state())
+        elif self.path == "/api/polymarket/state":
+            self._json(POLY_BOT.get_full_state())
+        elif self.path.startswith("/api/polymarket/timeline"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            m_id = qs.get("id", [""])[0]
+            self._json(POLY_BOT.memory.get_market_timeline(m_id))
         elif self.path == "/api/session-debriefs":
             self._json(BOT.storage.get_latest_session_debriefs(limit=10))
         elif self.path == "/api/stream":
@@ -1303,6 +2135,17 @@ class Handler(BaseHTTPRequestHandler):
             BOT.close_single(body.get("id", "")); self._json({"ok": True})
         elif self.path == "/api/bot/reset":
             BOT.reset_account(); self._json({"ok": True})
+        elif self.path == "/api/polymarket/scan":
+            POLY_BOT.trigger_sync_async(); self._json({"ok": True, "status": "SYNC_STARTED"})
+        elif self.path == "/api/polymarket/research":
+            ok = POLY_BOT.trigger_research_async()
+            self._json({"ok": True, "active": ok})
+        elif self.path == "/api/polymarket/start":
+            POLY_BOT.start(); self._json({"ok": True})
+        elif self.path == "/api/polymarket/stop":
+            POLY_BOT.stop(); self._json({"ok": True})
+        elif self.path == "/api/polymarket/reset":
+            POLY_BOT.reset_system(); self._json({"ok": True})
         else:
             self.send_error(404)
 
@@ -1341,9 +2184,9 @@ def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
     host = os.environ.get("HOST", "0.0.0.0")
     srv = SilentThreadingHTTPServer((host, port), Handler)
     print("=" * 84)
-    print("  ICT SENTINEL AI — COMMAND CENTER WITH LIVE ACTIVITY RADAR")
+    print("  ICT & POLYMARKET SENTINEL AI — COMMAND CENTER")
     print(f"  Open in Browser: http://{host}:{port}")
-    print("  Dual-Column Workspace · Live Activity Stream · Risk Safeguards")
+    print("  Dual-Engine Intelligence · Live Activity Stream · Automated Auto-Pilot")
     print("=" * 84)
     print("[*] Stream active. Press Ctrl+C in terminal to shutdown.\n")
     try:
@@ -1351,4 +2194,5 @@ def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
     except KeyboardInterrupt:
         print("\n[!] Shutting down.")
         BOT.stop()
+        POLY_BOT.stop()
         srv.server_close()

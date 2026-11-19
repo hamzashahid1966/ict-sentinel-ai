@@ -6,7 +6,7 @@ Codifies the full 52-Lecture algorithmic logic into a deterministic rule engine.
 import datetime
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Any
-from .config import ASSET_SPECS, SESSION_WINDOWS
+from .config import ASSET_SPECS, SESSION_WINDOWS, NY_TZ, LON_TZ
 from .models import Candle, PDArray, SessionDebrief, TradeRecord
 
 @dataclass
@@ -73,30 +73,33 @@ class IPDAEngine:
         prev = candles[-2]
         prev2 = candles[-3] if len(candles) >= 3 else prev
 
-        # Check London Core Window: 07:00 to 12:00 UTC (02:00 to 07:00 ET)
-        dt_utc = curr.timestamp
-        if dt_utc.tzinfo is not None:
-            dt_utc = dt_utc.astimezone(datetime.timezone.utc)
+        # Check London Core Window: 07:00 to 13:00 London local time (pinned via ZoneInfo)
+        # Accounts for British Summer Time (BST) vs Greenwich Mean Time (GMT) DST desynchronization
+        dt_bar = curr.timestamp
+        if dt_bar.tzinfo is None:
+            dt_bar = dt_bar.replace(tzinfo=datetime.timezone.utc)
+        dt_lon = dt_bar.astimezone(LON_TZ)
 
-        if not (7 <= dt_utc.hour < 12):
+        if not (7 <= dt_lon.hour < 13):
             return None  # Stand down outside London Core to avoid US economic news whipsaws
 
-        today_utc = dt_utc.date()
+        today_lon = dt_lon.date()
 
-        # 1. Identify Asia Session Benchmarks (00:00 - 07:00 UTC today)
-        def get_utc_dt(c: Candle):
-            if c.timestamp.tzinfo is not None:
-                return c.timestamp.astimezone(datetime.timezone.utc)
-            return c.timestamp
+        # 1. Identify Asia Session Benchmarks (00:00 - 07:00 London time)
+        def get_lon_dt(c: Candle):
+            ts = c.timestamp
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=datetime.timezone.utc)
+            return ts.astimezone(LON_TZ)
 
         asia_bars = [
             c for c in candles
-            if get_utc_dt(c).date() == today_utc and 0 <= get_utc_dt(c).hour < 7
+            if get_lon_dt(c).date() == today_lon and 0 <= get_lon_dt(c).hour < 7
         ]
 
         if not asia_bars:
             # Fallback to the latest available Asia window if crossing midnight boundaries
-            asia_bars = [c for c in candles if 0 <= get_utc_dt(c).hour < 7]
+            asia_bars = [c for c in candles if 0 <= get_lon_dt(c).hour < 7]
             if len(asia_bars) > 84:
                 asia_bars = asia_bars[-84:]
 
@@ -115,10 +118,10 @@ class IPDAEngine:
             prev_m5_ema = m5_ema_val
             m5_ema_val = alpha_m5 * cl + (1.0 - alpha_m5) * m5_ema_val
 
-        # 3. Compute H1 EMAs (zero lookahead - closed H1 bars)
+        # 3. Compute H1 EMAs (zero lookahead - closed H1 bars in London time)
         h1_dict: Dict[str, Dict[str, float]] = {}
         for c in candles:
-            c_dt = get_utc_dt(c)
+            c_dt = get_lon_dt(c)
             h_key = c_dt.strftime('%Y-%m-%d %H:00')
             if h_key not in h1_dict:
                 h1_dict[h_key] = {'open': c.open, 'high': c.high, 'low': c.low, 'close': c.close}
@@ -128,7 +131,7 @@ class IPDAEngine:
                 h1_dict[h_key]['close'] = c.close
 
         sorted_h_keys = sorted(h1_dict.keys())
-        curr_h_key = dt_utc.strftime('%Y-%m-%d %H:00')
+        curr_h_key = dt_lon.strftime('%Y-%m-%d %H:00')
         closed_h_keys = [k for k in sorted_h_keys if k < curr_h_key]
 
         if len(closed_h_keys) >= 2:
@@ -146,10 +149,10 @@ class IPDAEngine:
             h1_bull = curr.close > m5_ema_val
             h1_bear = curr.close < m5_ema_val
 
-        # 4. Breakout Tracking in London Core (07:00 to current bar)
+        # 4. Breakout Tracking in London Core (07:00 to current bar in London time)
         london_bars = [
             c for c in candles
-            if get_utc_dt(c).date() == today_utc and 7 <= get_utc_dt(c).hour < 12
+            if get_lon_dt(c).date() == today_lon and 7 <= get_lon_dt(c).hour < 13
         ]
 
         active_bull_level = None

@@ -87,10 +87,43 @@ class OrderManager:
         if any(p.asset == sig.asset for p in open_positions):
             return None
 
+        # 3. Enforce Portfolio USD Correlation Guard (Prevent stacking simultaneous USD risk)
+        from .config import MAX_CONCURRENT_USD_EXPOSURE, SINGLE_CONTRACT_TARGET_R
+        incoming_spec = ASSET_SPECS.get(sig.asset, {})
+        incoming_usd_rel = incoming_spec.get('usd_relation')
+        if incoming_usd_rel == 'INVERSE':
+            incoming_usd_dir = 'SHORT_USD' if sig.direction == 'LONG' else 'LONG_USD'
+            for active_pos in open_positions:
+                active_spec = ASSET_SPECS.get(active_pos.asset, {})
+                active_usd_rel = active_spec.get('usd_relation')
+                if active_usd_rel == 'INVERSE':
+                    active_usd_dir = 'SHORT_USD' if active_pos.direction == 'LONG' else 'LONG_USD'
+                    if active_usd_dir == incoming_usd_dir:
+                        log_entry = self.advisor.create_system_log(
+                            category="PORTFOLIO_CORRELATION",
+                            message=f"CORRELATION GUARD: Blocked {sig.direction} on {sig.asset}. Active position on {active_pos.asset} ({active_pos.direction}) already carries {active_usd_dir} exposure. Portfolio limited to {MAX_CONCURRENT_USD_EXPOSURE} concurrent USD exposure.",
+                            asset=sig.asset,
+                            session=sig.session
+                        )
+                        self.storage.log_ai_thought(log_entry)
+                        return None
+
         # Defending FVG CE is strictly for explicit BISI or SIBI Fair Value Gaps
         defending_ce = None
         if sig.pd_array and getattr(sig.pd_array, 'array_type', '') in ['BISI', 'SIBI']:
             defending_ce = sig.pd_array.consequent_encroachment
+
+        # 4. Futures Indivisibility & Discrete Single Contract Execution
+        # If CME futures and quantity == 1, 1 contract cannot be halved into 0.5 contracts at TP1.
+        # Single contract target is set to SINGLE_CONTRACT_TARGET_R (2.0R), with BE trail at 1.0R.
+        is_futures = incoming_spec.get('is_futures', False)
+        target_cm = sig.target_center_mass
+        target_hs = sig.target_head_shot
+        if is_futures:
+            is_long = sig.direction == 'LONG'
+            target_2r = (sig.entry_price + (SINGLE_CONTRACT_TARGET_R * sig.risk_pts)) if is_long else (sig.entry_price - (SINGLE_CONTRACT_TARGET_R * sig.risk_pts))
+            target_cm = target_2r
+            target_hs = target_2r
 
         # Position Sizing: 1 micro contract or 0.10 mini lot for $500 balance
         pos_id = str(uuid.uuid4())[:8]
@@ -103,8 +136,8 @@ class OrderManager:
             entry_time=current_time,
             initial_stop_loss=sig.stop_loss,
             active_trailing_stop=sig.stop_loss,
-            target_center_mass=sig.target_center_mass,
-            target_head_shot=sig.target_head_shot,
+            target_center_mass=target_cm,
+            target_head_shot=target_hs,
             center_mass_filled=False,
             head_shot_filled=False,
             realized_pnl=0.0,
@@ -235,87 +268,42 @@ class OrderManager:
                 closed_trades.append(tr)
                 continue
 
-            # ---------------- STAGE 1: CHECK CENTER MASS (1.5R) ----------------
-            if not pos.center_mass_filled:
-                hit_center_mass = (current_bar.high >= pos.target_center_mass) if is_long else (current_bar.low <= pos.target_center_mass)
-                if hit_center_mass:
+            # ---------------- STAGE 1 & 3: TARGET & TRAILING MANAGEMENT ----------------
+            is_futures = spec.get('is_futures', False)
+            single_contract_futures = is_futures and (pos.quantity == 1)
+
+            if single_contract_futures:
+                # DISCRETE SINGLE-CONTRACT FUTURES PROTOCOL (Indivisibility Rule)
+                # 1 contract cannot be split into 0.5. At 1.0R expansion, lock BE + friction buffer. At 2.0R, take 100% profit.
+                just_trailed = False
+                r1_target = (pos.entry_price + risk_pts) if is_long else (pos.entry_price - risk_pts)
+                hit_1r = (current_bar.high >= r1_target) if is_long else (current_bar.low <= r1_target)
+                if hit_1r and not pos.center_mass_filled:
                     pos.center_mass_filled = True
-                    pos.status = 'PARTIAL'
-                    # Realize 50% position profit
-                    pts_cm = abs(pos.target_center_mass - pos.entry_price)
-                    pos.realized_pnl = (0.5 * pts_cm * spec['point_value']) - (0.5 * friction)
-
-                    # ADVANCE TO DEFENSIVE SHIELD: Breakeven + 2 ticks buffer (Lecture 52)
-                    new_stop = (pos.entry_price + (2 * spec['tick_size'])) if is_long else (pos.entry_price - (2 * spec['tick_size']))
+                    just_trailed = True
+                    # Breakeven + buffer covering full round-turn friction plus 1 tick
+                    friction_buffer = (friction / spec['point_value']) + spec['tick_size']
+                    new_stop = (pos.entry_price + friction_buffer) if is_long else (pos.entry_price - friction_buffer)
                     pos.active_trailing_stop = new_stop
-                    pos.defensive_shields.append('Shield #1: Consequent Encroachment / Breakeven Buffer')
-
+                    pos.defensive_shields.append('Shield #1: Breakeven + Friction Buffer at 1.0R Expansion')
                     self._sync_position(pos)
                     trail_log = self.advisor.explain_defensive_trail(
                         pos=pos,
                         new_trail_price=new_stop,
-                        shield_name='Breakeven + 2 Ticks Cushion'
+                        shield_name='Breakeven + Friction Cushion (Single Contract)'
                     )
                     self.storage.log_ai_thought(trail_log)
 
-            # ---------------- STAGE 2: CHECK TRAILING STOP LOSS ----------------
-            hit_stop = (current_bar.low <= pos.active_trailing_stop) if is_long else (current_bar.high >= pos.active_trailing_stop)
-            if hit_stop:
-                exit_price = pos.active_trailing_stop
-                if not pos.center_mass_filled:
-                    # Full initial loss
-                    outcome = 'LOSS'
+                # Check Stop Loss Trigger (avoid intra-candle conflict if stop was just adjusted upon target expansion)
+                hit_stop = False
+                if not just_trailed:
+                    hit_stop = (current_bar.low <= pos.active_trailing_stop) if is_long else (current_bar.high >= pos.active_trailing_stop)
+                if hit_stop:
+                    exit_price = pos.active_trailing_stop
                     pnl_pts = (exit_price - pos.entry_price) if is_long else (pos.entry_price - exit_price)
                     dollar_pnl = (pnl_pts * spec['point_value']) - friction
-                else:
-                    # Defensive stop hit with Center Mass already banked!
-                    outcome = 'DEFENSIVE_STOP'
-                    pnl_runner_pts = (exit_price - pos.entry_price) if is_long else (pos.entry_price - exit_price)
-                    pnl_runner_dollar = (0.5 * pnl_runner_pts * spec['point_value']) - (0.5 * friction)
-                    dollar_pnl = pos.realized_pnl + pnl_runner_dollar
-                    pnl_pts = dollar_pnl / spec['point_value']
-
-                self.storage.update_account_balance(dollar_pnl)
-                pos.invalidation_reason = 'HARD_STOP_BREACH' if not pos.center_mass_filled else 'DEFENSIVE_TRAILING_STOP'
-                tr = TradeRecord(
-                    trade_id=pos.position_id,
-                    asset=pos.asset,
-                    session=pos.session_origin or "LIVE",
-                    direction=pos.direction,
-                    entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
-                    entry_price=pos.entry_price,
-                    exit_time=current_bar.timestamp_et.strftime('%Y-%m-%d %H:%M:%S'),
-                    exit_price=exit_price,
-                    risk_pts=risk_pts,
-                    pnl_pts=pnl_pts,
-                    dollar_pnl=dollar_pnl,
-                    outcome=outcome,
-                    ai_reasoning=f"Closed on Stop trigger @ {exit_price:.2f}. Outcome: {outcome}",
-                    target_tp1_price=pos.target_center_mass,
-                    target_tp2_price=pos.target_head_shot,
-                    invalidation_reason=pos.invalidation_reason,
-                    target_liquidity_pool=pos.target_liquidity_pool
-                )
-                self.storage.record_closed_trade(tr)
-                self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
-                close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
-                self.storage.log_ai_thought(close_log)
-                self._remove_position(pos.position_id)
-                if self.memory_engine:
-                    self.memory_engine.process_trade_completion(tr, pos, current_bar)
-                closed_trades.append(tr)
-                continue
-
-            # ---------------- STAGE 3: CHECK HEAD SHOT TERMINUS (3.0R) ----------------
-            if pos.center_mass_filled:
-                hit_head_shot = (current_bar.high >= pos.target_head_shot) if is_long else (current_bar.low <= pos.target_head_shot)
-                if hit_head_shot:
-                    exit_price = pos.target_head_shot
-                    outcome = 'FULL_WIN'
-                    pnl_runner_pts = abs(exit_price - pos.entry_price)
-                    pnl_runner_dollar = (0.5 * pnl_runner_pts * spec['point_value']) - (0.5 * friction)
-                    dollar_pnl = pos.realized_pnl + pnl_runner_dollar
-                    pnl_pts = dollar_pnl / spec['point_value']
+                    outcome = 'DEFENSIVE_STOP' if pos.center_mass_filled else 'LOSS'
+                    pos.invalidation_reason = 'DEFENSIVE_TRAILING_STOP' if pos.center_mass_filled else 'HARD_STOP_BREACH'
 
                     self.storage.update_account_balance(dollar_pnl)
                     tr = TradeRecord(
@@ -331,7 +319,45 @@ class OrderManager:
                         pnl_pts=pnl_pts,
                         dollar_pnl=dollar_pnl,
                         outcome=outcome,
-                        ai_reasoning="Full algorithmic objective reached at Head Shot terminus (3.0R).",
+                        ai_reasoning=f"Discrete single-contract position closed on stop trigger @ {exit_price:.2f}. Outcome: {outcome}",
+                        target_tp1_price=pos.target_center_mass,
+                        target_tp2_price=pos.target_head_shot,
+                        invalidation_reason=pos.invalidation_reason,
+                        target_liquidity_pool=pos.target_liquidity_pool
+                    )
+                    self.storage.record_closed_trade(tr)
+                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                    close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
+                    self.storage.log_ai_thought(close_log)
+                    self._remove_position(pos.position_id)
+                    if self.memory_engine:
+                        self.memory_engine.process_trade_completion(tr, pos, current_bar)
+                    closed_trades.append(tr)
+                    continue
+
+                # Check Discrete Full Target (2.0R / pos.target_center_mass)
+                hit_target = (current_bar.high >= pos.target_center_mass) if is_long else (current_bar.low <= pos.target_center_mass)
+                if hit_target:
+                    exit_price = pos.target_center_mass
+                    outcome = 'FULL_WIN'
+                    pnl_pts = abs(exit_price - pos.entry_price)
+                    dollar_pnl = (pnl_pts * spec['point_value']) - friction
+
+                    self.storage.update_account_balance(dollar_pnl)
+                    tr = TradeRecord(
+                        trade_id=pos.position_id,
+                        asset=pos.asset,
+                        session=pos.session_origin or "LIVE",
+                        direction=pos.direction,
+                        entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        entry_price=pos.entry_price,
+                        exit_time=current_bar.timestamp_et.strftime('%Y-%m-%d %H:%M:%S'),
+                        exit_price=exit_price,
+                        risk_pts=risk_pts,
+                        pnl_pts=pnl_pts,
+                        dollar_pnl=dollar_pnl,
+                        outcome=outcome,
+                        ai_reasoning=f"Full institutional objective achieved on discrete single-contract futures @ {exit_price:.2f}.",
                         target_tp1_price=pos.target_center_mass,
                         target_tp2_price=pos.target_head_shot,
                         invalidation_reason="TARGET_COMPLETED",
@@ -345,6 +371,125 @@ class OrderManager:
                     if self.memory_engine:
                         self.memory_engine.process_trade_completion(tr, pos, current_bar)
                     closed_trades.append(tr)
+                    continue
+
+            else:
+                # CLASSIC DOUBLE TAP / MULTI-CONTRACT / FOREX FRACTIONAL LOT SCALING
+                # ---------------- STAGE 1: CHECK CENTER MASS (1.5R) ----------------
+                just_trailed = False
+                if not pos.center_mass_filled:
+                    hit_center_mass = (current_bar.high >= pos.target_center_mass) if is_long else (current_bar.low <= pos.target_center_mass)
+                    if hit_center_mass:
+                        pos.center_mass_filled = True
+                        pos.status = 'PARTIAL'
+                        just_trailed = True
+                        # Realize 50% position profit
+                        pts_cm = abs(pos.target_center_mass - pos.entry_price)
+                        pos.realized_pnl = (0.5 * pts_cm * spec['point_value']) - (0.5 * friction)
+
+                        # ADVANCE TO DEFENSIVE SHIELD: Breakeven + buffer covering friction + 2 ticks
+                        friction_buffer = (friction / spec['point_value']) + (2 * spec['tick_size'])
+                        new_stop = (pos.entry_price + friction_buffer) if is_long else (pos.entry_price - friction_buffer)
+                        pos.active_trailing_stop = new_stop
+                        pos.defensive_shields.append('Shield #1: Consequent Encroachment / Breakeven Buffer')
+
+                        self._sync_position(pos)
+                        trail_log = self.advisor.explain_defensive_trail(
+                            pos=pos,
+                            new_trail_price=new_stop,
+                            shield_name='Breakeven + Cushion'
+                        )
+                        self.storage.log_ai_thought(trail_log)
+
+                # ---------------- STAGE 2: CHECK TRAILING STOP LOSS ----------------
+                hit_stop = False
+                if not just_trailed:
+                    hit_stop = (current_bar.low <= pos.active_trailing_stop) if is_long else (current_bar.high >= pos.active_trailing_stop)
+                if hit_stop:
+                    exit_price = pos.active_trailing_stop
+                    if not pos.center_mass_filled:
+                        # Full initial loss
+                        outcome = 'LOSS'
+                        pnl_pts = (exit_price - pos.entry_price) if is_long else (pos.entry_price - exit_price)
+                        dollar_pnl = (pnl_pts * spec['point_value']) - friction
+                    else:
+                        # Defensive stop hit with Center Mass already banked!
+                        outcome = 'DEFENSIVE_STOP'
+                        pnl_runner_pts = (exit_price - pos.entry_price) if is_long else (pos.entry_price - exit_price)
+                        pnl_runner_dollar = (0.5 * pnl_runner_pts * spec['point_value']) - (0.5 * friction)
+                        dollar_pnl = pos.realized_pnl + pnl_runner_dollar
+                        pnl_pts = dollar_pnl / spec['point_value']
+
+                    self.storage.update_account_balance(dollar_pnl)
+                    pos.invalidation_reason = 'HARD_STOP_BREACH' if not pos.center_mass_filled else 'DEFENSIVE_TRAILING_STOP'
+                    tr = TradeRecord(
+                        trade_id=pos.position_id,
+                        asset=pos.asset,
+                        session=pos.session_origin or "LIVE",
+                        direction=pos.direction,
+                        entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        entry_price=pos.entry_price,
+                        exit_time=current_bar.timestamp_et.strftime('%Y-%m-%d %H:%M:%S'),
+                        exit_price=exit_price,
+                        risk_pts=risk_pts,
+                        pnl_pts=pnl_pts,
+                        dollar_pnl=dollar_pnl,
+                        outcome=outcome,
+                        ai_reasoning=f"Closed on Stop trigger @ {exit_price:.2f}. Outcome: {outcome}",
+                        target_tp1_price=pos.target_center_mass,
+                        target_tp2_price=pos.target_head_shot,
+                        invalidation_reason=pos.invalidation_reason,
+                        target_liquidity_pool=pos.target_liquidity_pool
+                    )
+                    self.storage.record_closed_trade(tr)
+                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                    close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
+                    self.storage.log_ai_thought(close_log)
+                    self._remove_position(pos.position_id)
+                    if self.memory_engine:
+                        self.memory_engine.process_trade_completion(tr, pos, current_bar)
+                    closed_trades.append(tr)
+                    continue
+
+                # ---------------- STAGE 3: CHECK HEAD SHOT TERMINUS (3.0R) ----------------
+                if pos.center_mass_filled:
+                    hit_head_shot = (current_bar.high >= pos.target_head_shot) if is_long else (current_bar.low <= pos.target_head_shot)
+                    if hit_head_shot:
+                        exit_price = pos.target_head_shot
+                        outcome = 'FULL_WIN'
+                        pnl_runner_pts = abs(exit_price - pos.entry_price)
+                        pnl_runner_dollar = (0.5 * pnl_runner_pts * spec['point_value']) - (0.5 * friction)
+                        dollar_pnl = pos.realized_pnl + pnl_runner_dollar
+                        pnl_pts = dollar_pnl / spec['point_value']
+
+                        self.storage.update_account_balance(dollar_pnl)
+                        tr = TradeRecord(
+                            trade_id=pos.position_id,
+                            asset=pos.asset,
+                            session=pos.session_origin or "LIVE",
+                            direction=pos.direction,
+                            entry_time=pos.entry_time.strftime('%Y-%m-%d %H:%M:%S'),
+                            entry_price=pos.entry_price,
+                            exit_time=current_bar.timestamp_et.strftime('%Y-%m-%d %H:%M:%S'),
+                            exit_price=exit_price,
+                            risk_pts=risk_pts,
+                            pnl_pts=pnl_pts,
+                            dollar_pnl=dollar_pnl,
+                            outcome=outcome,
+                            ai_reasoning="Full algorithmic objective reached at Head Shot terminus (3.0R).",
+                            target_tp1_price=pos.target_center_mass,
+                            target_tp2_price=pos.target_head_shot,
+                            invalidation_reason="TARGET_COMPLETED",
+                            target_liquidity_pool=pos.target_liquidity_pool
+                        )
+                        self.storage.record_closed_trade(tr)
+                        self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                        close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
+                        self.storage.log_ai_thought(close_log)
+                        self._remove_position(pos.position_id)
+                        if self.memory_engine:
+                            self.memory_engine.process_trade_completion(tr, pos, current_bar)
+                        closed_trades.append(tr)
 
         return closed_trades
 

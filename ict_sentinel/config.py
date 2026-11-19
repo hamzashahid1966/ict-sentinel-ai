@@ -5,6 +5,11 @@ Codifies the 52-Lecture ICT 2024 Mentorship parameters.
 
 import os
 import datetime
+from zoneinfo import ZoneInfo
+
+# Exchange Pinned Timezones (DST-Aware)
+NY_TZ = ZoneInfo("America/New_York")
+LON_TZ = ZoneInfo("Europe/London")
 
 # Base Directory & Storage Path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +19,10 @@ DB_PATH = os.environ.get("SENTINEL_DB_PATH", os.path.join(BASE_DIR, "sentinel.db
 INITIAL_CAPITAL = 500.0
 MAX_DAILY_DRAWDOWN_PCT = 10.0  # Max $50 risk per day
 MAX_SINGLE_TRADE_RISK_PCT = 5.0 # Max $25 risk per trade
+
+# Portfolio Correlation & Exposure Safeguards
+MAX_CONCURRENT_USD_EXPOSURE = 1  # Block stacking same-direction USD risk (e.g. Long Gold + Long GBPUSD)
+SINGLE_CONTRACT_TARGET_R = 2.0   # CME Futures discrete single-contract full-target protocol (100% exit at 2.0R, BE at 1.0R)
 
 # Institutional Quantitative Goals (Benchmark Criteria)
 INSTITUTIONAL_GOALS = {
@@ -36,6 +45,8 @@ ASSET_SPECS = {
         'commission': 1.25,         # Round turn per micro
         'slippage_ticks': 1.0,
         'min_pre_range': 4.0,
+        'is_futures': True,         # CME Futures: discrete contract indivisibility
+        'usd_relation': 'INVERSE',  # Long Gold = Short USD
     },
     'SILVER': {
         'symbol': 'SI=F',
@@ -47,6 +58,8 @@ ASSET_SPECS = {
         'commission': 1.25,
         'slippage_ticks': 1.0,
         'min_pre_range': 0.15,
+        'is_futures': True,         # CME Futures
+        'usd_relation': 'INVERSE',  # Long Silver = Short USD
     },
     'NASDAQ': {
         'symbol': 'NQ=F',
@@ -58,6 +71,8 @@ ASSET_SPECS = {
         'commission': 0.62,
         'slippage_ticks': 1.0,
         'min_pre_range': 25.0,
+        'is_futures': True,         # CME Futures
+        'usd_relation': 'NEUTRAL',  # Equity index beta
     },
     'GBPUSD': {
         'symbol': 'GBPUSD=X',
@@ -69,6 +84,8 @@ ASSET_SPECS = {
         'commission': 0.60,
         'slippage_ticks': 0.5,
         'min_pre_range': 0.0015,
+        'is_futures': False,        # Forex: divisible into fractional lots
+        'usd_relation': 'INVERSE',  # Long GBP = Short USD
     },
     'EURUSD': {
         'symbol': 'EURUSD=X',
@@ -80,6 +97,8 @@ ASSET_SPECS = {
         'commission': 0.60,
         'slippage_ticks': 0.5,
         'min_pre_range': 0.0012,
+        'is_futures': False,        # Forex: divisible into fractional lots
+        'usd_relation': 'INVERSE',  # Long EUR = Short USD
     }
 }
 
