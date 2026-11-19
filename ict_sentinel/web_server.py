@@ -425,6 +425,12 @@ class BotController:
         else:
             micro_state = f"Actively scanning 5m bars in {session} for sweeps & body MSS"
 
+        meta_reflections = self.memory_engine.get_latest_meta_reflections(limit=5)
+        if not meta_reflections:
+            meta_reflections = [self.memory_engine.synthesize_weekly_meta_reflection()]
+
+        from .config import INSTITUTIONAL_GOALS
+
         return {
             "running": self.is_running,
             "demo": self.is_demo_running,
@@ -439,8 +445,11 @@ class BotController:
                 "mdd": round(acct.max_drawdown_dollars, 2),
                 "mddp": round(acct.max_drawdown_pct, 1),
                 "wr": round(wr, 1), "pf": round(pf, 2),
+                "sharpe": meta_reflections[0]['realized_sharpe'] if meta_reflections else 0.0,
                 "tt": total, "w": len(wins), "l": len(losses_list),
             },
+            "goals": INSTITUTIONAL_GOALS,
+            "meta_reflections": meta_reflections,
             "eq": eq, "assets": assets, "pos": pos,
             "trades": tds, "logs": lg,
             "diagnostics": diagnostics,
@@ -682,7 +691,7 @@ svg.es{width:100%;height:100%;overflow:visible}
       <div class="kc p">
         <div class="kl">Realized Net PnL</div>
         <div class="kv g" id="kPnl">+$0.00</div>
-        <div class="ks"><span>Win Rate: <b id="kWr" class="g">0%</b></span><span>PF: <b id="kPf">0</b></span></div>
+        <div class="ks"><span>Win Rate: <b id="kWr" class="g">0%</b></span><span>PF: <b id="kPf">0</b></span><span>Sharpe: <b id="kSharpe" style="color:var(--cy)">0.00</b></span></div>
       </div>
       <div class="kc">
         <div class="kl">Trade Ledger</div>
@@ -690,9 +699,9 @@ svg.es{width:100%;height:100%;overflow:visible}
         <div class="ks"><span>Wins: <b id="kW" class="g">0</b></span><span>Losses: <b id="kL" class="r">0</b></span></div>
       </div>
       <div class="kc">
-        <div class="kl">Risk & Drawdown</div>
+        <div class="kl">Risk & Institutional Goals</div>
         <div class="kv" id="kDD">$0.00</div>
-        <div class="ks"><span>Max DD: <b id="kDDp">0%</b></span><span id="kOp">0 Brackets</span></div>
+        <div class="ks"><span>Max DD: <b id="kDDp">0%</b></span><span>Goal Sharpe: <b class="g">1.50</b></span></div>
       </div>
     </div>
 
@@ -757,6 +766,17 @@ svg.es{width:100%;height:100%;overflow:visible}
       </div>
       <div id="debriefList" style="display:flex;flex-direction:column;gap:10px;padding:14px">
         <div class="empty">Awaiting session close to compile cross-session debrief...</div>
+      </div>
+    </div>
+
+    <!-- Scientific Method & Institutional Meta-Reflections -->
+    <div class="pn">
+      <div class="ph">
+        <div class="pt">🔬 Institutional Meta-Reflections & Scientific Method Journal</div>
+        <span class="b b-p">Single-Variable Optimization</span>
+      </div>
+      <div id="metaReflectionList" style="display:flex;flex-direction:column;gap:10px;padding:14px">
+        <div class="empty">Synthesizing institutional multi-session batch metrics...</div>
       </div>
     </div>
 
@@ -971,6 +991,8 @@ function U(d){
   pe.className=a.pnl>=0?'kv g':'kv r';
   $('kWr').innerText=a.wr.toFixed(1)+'%';
   $('kPf').innerText=a.pf>=900?'MAX':a.pf.toFixed(2);
+  const shEl=$('kSharpe');
+  if(shEl){shEl.innerText=(a.sharpe!==undefined&&a.sharpe!==null)?a.sharpe.toFixed(2):'0.00'}
   $('kTt').innerText=a.tt;
   $('kW').innerText=a.w;$('kL').innerText=a.l;
   $('kDD').innerText='$'+a.mdd.toFixed(2);
@@ -1088,6 +1110,35 @@ function U(d){
           </div>
           <div style="font-size:11px;color:#94A3B8;line-height:1.5;background:#090D15;padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,.03)">
             ${b.ai_debrief_summary}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // ── Render Meta-Reflections & Scientific Method Journal ──
+  const metaList = $('metaReflectionList');
+  if (metaList) {
+    if (!d.meta_reflections || !d.meta_reflections.length) {
+      metaList.innerHTML = '<div class="empty">Synthesizing institutional multi-session batch metrics...</div>';
+    } else {
+      metaList.innerHTML = d.meta_reflections.map(m => `
+        <div style="background:var(--s2);border:1px solid var(--bdr);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;gap:8px;align-items:center">
+              <b style="color:#F1F5F9;font-family:'JetBrains Mono',monospace">${m.window_name}</b>
+              <span class="b b-p">${m.timestamp}</span>
+              <span class="b ${m.status === 'CONFIRMED' ? 'b-p' : (m.status === 'TESTING' ? 'b-d' : 'b-q')}">${m.status}</span>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx2)">
+              Sharpe: <b style="color:var(--cy)">${m.realized_sharpe.toFixed(2)}</b> (Goal: 1.50) | PF: <b style="color:var(--gr)">${m.profit_factor.toFixed(2)}</b> (Goal: 2.00)
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--tx2);line-height:1.4">
+            <b style="color:var(--am)">Single Variable Isolated:</b> <span style="color:#F1F5F9;font-weight:600">${m.variable_tested}</span>
+          </div>
+          <div style="font-size:11px;color:#94A3B8;background:#090D15;padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,.03);line-height:1.4">
+            <b>Scientific Hypothesis & Target:</b> ${m.hypothesis}
           </div>
         </div>
       `).join('');

@@ -168,6 +168,23 @@ class StorageEngine:
                 )
                 """)
 
+                # 9. Institutional Meta-Reflections & Scientific Journal
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS meta_reflections (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    window_name TEXT NOT NULL,
+                    total_trades INTEGER,
+                    win_rate REAL,
+                    realized_sharpe REAL,
+                    profit_factor REAL,
+                    net_pnl REAL,
+                    hypothesis TEXT NOT NULL,
+                    variable_tested TEXT NOT NULL,
+                    status TEXT NOT NULL
+                )
+                """)
+
                 # Defensive migrations for active position and history extensions
                 for col_sql in [
                     "ALTER TABLE positions ADD COLUMN defending_fvg_ce REAL",
@@ -474,4 +491,40 @@ class StorageEngine:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM adaptive_weights ORDER BY quality_score DESC")
+            return [dict(r) for r in cursor.fetchall()]
+
+    def record_meta_reflection(self, reflection: Dict[str, Any]) -> int:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            cursor.execute("""
+            INSERT INTO meta_reflections (
+                timestamp, window_name, total_trades, win_rate, realized_sharpe,
+                profit_factor, net_pnl, hypothesis, variable_tested, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                now_str,
+                reflection.get('window_name', 'Rolling 7-Day Window'),
+                reflection.get('total_trades', 0),
+                reflection.get('win_rate', 0.0),
+                reflection.get('realized_sharpe', 0.0),
+                reflection.get('profit_factor', 0.0),
+                reflection.get('net_pnl', 0.0),
+                reflection.get('hypothesis', ''),
+                reflection.get('variable_tested', 'None (Baseline Review)'),
+                reflection.get('status', 'ACTIVE')
+            ))
+            conn.commit()
+            return cursor.lastrowid
+
+    def get_latest_meta_reflections(self, limit: int = 5) -> List[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            SELECT id, timestamp, window_name, total_trades, win_rate, realized_sharpe,
+                   profit_factor, net_pnl, hypothesis, variable_tested, status
+            FROM meta_reflections
+            ORDER BY id DESC
+            LIMIT ?
+            """, (limit,))
             return [dict(r) for r in cursor.fetchall()]

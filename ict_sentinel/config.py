@@ -15,6 +15,15 @@ INITIAL_CAPITAL = 500.0
 MAX_DAILY_DRAWDOWN_PCT = 10.0  # Max $50 risk per day
 MAX_SINGLE_TRADE_RISK_PCT = 5.0 # Max $25 risk per trade
 
+# Institutional Quantitative Goals (Benchmark Criteria)
+INSTITUTIONAL_GOALS = {
+    'target_sharpe_ratio': 1.50,
+    'target_profit_factor': 2.00,
+    'target_win_rate_pct': 65.0,
+    'max_daily_drawdown_dollars': 50.0,
+    'monthly_return_target_pct': 25.0
+}
+
 # Asset Specifications
 ASSET_SPECS = {
     'GOLD': {

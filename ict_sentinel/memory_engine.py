@@ -192,3 +192,67 @@ class MemoryEngine:
 
     def get_recent_reflections(self, limit: int = 5) -> List[Dict[str, Any]]:
         return self.storage.get_recent_reflections(limit=limit)
+
+    def synthesize_weekly_meta_reflection(self) -> Dict[str, Any]:
+        """
+        Executes macroscopic multi-session meta-reflection following the Scientific Method.
+        Computes rolling Sharpe ratio, Profit Factor, evaluates institutional benchmarks,
+        and generates a single-variable hypothesis ledger entry.
+        """
+        import math
+        from .config import INSTITUTIONAL_GOALS, INITIAL_CAPITAL
+
+        trades = self.storage.get_trade_history(limit=50)
+        total = len(trades)
+        wins = [t for t in trades if t.dollar_pnl > 0]
+        losses = [t for t in trades if t.dollar_pnl < 0]
+        wr = (len(wins) / total * 100.0) if total else 0.0
+        gp = sum(t.dollar_pnl for t in wins)
+        gl = abs(sum(t.dollar_pnl for t in losses))
+        pf = (gp / gl) if gl > 0 else (9.99 if gp > 0 else 0.0)
+        net_pnl = gp - gl
+
+        # Calculate Realized Sharpe Ratio across trades
+        realized_sharpe = 0.0
+        if total >= 3:
+            returns = [t.dollar_pnl / INITIAL_CAPITAL for t in trades]
+            mean_r = sum(returns) / total
+            var_r = sum((r - mean_r) ** 2 for r in returns) / (total - 1)
+            std_r = math.sqrt(var_r) if var_r > 0 else 0.0
+            if std_r > 0:
+                realized_sharpe = round((mean_r / std_r) * math.sqrt(min(252, total * 12)), 2)
+
+        # Formulate Scientific Single-Variable Hypothesis
+        if total == 0:
+            variable_tested = "Baseline Initialization"
+            hypothesis = "Awaiting trade executions to formulate initial baseline hypothesis."
+            status = "INITIALIZING"
+        elif pf >= INSTITUTIONAL_GOALS['target_profit_factor'] and wr >= INSTITUTIONAL_GOALS['target_win_rate_pct']:
+            variable_tested = "Center Mass Scaling Target (1.5R)"
+            hypothesis = f"Strong institutional baseline confirmed (PF: {pf:.2f}, WR: {wr:.1f}%, Sharpe: {realized_sharpe:.2f}). Hypothesis: Maintain 1.5R Center Mass target to maximize early profit extraction without premature stops."
+            status = "CONFIRMED"
+        elif wr < 50.0:
+            variable_tested = "Runner Defensive Stop Buffer (2 Ticks)"
+            hypothesis = f"Elevated stop-out rate observed (WR: {wr:.1f}%). Hypothesis: Increase defensive stop buffer from 2 ticks to 3 ticks on runner contracts to insulate against intraday noise."
+            status = "TESTING"
+        else:
+            variable_tested = "Asian Session Pre-Range Threshold (4.0 pts)"
+            hypothesis = f"Balanced regime performance (PF: {pf:.2f}). Hypothesis: Filter out setups when Asian reference range is compressed below 4.5 pts to prevent false breakouts."
+            status = "OBSERVING"
+
+        reflection = {
+            'window_name': f"Rolling {total}-Trade Batch Window",
+            'total_trades': total,
+            'win_rate': round(wr, 1),
+            'realized_sharpe': realized_sharpe,
+            'profit_factor': round(pf, 2),
+            'net_pnl': round(net_pnl, 2),
+            'hypothesis': hypothesis,
+            'variable_tested': variable_tested,
+            'status': status
+        }
+        self.storage.record_meta_reflection(reflection)
+        return reflection
+
+    def get_latest_meta_reflections(self, limit: int = 5) -> List[Dict[str, Any]]:
+        return self.storage.get_latest_meta_reflections(limit=limit)
