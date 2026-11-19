@@ -331,14 +331,14 @@ class IPDAEngine:
         session_set = set(id(c) for c in session_bars)
         session_indices = [idx for idx, c in enumerate(candles) if id(c) in session_set]
 
-        # Scan for sweeps across the active session
+        # Scan for sweeps across the active session (BSL raid above ref_high, SSL raid below ref_low)
         swept_high_indices = [
             idx for idx in session_indices
-            if candles[idx].high > ref_high and candles[idx].close < ref_high
+            if candles[idx].high > ref_high
         ]
         swept_low_indices = [
             idx for idx in session_indices
-            if candles[idx].low < ref_low and candles[idx].close > ref_low
+            if candles[idx].low < ref_low
         ]
 
         # ---------------- BEARISH SIGNAL (SHORT) ----------------
@@ -387,7 +387,10 @@ class IPDAEngine:
                         continue
 
                     entry_price = fvg_low
-                    sl = sweep_max_high + (2 * spec['tick_size'])
+                    local_anchor = max(c0.high, c1.high)
+                    if (i - first_sweep_idx) <= 5:
+                        local_anchor = max(local_anchor, s_bar.high)
+                    sl = local_anchor + (2 * spec['tick_size'])
                     risk = sl - entry_price
 
                     if spec['min_risk_pts'] <= risk <= spec['max_risk_pts']:
@@ -465,7 +468,10 @@ class IPDAEngine:
                         continue
 
                     entry_price = fvg_high
-                    sl = sweep_min_low - (2 * spec['tick_size'])
+                    local_anchor = min(c0.low, c1.low)
+                    if (i - first_sweep_idx) <= 5:
+                        local_anchor = min(local_anchor, s_bar.low)
+                    sl = local_anchor - (2 * spec['tick_size'])
                     risk = entry_price - sl
 
                     if spec['min_risk_pts'] <= risk <= spec['max_risk_pts']:
@@ -569,14 +575,14 @@ class IPDAEngine:
             else:
                 session_bars = [c for c in candles if (c.timestamp_et.time() >= win['exec_start']) or (c.timestamp_et.time() <= win['exec_end'])]
 
-        high_sweeps = [c for c in session_bars if c.high > ref_high and c.close < ref_high]
-        low_sweeps = [c for c in session_bars if c.low < ref_low and c.close > ref_low]
+        high_sweeps = [c for c in session_bars if c.high > ref_high]
+        low_sweeps = [c for c in session_bars if c.low < ref_low]
 
         # Fallback to recent 3 bars if session bars are being initialized
         if not high_sweeps and not low_sweeps:
             recent_3 = candles[-3:] if len(candles) >= 3 else candles
-            high_sweeps = [c for c in recent_3 if c.high > ref_high and c.close < ref_high]
-            low_sweeps = [c for c in recent_3 if c.low < ref_low and c.close > ref_low]
+            high_sweeps = [c for c in recent_3 if c.high > ref_high]
+            low_sweeps = [c for c in recent_3 if c.low < ref_low]
 
         # Prioritize the most significant liquidity raid
         swept_high_bar = max(high_sweeps, key=lambda c: c.high) if high_sweeps else None

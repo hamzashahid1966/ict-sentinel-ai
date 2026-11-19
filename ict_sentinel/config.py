@@ -41,7 +41,7 @@ ASSET_SPECS = {
         'point_value': 10.0,       # $10 per full point
         'tick_size': 0.10,          # 1 tick = 0.10 = $1.00
         'min_risk_pts': 2.0,        # Minimum stop: 2.0 pts ($20)
-        'max_risk_pts': 3.5,        # Maximum stop: 3.5 pts ($35)
+        'max_risk_pts': 5.0,        # Maximum stop: 5.0 pts ($50)
         'commission': 1.25,         # Round turn per micro
         'slippage_ticks': 1.0,
         'min_pre_range': 4.0,
@@ -54,7 +54,7 @@ ASSET_SPECS = {
         'point_value': 1000.0,      # $1.00 move = $1000 per micro (1000 oz)
         'tick_size': 0.005,         # 1 tick = $5.00
         'min_risk_pts': 0.030,      # 3 cents ($30)
-        'max_risk_pts': 0.040,      # 4 cents ($40)
+        'max_risk_pts': 0.075,      # 7.5 cents ($75)
         'commission': 1.25,
         'slippage_ticks': 1.0,
         'min_pre_range': 0.15,
@@ -67,7 +67,7 @@ ASSET_SPECS = {
         'point_value': 2.0,         # $2 per full point
         'tick_size': 0.25,          # 1 tick = $0.50
         'min_risk_pts': 6.0,        # 6 pts ($12)
-        'max_risk_pts': 15.0,       # 15 pts ($30)
+        'max_risk_pts': 25.0,       # 25 pts ($50)
         'commission': 0.62,
         'slippage_ticks': 1.0,
         'min_pre_range': 25.0,
@@ -79,8 +79,8 @@ ASSET_SPECS = {
         'display_name': 'British Pound Forex (0.10 Mini Lot)',
         'point_value': 10000.0,     # $1.00 per pip
         'tick_size': 0.0001,        # 1 pip
-        'min_risk_pts': 0.0008,     # 8 pips ($8)
-        'max_risk_pts': 0.0025,     # 25 pips ($25)
+        'min_risk_pts': 0.0006,     # 6 pips ($6)
+        'max_risk_pts': 0.0030,     # 30 pips ($30)
         'commission': 0.60,
         'slippage_ticks': 0.5,
         'min_pre_range': 0.0015,
@@ -93,7 +93,7 @@ ASSET_SPECS = {
         'point_value': 10000.0,     # $1.00 per pip
         'tick_size': 0.0001,        # 1 pip
         'min_risk_pts': 0.0006,     # 6 pips ($6)
-        'max_risk_pts': 0.0020,     # 20 pips ($20)
+        'max_risk_pts': 0.0025,     # 25 pips ($25)
         'commission': 0.60,
         'slippage_ticks': 0.5,
         'min_pre_range': 0.0012,
