@@ -174,7 +174,7 @@ class RoundRecorder:
         self.pending_every = pending_every
         self.gamma_every = gamma_every
         self.lock = threading.RLock()
-        self.series: Dict[str, Dict[str, Series]] = {c: {k: [] for k in ("chainlink_spot", "chainlink_twap", "binance", "coinbase", "clob_up")} for c in self.coins}
+        self.series: Dict[str, Dict[str, Series]] = {c: {k: [] for k in ("chainlink_spot", "chainlink_twap", "binance", "coinbase", "clob_up", "gamma_up")} for c in self.coins}
         self.gamma: Dict[str, Dict] = {c: {} for c in self.coins}
         self._pending_finalize: List[Tuple[float, str, int]] = []
         self._ssl = ssl.create_default_context()

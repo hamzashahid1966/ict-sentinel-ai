@@ -89,3 +89,19 @@ class TestAggregateReport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRecorderPollPersistsMarketSeries(unittest.TestCase):
+    def test_poll_stores_clob_and_gamma_up_without_crashing(self):
+        import os, sqlite3, tempfile
+        from unittest.mock import patch
+        from polymarket_sentinel.crypto_5m import round_recorder as rr
+        d = tempfile.mkdtemp()
+        db = os.path.join(d, "rec.db")
+        with patch("polymarket_sentinel.crypto_5m.chainlink_feed.ChainlinkOracleFeed"):
+            rec = rr.RoundRecorder(coins=("BTC",), db_path=db)
+        with patch.object(rec, "_fetch_gamma", return_value={"found": True, "price_up": 0.14, "gamma_price_up": 0.315,
+                                                             "price_to_beat": None, "closed": False, "outcome": None}):
+            rec._poll_gamma(1795376450.0, 1795376400)
+        rows = sqlite3.connect(db).execute("select source, value from ticks order by source").fetchall()
+        self.assertEqual(rows, [("clob_up", 0.14), ("gamma_up", 0.315)])
