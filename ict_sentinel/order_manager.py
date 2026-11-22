@@ -41,7 +41,10 @@ class OrderManager:
         # 1. Enforce Daily Drawdown Circuit Breaker ($50.00 max daily loss)
         from .config import MAX_DAILY_DRAWDOWN_PCT, INITIAL_CAPITAL
         max_daily_loss = (MAX_DAILY_DRAWDOWN_PCT / 100.0) * INITIAL_CAPITAL  # $50.00
-        today_str = current_time.date().isoformat()
+        # Day key in New York time, matching StorageEngine.update_account_balance. A naive datetime is
+        # read as local wall-clock time (astimezone's rule) so the key never depends on the host's timezone.
+        from .config import NY_TZ
+        today_str = current_time.astimezone(NY_TZ).date().isoformat()
         current_dd = self.storage.get_daily_drawdown(today_str)
         if current_dd >= max_daily_loss:
             log_entry = self.advisor.create_system_log(
