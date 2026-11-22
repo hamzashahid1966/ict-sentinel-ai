@@ -100,3 +100,69 @@ class TestRegimeGate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestVariantOptions(unittest.TestCase):
+    """Options added for the strategy search: time exit, wider stop, trend and setup filters."""
+
+    def test_time_exit_ignores_targets_and_closes_at_deadline(self):
+        from ict_sentinel.gold_backtest import BacktestConfig as C
+        cfg = C(exit_model="time_exit", stop_mult=1.0)
+        start = datetime.datetime(2026, 2, 10, 11, 55, tzinfo=datetime.timezone.utc)  # 06:55 EST
+        # a 40-point spike would hit any fixed target; time exit must hold to the 07:15 deadline
+        bars = _bars(start, [(3000.0, 3001.0, 2999.0, 3000.5), (3000.5, 3040.0, 3000.0, 3030.0),
+                             (3030.0, 3031.0, 3020.0, 3025.0), (3025.0, 3026.0, 3015.0, 3020.0), (3020.0, 3021.0, 3010.0, 3015.0)])
+        r = simulate_trade(_long_signal(), bars, cfg, units=10.0)
+        self.assertEqual(r.outcome, "SESSION_EXPIRATION")
+        self.assertAlmostEqual(r.exit_price, 3015.0)   # close of the 07:15 bar
+
+    def test_stop_mult_widens_the_structural_stop_and_risk(self):
+        from ict_sentinel.gold_backtest import BacktestConfig as C
+        cfg = C(exit_model="time_exit", stop_mult=2.0)
+        bars = _bars(T0, [(3000.0, 3001.0, 2999.0, 3000.5), (3000.5, 3001.0, 2994.0, 2995.0), (2995.0, 2996.0, 2990.0, 2991.0)])
+        r = simulate_trade(_long_signal(), bars, cfg, units=10.0)
+        # original stop 2996 is pierced on bar 2 but the widened stop (2996 - 4 = 2992) holds until bar 3
+        self.assertEqual(r.outcome, "STOP")
+        self.assertAlmostEqual(r.exit_price, 2992.0 - 0.10)
+        self.assertAlmostEqual(r.risk_pts, 8.0)
+
+    def test_daily_trend_uses_only_completed_days(self):
+        from ict_sentinel.gold_backtest import DailyTrend
+        t = DailyTrend(ema_len=3)
+        day = datetime.date(2026, 2, 2)
+        for i, close in enumerate([100.0, 101.0, 102.0, 103.0]):
+            t.observe(day + datetime.timedelta(days=i), close)
+        # the 5th day is in progress: its bars must not influence the trend read for that day
+        self.assertEqual(t.direction(day + datetime.timedelta(days=4)), "UP")
+        t.observe(day + datetime.timedelta(days=4), 50.0)
+        self.assertEqual(t.direction(day + datetime.timedelta(days=4)), "UP")
+        self.assertEqual(t.direction(day + datetime.timedelta(days=5)), "DOWN")
+
+    def test_signal_filters(self):
+        from ict_sentinel.gold_backtest import BacktestConfig as C, signal_allowed
+        cfg = C(setups=("IMP_PULLBACK",), trend_filter=True)
+        self.assertTrue(signal_allowed(cfg, "IMP_PULLBACK", "LONG", "UP"))
+        self.assertFalse(signal_allowed(cfg, "IMP_PULLBACK", "SHORT", "UP"))
+        self.assertFalse(signal_allowed(cfg, "ASIA_SWEEP", "LONG", "UP"))
+        self.assertTrue(signal_allowed(C(), "ASIA_SWEEP", "SHORT", "UP"))
+
+
+class TestRandomEntryControl(unittest.TestCase):
+    def test_random_control_is_seeded_and_uses_engine_bounds(self):
+        from ict_sentinel.gold_backtest import BacktestConfig as C, random_signal
+        import random
+        # 40 bars of London Core tape, mild noise around 3000
+        start = datetime.datetime(2026, 2, 10, 9, 0, tzinfo=datetime.timezone.utc)
+        bars = _bars(start, [(3000.0 + (i % 5) * 0.4, 3001.5 + (i % 5) * 0.4, 2999.0 + (i % 5) * 0.4, 3000.5 + (i % 5) * 0.4) for i in range(40)])
+        a = random_signal(bars, "LONDON_CORE", random.Random(7))
+        b = random_signal(bars, "LONDON_CORE", random.Random(7))
+        self.assertEqual((a.direction, a.stop_loss, a.risk_pts), (b.direction, b.stop_loss, b.risk_pts))
+        self.assertIn(a.direction, ("LONG", "SHORT"))
+        self.assertGreaterEqual(a.risk_pts, 1.5)
+        self.assertLessEqual(a.risk_pts, 15.0)
+        self.assertEqual(a.pd_array.array_type, "RANDOM")
+        self.assertEqual(a.session, "LONDON_CORE")
+        if a.direction == "LONG":
+            self.assertAlmostEqual(a.entry_price - a.stop_loss, a.risk_pts)
+        else:
+            self.assertAlmostEqual(a.stop_loss - a.entry_price, a.risk_pts)

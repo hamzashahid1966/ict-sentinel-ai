@@ -27,6 +27,7 @@ import argparse
 import datetime
 import json
 import math
+import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -53,6 +54,12 @@ class BacktestConfig:
     max_trades_per_day: Optional[int] = None   # Pine v1.6 rule: at most 3 entries per day
     one_per_setup_per_day: bool = False        # Pine v1.6 rule: a broken level is consumed by its first entry
     gold_model_only: bool = False              # ignore the generic sweep/FVG (BISI/SIBI) signals, keep IMP/ASIA_SWEEP
+    stop_mult: float = 1.0                     # widen the structural stop by this factor (risk per trade stays equity*risk_pct)
+    setups: Optional[Tuple[str, ...]] = None   # allow-list of setup types, e.g. ("IMP_PULLBACK",)
+    trend_filter: bool = False                 # only trade with the daily trend from COMPLETED days
+    trend_ema_len: int = 20
+    random_entries: Optional[float] = None     # CONTROL: probability per eligible London bar of a random entry instead of the engine
+    seed: int = 1
 
 
 @dataclass
@@ -124,12 +131,13 @@ def simulate_trade(sig: AlgorithmicSignal, bars: List[Candle], cfg: BacktestConf
     is_long = sig.direction == "LONG"
     d = 1.0 if is_long else -1.0
     entry = bars[1].open + d * cfg.slippage_pts
-    risk = float(sig.risk_pts)
-    stop = float(sig.stop_loss)
-    if cfg.exit_model == "production":
+    base_risk = float(sig.risk_pts)
+    risk = base_risk * cfg.stop_mult
+    stop = float(sig.stop_loss) - d * (cfg.stop_mult - 1.0) * base_risk
+    if cfg.exit_model in ("production", "fixed_2r"):
         target = entry + d * 2.0 * risk
-    elif cfg.exit_model == "fixed_2r":
-        target = entry + d * 2.0 * risk
+    elif cfg.exit_model == "time_exit":
+        target = None   # hold to the session deadline, stop only
     else:
         target = entry + d * 1.6 * risk
     r1 = entry + d * risk
@@ -151,7 +159,7 @@ def simulate_trade(sig: AlgorithmicSignal, bars: List[Candle], cfg: BacktestConf
         if deadline is not None and b.timestamp_et.time() >= deadline:
             return finish(i, b.close, "SESSION_EXPIRATION")
         hit_stop = (b.low <= stop) if is_long else (b.high >= stop)
-        hit_target = (b.high >= target) if is_long else (b.low <= target)
+        hit_target = False if target is None else ((b.high >= target) if is_long else (b.low <= target))
 
         if cfg.exit_model == "production":
             just_trailed = False
@@ -169,6 +177,58 @@ def simulate_trade(sig: AlgorithmicSignal, bars: List[Candle], cfg: BacktestConf
             if hit_target:
                 return finish(i, target, "TARGET")
     return finish(len(bars) - 1, bars[-1].close, "END_OF_DATA")
+
+
+class DailyTrend:
+    """Daily close EMA read from COMPLETED days only; the in-progress day never leaks in."""
+
+    def __init__(self, ema_len: int = 20):
+        self.ema_len = ema_len
+        self.closes: Dict[datetime.date, float] = {}
+
+    def observe(self, day: datetime.date, close: float):
+        self.closes[day] = close
+
+    def direction(self, day: datetime.date) -> Optional[str]:
+        done = [self.closes[k] for k in sorted(self.closes) if k < day]
+        if len(done) < 2:
+            return None
+        k = 2.0 / (self.ema_len + 1.0)
+        ema = done[0]
+        for c in done[1:]:
+            ema = c * k + ema * (1.0 - k)
+        return "UP" if done[-1] > ema else "DOWN"
+
+
+def random_signal(window: List[Candle], session: str, rng: random.Random) -> AlgorithmicSignal:
+    """
+    Control signal: a coin-flip direction at the current close with a structural-looking
+    stop (1.5x the average 14-bar range, clipped to the gold model's 1.5..15 point bounds).
+    Same exits, costs, cooldown and deadline as the engine; only the entry decision is random.
+    """
+    curr = window[-1]
+    recent = window[-15:-1] if len(window) >= 15 else window[:-1] or [curr]
+    avg_range = sum(c.high - c.low for c in recent) / len(recent)
+    risk = max(1.5, min(15.0, round(avg_range * 1.5, 2)))
+    direction = "LONG" if rng.random() < 0.5 else "SHORT"
+    entry = curr.close
+    stop = entry - risk if direction == "LONG" else entry + risk
+    from .models import PDArray
+    return AlgorithmicSignal(asset="GOLD", session=session, direction=direction, entry_price=entry, stop_loss=stop,
+                             risk_pts=risk, target_center_mass=entry + (1.6 * risk if direction == "LONG" else -1.6 * risk),
+                             target_head_shot=entry + (2.5 * risk if direction == "LONG" else -2.5 * risk),
+                             pd_array=PDArray("RANDOM", curr.high, curr.low, None, curr.timestamp_et), ai_rationale="random control")
+
+
+def signal_allowed(cfg: BacktestConfig, setup: str, direction: str, trend: Optional[str]) -> bool:
+    if cfg.setups is not None and setup not in cfg.setups:
+        return False
+    if cfg.trend_filter:
+        if trend is None:
+            return False
+        if (direction == "LONG") != (trend == "UP"):
+            return False
+    return True
 
 
 # ── data ────────────────────────────────────────────────────────────────────────
@@ -197,10 +257,15 @@ def run_backtest(bars: List[Candle], cfg: BacktestConfig, start: Optional[dateti
     cooldown_until: Optional[datetime.datetime] = None
     per_day: Dict[str, int] = {}
     taken = set()
+    trend = DailyTrend(cfg.trend_ema_len)
+    rng = random.Random(cfg.seed)
+    for b0 in bars[:cfg.window]:
+        trend.observe(b0.timestamp_et.date(), b0.close)
     i = cfg.window
     n = len(bars)
     while i < n - 1:
         c = bars[i]
+        trend.observe(c.timestamp_et.date(), c.close)
         if (start and c.timestamp < start) or (end and c.timestamp > end):
             i += 1
             continue
@@ -212,7 +277,9 @@ def run_backtest(bars: List[Candle], cfg: BacktestConfig, start: Optional[dateti
             i += 1
             continue
         window = bars[i - cfg.window + 1:i + 1]
-        if gate is not None:
+        if cfg.random_entries is not None:
+            sig = random_signal(window, IPDAEngine.get_current_session(t_et), rng) if rng.random() < cfg.random_entries else None
+        elif gate is not None:
             sig = engine.evaluate_market("GOLD", window, memory_engine=gate)
             if sig is None:
                 probe = engine.evaluate_market("GOLD", window, memory_engine=None)
@@ -228,6 +295,9 @@ def run_backtest(bars: List[Candle], cfg: BacktestConfig, start: Optional[dateti
         if cfg.gold_model_only and setup not in ("IMP_PULLBACK", "ASIA_SWEEP"):
             i += 1
             continue
+        if not signal_allowed(cfg, setup, sig.direction, trend.direction(c.timestamp_et.date())):
+            i += 1
+            continue
         if cfg.max_trades_per_day is not None and per_day.get(day_key, 0) >= cfg.max_trades_per_day:
             i += 1
             continue
@@ -236,7 +306,7 @@ def run_backtest(bars: List[Candle], cfg: BacktestConfig, start: Optional[dateti
             continue
         per_day[day_key] = per_day.get(day_key, 0) + 1
         taken.add((day_key, setup, sig.direction))
-        units = cfg.fixed_units if cfg.fixed_units else (equity * cfg.risk_pct / 100.0) / sig.risk_pts
+        units = cfg.fixed_units if cfg.fixed_units else (equity * cfg.risk_pct / 100.0) / (sig.risk_pts * cfg.stop_mult)
         res = simulate_trade(sig, bars[i:i + 400], cfg, units)
         if res is None:
             break
@@ -325,6 +395,12 @@ def main(argv=None):
     ap.add_argument("--max-per-day", type=int, default=None)
     ap.add_argument("--one-per-setup", action="store_true")
     ap.add_argument("--gold-only", action="store_true")
+    ap.add_argument("--stop-mult", type=float, default=1.0)
+    ap.add_argument("--trend-filter", action="store_true")
+    ap.add_argument("--setups", default=None, help="comma-separated allow-list, e.g. IMP_PULLBACK")
+    ap.add_argument("--label", default="")
+    ap.add_argument("--random", type=float, default=None, help="CONTROL: probability per London bar of a random entry")
+    ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--end", default=None, help="YYYY-MM-DD")
     args = ap.parse_args(argv)
     bars = load_bars(args.data)
@@ -334,11 +410,13 @@ def main(argv=None):
         quarantine = v.endswith("+quarantine")
         model = v.replace("+quarantine", "")
         cfg = BacktestConfig(exit_model=model, equity=args.equity, risk_pct=args.risk, friction_pts=args.friction, quarantine=quarantine, fixed_units=args.fixed_units,
-                             max_trades_per_day=args.max_per_day, one_per_setup_per_day=args.one_per_setup, gold_model_only=args.gold_only)
+                             max_trades_per_day=args.max_per_day, one_per_setup_per_day=args.one_per_setup, gold_model_only=args.gold_only,
+                             stop_mult=args.stop_mult, trend_filter=args.trend_filter, random_entries=args.random, seed=args.seed,
+                             setups=tuple(x.strip() for x in args.setups.split(",")) if args.setups else None)
         start = datetime.datetime.fromisoformat(args.start).replace(tzinfo=UTC) if args.start else None
         end = datetime.datetime.fromisoformat(args.end).replace(tzinfo=UTC) if args.end else None
         res = run_backtest(bars, cfg, start=start, end=end)
-        print(format_report(v, res), flush=True)
+        print(format_report((args.label + " " if args.label else "") + v, res), flush=True)
         out[v] = {"metrics": res["metrics"], "rejected_by_gate": res["rejected_by_gate"], "final_equity": res["final_equity"]}
     if args.json_out:
         with open(args.json_out, "w") as f:
