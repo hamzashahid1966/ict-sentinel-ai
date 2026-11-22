@@ -22,6 +22,7 @@ from .order_manager import OrderManager
 from .memory_engine import MemoryEngine
 from .models import Candle
 from polymarket_sentinel.controller import POLY_BOT
+from crypto_sentinel.controller import CRYPTO_BOT
 
 
 class BotController:
@@ -677,6 +678,27 @@ svg.es{width:100%;height:100%;overflow:visible}
 .pm-prob-bar{height:6px;border-radius:3px;background:#1E293B;overflow:hidden;display:flex}
 .pm-bar-yes{height:100%;background:#38BDF8;transition:width .3s}
 .pm-bar-no{height:100%;background:#64748B;transition:width .3s}
+
+/* Polymarket Fast-Expiry Timeline Ribbon Styles */
+.poly-tf-btn{background:#0E1424;border:1px solid rgba(255,255,255,.1);color:var(--tx2);padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s}
+.poly-tf-btn:hover{color:#fff;border-color:#38BDF8}
+.poly-tf-btn.active{background:rgba(56,189,248,.18);border-color:#38BDF8;color:#38BDF8;box-shadow:0 0 10px rgba(56,189,248,.2)}
+
+.poly-coin-tab-btn{background:#0E1424;border:1px solid rgba(255,255,255,.1);color:var(--tx2);padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.poly-coin-tab-btn:hover{color:#fff;border-color:var(--ac)}
+.poly-coin-tab-btn.active{background:rgba(99,102,241,.2);border-color:var(--ac);color:#fff}
+
+.poly-ribbon-bar{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:8px 4px;scrollbar-width:thin}
+.poly-pill-past-btn{background:#111726;border:1px solid rgba(255,255,255,.12);color:var(--tx2);padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.poly-pill-past-btn:hover{background:#182034;color:#fff}
+.poly-pill-outcome{min-width:24px;height:24px;padding:0 6px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;text-decoration:none;cursor:pointer;transition:transform .15s}
+.poly-pill-outcome:hover{transform:scale(1.08)}
+.poly-pill-outcome.up{background:rgba(16,185,129,.18);border:1.5px solid #10B981;color:#10B981}
+.poly-pill-outcome.down{background:rgba(239,68,68,.18);border:1.5px solid #EF4444;color:#EF4444}
+.poly-pill-active{background:linear-gradient(135deg,rgba(56,189,248,.25),rgba(15,23,42,.9));border:1.5px solid #38BDF8;color:#fff;padding:6px 14px;border-radius:20px;font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;gap:6px;box-shadow:0 0 14px rgba(56,189,248,.3);white-space:nowrap;cursor:pointer}
+.poly-pill-upcoming{background:#0F172A;border:1px solid rgba(255,255,255,.1);color:var(--tx2);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer;transition:all .15s}
+.poly-pill-upcoming:hover{background:#1E293B;color:#fff;border-color:rgba(255,255,255,.25)}
+
 .pm-ai-box{background:#080C14;border:1px solid rgba(99,102,241,.25);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px}
 .pm-thesis{font-size:11px;color:#CBD5E1;line-height:1.4;background:rgba(255,255,255,.015);padding:6px 8px;border-radius:6px;border-left:2px solid var(--ac)}
 
@@ -729,6 +751,10 @@ svg.es{width:100%;height:100%;overflow:visible}
   <button id="tabBtnPoly" class="nav-tab" onclick="switchMainTab('poly')">
     <span style="font-size:14px">🔮</span> Polymarket Sentinel
     <span class="tab-badge" style="background:rgba(99,102,241,.2);color:#A5B4FC">PREDICTION INTELLIGENCE</span>
+  </button>
+  <button id="tabBtnCrypto" class="nav-tab" onclick="switchMainTab('crypto')">
+    <span style="font-size:14px">🪙</span> Crypto Sentinel AI
+    <span class="tab-badge" style="background:rgba(245,158,11,.2);color:#FBBF24">BINANCE &amp; 3-ENGINE</span>
   </button>
 </nav>
 
@@ -960,8 +986,8 @@ svg.es{width:100%;height:100%;overflow:visible}
       </div>
       <div class="kc p">
         <div class="kl">Simulated Bankroll &amp; Equity</div>
-        <div class="kv g" id="polyKpiEquity">$500.00</div>
-        <div class="ks"><span>Cash: <b id="polyKpiCash">$500.00</b></span><span>Invested: <b id="polyKpiInvested">$0.00</b></span></div>
+        <div class="kv g" id="polyKpiEquity">$25.00</div>
+        <div class="ks"><span>Cash: <b id="polyKpiCash">$25.00</b></span><span>Invested: <b id="polyKpiInvested">$0.00</b></span></div>
       </div>
       <div class="kc">
         <div class="kl">Edge Discrepancies</div>
@@ -969,9 +995,9 @@ svg.es{width:100%;height:100%;overflow:visible}
         <div class="ks"><span>Threshold: &ge; 6%</span><span>Mispricing Detected</span></div>
       </div>
       <div class="kc">
-        <div class="kl">Paper PnL &amp; Calibration</div>
+        <div class="kl">Paper PnL &amp; Commissions</div>
         <div class="kv" id="polyKpiPnl">+$0.00</div>
-        <div class="ks"><span>Brier Score: <b class="g">0.165</b></span><span>Risk Budget: <b class="g">5% Max</b></span></div>
+        <div class="ks"><span>Fees Paid: <b id="polyKpiCommissions" style="color:#FBBF24">$0.000</b></span><span>5M Scalper: <b id="polyKpiScalperPnl" class="g">+$0.00</b></span></div>
       </div>
     </div>
 
@@ -1010,17 +1036,19 @@ svg.es{width:100%;height:100%;overflow:visible}
             <tr>
               <th>Contract Question</th>
               <th>Category</th>
+              <th>Qualification</th>
               <th>Market Closes</th>
               <th>24h Volume</th>
               <th>Market (YES / NO)</th>
-              <th>AI Forecast</th>
+              <th>Blind AI</th>
+              <th>Final Calibrated</th>
               <th>Edge</th>
               <th>Signal</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody id="polyMarketTb">
-            <tr><td colspan="9" class="empty">Scanning Polymarket order books...</td></tr>
+            <tr><td colspan="11" class="empty">Scanning Polymarket order books...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1042,14 +1070,222 @@ svg.es{width:100%;height:100%;overflow:visible}
       </div>
     </div>
 
+    <!-- 4-COIN 5-MINUTE MICROSTRUCTURE SCALPER PANEL -->
+    <div class="pn" style="border:1px solid rgba(245,158,11,.3);background:linear-gradient(180deg,rgba(245,158,11,.04),rgba(15,23,42,.7))">
+      <div class="ph" style="background:rgba(245,158,11,.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="pt">
+            <span style="font-size:16px">⚡</span> 5-Minute Intra-Candle Scalper
+            <span class="tab-badge" style="background:rgba(245,158,11,.15);color:#FBBF24;margin-left:6px" id="poly5mStatusBadge">4-COIN ONLY · OTHER EVENT BIDS DISCONNECTED</span>
+          </div>
+          <button id="btn5mToggle" class="btn btn-demo" style="padding:4px 10px;font-size:10px" onclick="polyToggle5mScalper()">
+            🟢 Scalper Active
+          </button>
+          <button class="btn btn-demo" style="padding:4px 9px;font-size:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15)" onclick="polyForceSettle()" title="Force-settle any expired rounds directly against Polymarket contracts">
+            ⚡ Sync / Settle
+          </button>
+          <!-- Mode Switcher Pill -->
+          <div style="display:inline-flex;align-items:center;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:2px;gap:2px">
+            <button id="btnPolyModePaper" onclick="setPolyTradingMode(false)" style="padding:3px 9px;font-size:10px;font-weight:700;border-radius:4px;background:rgba(99,102,241,.3);color:#A5B4FC;border:none;cursor:pointer">
+              📝 Paper ($50)
+            </button>
+            <button id="btnPolyModeLive" onclick="setPolyTradingMode(true)" style="padding:3px 9px;font-size:10px;font-weight:700;border-radius:4px;background:transparent;color:var(--tx3);border:none;cursor:pointer">
+              🔴 Live Trading
+            </button>
+          </div>
+          <!-- API Keys & Live Wallet Config Modal Button -->
+          <button class="btn" style="padding:4px 10px;font-size:10px;font-weight:700;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.35);color:#FBBF24;cursor:pointer;display:inline-flex;align-items:center;gap:4px" onclick="openPolyKeyModal()" title="Configure Polymarket Private Key, Funder / Proxy Address & Test Live Connection">
+            ⚙️ API Keys &amp; Wallet
+          </button>
+          <span id="polyLiveAccountBadge" class="tab-badge" style="background:rgba(255,255,255,.06);color:var(--tx3);font-size:10px">📝 Paper Simulation Mode</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:11px;font-family:'JetBrains Mono',monospace;flex-wrap:wrap">
+          <span style="color:var(--tx2)">Scalper Bankroll: <b id="poly5mBal" style="color:var(--tx1)">$50.00</b></span>
+          <span style="color:var(--tx2)">P&amp;L: <b id="poly5mPnl" style="color:var(--gr)">+$0.00</b></span>
+          <span style="color:var(--tx2)">Win Rate: <b id="poly5mWinRate" style="color:#A5B4FC">0.0%</b></span>
+          <span style="color:var(--tx2)">Fees Paid: <b id="poly5mFees" style="color:#FBBF24">$0.000</b></span>
+          <span style="color:var(--tx2)">Record: <b id="poly5mRecord" style="color:#38BDF8">0W - 0L</b></span>
+        </div>
+      </div>
+      <div style="padding:16px">
+        <!-- Interactive Polymarket Timeframe & Coin Navigator Bar -->
+        <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:8px 12px;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+          <!-- Coin Selector -->
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10.5px;color:var(--tx3);font-weight:700;text-transform:uppercase;margin-right:2px">Asset:</span>
+            <button class="poly-coin-tab-btn active" id="polyCoinTab_BTC" onclick="selectPolyTimelineCoin('BTC')">🟠 BTC</button>
+            <button class="poly-coin-tab-btn" id="polyCoinTab_ETH" onclick="selectPolyTimelineCoin('ETH')">🔷 ETH</button>
+            <button class="poly-coin-tab-btn" id="polyCoinTab_SOL" onclick="selectPolyTimelineCoin('SOL')">🟣 SOL</button>
+            <button class="poly-coin-tab-btn" id="polyCoinTab_XRP" onclick="selectPolyTimelineCoin('XRP')">⚪ XRP</button>
+          </div>
+          <!-- Timeframe Selector -->
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10.5px;color:var(--tx3);font-weight:700;text-transform:uppercase;margin-right:2px">Timeframe:</span>
+            <button class="poly-tf-btn active" id="polyTfBtn_5m" onclick="selectPolyTimelineTf('5m')">⚡ 5M (Scalp)</button>
+            <button class="poly-tf-btn" id="polyTfBtn_15m" onclick="selectPolyTimelineTf('15m')">⏱️ 15M (Intra-Hour)</button>
+            <button class="poly-tf-btn" id="polyTfBtn_1h" onclick="selectPolyTimelineTf('1h')">⏳ 1H (Session)</button>
+          </div>
+        </div>
+
+        <!-- Live Round Header with Dual Countdowns (Exact Polymarket Design) -->
+        <div style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.4),rgba(15,23,42,.6));border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;margin-bottom:12px;flex-wrap:wrap;gap:12px">
+          <!-- Title & Time Window -->
+          <div style="display:flex;align-items:center;gap:12px">
+            <span id="polyTimelineCoinIcon" style="font-size:26px">🟠</span>
+            <div>
+              <div style="font-size:14px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px">
+                <span id="polyTimelineTitle">BTC Up or Down 5m</span>
+                <span id="polyTimelineActiveBadge" class="tab-badge" style="background:rgba(56,189,248,.15);color:#38BDF8;font-size:9px">LIVE CONTRACT</span>
+              </div>
+              <div style="font-size:11px;color:var(--tx2);margin-top:2px" id="polyTimelineWindow">Loading Polymarket schedule...</div>
+            </div>
+          </div>
+
+          <!-- Price to Beat & Spot -->
+          <div style="display:flex;align-items:center;gap:16px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:6px 14px">
+            <div>
+              <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;font-weight:700">Price To Beat (Strike)</div>
+              <div style="font-size:13.5px;font-weight:800;color:var(--tx1);font-family:'JetBrains Mono',monospace" id="polyTimelinePtb">--</div>
+            </div>
+            <div style="border-left:1px solid rgba(255,255,255,.1);padding-left:12px">
+              <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;font-weight:700">Current Spot</div>
+              <div style="font-size:13.5px;font-weight:800;color:#FBBF24;font-family:'JetBrains Mono',monospace" id="polyTimelineSpot">--</div>
+            </div>
+          </div>
+
+          <!-- Dual Timers: Candle Closes In + Polymarket Series Expiry -->
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="text-align:right">
+              <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;font-weight:700">Candle Closes In</div>
+              <div style="font-size:20px;font-weight:900;color:#38BDF8;font-family:'JetBrains Mono',monospace" id="poly5mTimer">00:00</div>
+            </div>
+            <div style="border-left:1px solid rgba(255,255,255,.1);padding-left:12px;text-align:right">
+              <div style="font-size:9.5px;color:#F87171;text-transform:uppercase;font-weight:700;display:flex;align-items:center;gap:4px;justify-content:flex-end">
+                <span>⚡ Series Expiry</span>
+              </div>
+              <div style="font-size:18px;font-weight:900;color:#F43F5E;font-family:'JetBrains Mono',monospace" id="polySessionTimer">00:00:00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Polymarket Horizon Pill Ribbon (Past Pills | Active Round | Upcoming Pills) -->
+        <div style="background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:8px 12px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:10.5px;font-weight:800;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">
+              🌐 Polymarket Live Exchange Horizon Ribbon:
+            </span>
+            <span style="font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace">Direct contract integration</span>
+          </div>
+          <div class="poly-ribbon-bar" id="polyTimelineRibbon">
+            <!-- Dynamically populated past, active, and upcoming pills -->
+            <span style="font-size:11px;color:var(--tx3)">Connecting to Polymarket Gamma API...</span>
+          </div>
+        </div>
+
+        <!-- Active Round Contract Action & Multi-Coin Surveillance Bar -->
+        <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:10px;color:var(--tx3);text-transform:uppercase;font-weight:700">Focused Contract:</span>
+              <span style="font-size:11px;font-weight:700;color:#A5B4FC;font-family:'JetBrains Mono',monospace" id="poly5mRoundId">Loading round...</span>
+              <span id="poly5mOrderbookBadge" class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr);font-size:9.5px">🟢 Accepting Orders</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-size:11px;font-weight:700;color:#FBBF24" id="poly5mWindowDesc">Maturity Window (3:30 - 0:45 left) · Auto TP @ 92¢ · Auto SL Bailout @ 28¢</div>
+              <a id="polyTimelineDirectLink" href="https://polymarket.com" target="_blank" rel="noopener noreferrer" style="font-size:10.5px;color:#38BDF8;text-decoration:none;font-weight:700;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);padding:3px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s">
+                <span>🔗 Verify on Polymarket.com</span> <span>↗</span>
+              </a>
+            </div>
+          </div>
+          <!-- 4-Coin Live Contract Slugs & Direct Polymarket Verification Strip -->
+          <div style="border-top:1px dashed rgba(255,255,255,.07);padding-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:10px;color:var(--tx3);font-weight:700;text-transform:uppercase">Active Contracts (All 4 Coins):</span>
+            <div id="polyActiveCoinsBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <!-- Dynamically populated 4 coins with clickable slugs -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Polymarket Upcoming Rounds Timeline Cards -->
+        <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px 12px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:800;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em" id="polyUpcomingHeaderLabel">
+              🗓️ Polymarket API Schedule · Next Upcoming Rounds (24/7 Aligned):
+            </span>
+            <span style="font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace">Real-time Polymarket UTC epochs</span>
+          </div>
+          <div id="poly5mUpcomingGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+            <!-- Dynamically populated upcoming rounds -->
+          </div>
+        </div>
+
+        <!-- 4-Coin Live Matrix (BTC, ETH, SOL, XRP) -->
+        <div style="font-size:11px;font-weight:800;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
+          📊 4-Asset Microstructure Surveillance &amp; Edge Matrix:
+        </div>
+        <div id="poly5mCoinsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:14px">
+          <!-- Dynamically populated 4 coins -->
+        </div>
+
+        <!-- Best Selected Setup Callout Banner -->
+        <div id="poly5mBestBanner" style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;font-weight:800;color:#A5B4FC">🎯 TARGET SETUP:</span>
+            <span id="poly5mSignalBadge" class="b b-p">ABSTAIN</span>
+            <span id="poly5mPatternBadge" style="font-size:10.5px;color:#A5B4FC;background:rgba(255,255,255,.05);padding:3px 7px;border-radius:4px">NEUTRAL SWEEP</span>
+          </div>
+          <div style="font-size:11.5px;color:var(--tx1);flex:1;text-align:right" id="poly5mReason">Scanning 4 coins for clean displacement...</div>
+        </div>
+
+        <!-- Next 5M Session Predictive Radar Widget -->
+        <div style="background:var(--bg2);border:1px solid rgba(99,102,241,.25);border-radius:8px;padding:12px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:14px">🔮</span>
+              <span style="font-size:12px;font-weight:800;letter-spacing:0.04em;color:#A5B4FC;text-transform:uppercase">Next 5M Session Predictive Radar</span>
+              <span class="tab-badge" style="background:rgba(99,102,241,.2);color:#C4B5FD;font-size:9.5px">AI Chart &amp; Momentum Forecast</span>
+            </div>
+            <div style="font-size:10.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace" id="polyPredCountdown">Next Round Starting in --:--</div>
+          </div>
+          <div id="poly5mPredictionsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">
+            <div style="font-size:11.5px;color:var(--tx3);padding:8px">Evaluating candlestick anatomy &amp; momentum...</div>
+          </div>
+        </div>
+
+        <!-- 5M Scalper Active Trade & Recent Settlements -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+          <!-- Active 5M Bet Slip -->
+          <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase">Active 5M Bet Slip ($5 Max Risk · 1 Active Trade Only)</div>
+            <div id="poly5mActiveSlip" style="font-size:12px;color:var(--tx2)">No active position for this 5-minute round.</div>
+          </div>
+
+          <!-- Recent 5M Round Settlements -->
+          <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase">Recent 5M Scalp History (BTC · ETH · SOL · XRP)</div>
+            <div id="poly5mHistoryList" style="max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:11.5px;color:var(--tx3)">No completed 5M scalps yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Active Paper Bets & Positions Section (Visual Trade Slips) -->
     <div class="pn">
-      <div class="ph" style="background:rgba(99,102,241,.03)">
-        <div class="pt">
-          <span>🎯</span> Active Open Bets
-          <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr);margin-left:6px" id="polyPosCount">0 Bets Open</span>
+      <div class="ph" style="background:rgba(99,102,241,.03);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="pt">
+            <span>🎯</span> Active Open Bets
+            <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr);margin-left:6px" id="polyPosCount">0 Bets Open</span>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button class="tab-btn active" id="btnPolyFilterAll" style="padding:3px 9px;font-size:10px" onclick="setPolyBetFilter('ALL')">All Strategies</button>
+            <button class="tab-btn" id="btnPolyFilterYield" style="padding:3px 9px;font-size:10px" onclick="setPolyBetFilter('HIGH_PROBABILITY_YIELD')">💎 Yield Harvester</button>
+            <button class="tab-btn" id="btnPolyFilterEdge" style="padding:3px 9px;font-size:10px" onclick="setPolyBetFilter('ASYMMETRIC_EDGE')">🎯 Asymmetric Hunter</button>
+          </div>
         </div>
-        <span style="font-size:11px;color:var(--tx2);font-family:'JetBrains Mono',monospace">Automated Risk Shield: Max $25.00 per contract</span>
+        <span style="font-size:11px;color:var(--tx2);font-family:'JetBrains Mono',monospace">Dual-Engine Active Exits (Auto TP &amp; Emergency SL Enabled)</span>
       </div>
       <div style="padding:16px">
         <div id="polyPositionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px">
@@ -1071,16 +1307,17 @@ svg.es{width:100%;height:100%;overflow:visible}
               <th>Time</th>
               <th>Action</th>
               <th>Outcome</th>
+              <th>Strategy</th>
               <th>Contract</th>
               <th>Market Closes</th>
               <th>Shares</th>
-              <th>Fill Price</th>
+              <th>Price</th>
               <th>Total Outlay</th>
-              <th>Why We Traded (AI Reason)</th>
+              <th>Trigger &amp; Rationale</th>
             </tr>
           </thead>
           <tbody id="polyTradesTb">
-            <tr><td colspan="9" class="empty">No simulated trades recorded yet.</td></tr>
+            <tr><td colspan="10" class="empty">No simulated trades recorded yet.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1161,10 +1398,350 @@ svg.es{width:100%;height:100%;overflow:visible}
 </div>
 </div>
 
+<!-- ===================================================================== -->
+<!-- POLYMARKET LIVE API KEYS & WALLET CREDENTIALS MODAL                   -->
+<!-- ===================================================================== -->
+<div id="polyKeyModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(4,6,12,.88);backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#0C101A;border:1px solid rgba(245,158,11,.4);border-radius:14px;width:90%;max-width:680px;max-height:88vh;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:18px;box-shadow:0 24px 50px rgba(0,0,0,.75)">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--bdr);padding-bottom:14px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#FBBF24;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">POLYMARKET CLOB PROTOCOL</div>
+        <div style="font-size:17px;font-weight:800;color:#F8FAFC">⚙️ Live API Keys &amp; Trading Wallet Setup</div>
+        <div style="font-size:12px;color:var(--tx2);margin-top:4px">Connect your Polygon wallet to enable real on-chain orders via gasless CLOB.</div>
+      </div>
+      <button class="btn btn-x" onclick="closePolyKeyModal()">✕ Close</button>
+    </div>
+
+    <!-- Instructions / Guide Box -->
+    <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:12px 14px;font-size:11.5px;color:#E2E8F0;line-height:1.5">
+      <div style="font-weight:700;color:#FBBF24;margin-bottom:4px">💡 Where to find your credentials:</div>
+      <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+        <li><b>MetaMask / Web3 Wallet:</b> Export private key from Account Details. Leave <i>Funder Address</i> blank and select <i>Signature Type 0 (EOA)</i>.</li>
+        <li><b>Polymarket Email / Google Login:</b> Go to Polymarket.com &rarr; Settings &rarr; Export Private Key. Your USDC sits in a Gnosis Safe proxy, so copy your <b>Deposit Address</b> into <i>Funder Address</i> and select <i>Signature Type 2</i>.</li>
+      </ul>
+    </div>
+
+    <!-- Credential Inputs Form -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <!-- Private Key -->
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--tx1);margin-bottom:5px">
+          🔑 Polygon Private Key (0x...) <span style="color:#EF4444">*</span>
+        </label>
+        <div style="display:flex;gap:6px">
+          <input type="password" id="polyModalPrivateKey" placeholder="0xabc123... (stored securely in local .env only)" style="flex:1;background:#060911;border:1px solid var(--bdr);border-radius:6px;padding:8px 12px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#F8FAFC;outline:none" />
+          <button type="button" class="btn btn-demo" style="padding:8px 12px;font-size:11px" onclick="togglePolyKeyVisibility()">👁️ Show/Hide</button>
+        </div>
+      </div>
+
+      <!-- Funder / Proxy Address -->
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--tx1);margin-bottom:5px">
+          🏦 Funder / Proxy Address (Optional for Email/Magic Logins)
+        </label>
+        <input type="text" id="polyModalFunderAddress" placeholder="0x... (Polymarket Gnosis Safe address where your USDC.e resides)" style="width:100%;box-sizing:border-box;background:#060911;border:1px solid var(--bdr);border-radius:6px;padding:8px 12px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#F8FAFC;outline:none" />
+      </div>
+
+      <!-- Signature Type -->
+      <div>
+        <label style="display:block;font-size:11.5px;font-weight:700;color:var(--tx1);margin-bottom:5px">
+          ✍️ CLOB Signature Type
+        </label>
+        <select id="polyModalSigType" style="width:100%;box-sizing:border-box;background:#060911;border:1px solid var(--bdr);border-radius:6px;padding:8px 12px;font-size:12px;color:#F8FAFC;outline:none;cursor:pointer">
+          <option value="0">0 — Standard EOA (MetaMask / Raw Private Key)</option>
+          <option value="1">1 — Polymarket Proxy (Magic Link Email login without Safe)</option>
+          <option value="2">2 — Gnosis Safe Proxy (Standard Polymarket Smart Contract Wallet)</option>
+        </select>
+      </div>
+
+      <!-- Live Order Safety Cap Notice -->
+      <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px;padding:10px 14px;font-size:11px;color:#C7D2FE">
+        🛡️ <b>Built-in Capital Preservation:</b> Live orders are automatically restricted to <b>max $5.00 USDC.e</b> per contract round. Automatic Take-Profit at <b>92¢</b> and Stop-Loss bailout at <b>28¢</b> protect your collateral 24/7.
+      </div>
+
+      <!-- Status / Test Output Banner -->
+      <div id="polyModalTestResult" style="display:none;padding:12px;border-radius:8px;font-size:12px;font-family:'JetBrains Mono',monospace"></div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--bdr);padding-top:16px;flex-wrap:wrap;gap:10px">
+      <button class="btn btn-demo" id="btnTestPolyCreds" onclick="testPolyCredentials()" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(56,189,248,.15);border:1px solid #38BDF8;color:#38BDF8">
+        🧪 Test Live Connection
+      </button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-x" onclick="closePolyKeyModal()" style="padding:9px 16px;font-size:12px">Cancel</button>
+        <button class="btn btn-go" id="btnSavePolyCreds" onclick="savePolyCredentials()" style="padding:9px 18px;font-size:12px;font-weight:800">
+          💾 Save &amp; Apply Credentials
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- POLYMARKET LIVE TRADING CONFIRMATION SAFETY MODAL                     -->
+<!-- ===================================================================== -->
+<div id="polyLiveConfirmModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(4,6,12,.88);backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#0C101A;border:1px solid rgba(239,68,68,.5);border-radius:14px;width:90%;max-width:540px;padding:24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 50px rgba(239,68,68,.2)">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(239,68,68,.3);padding-bottom:12px">
+      <span style="font-size:24px">⚠️</span>
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#F87171">Arm Live Real-Money Trading?</div>
+        <div style="font-size:11.5px;color:var(--tx2)">Real gasless orders will be placed on Polymarket using on-chain USDC.e collateral.</div>
+      </div>
+    </div>
+
+    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px 14px;font-size:12px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--tx3)">Spendable USDC.e:</span>
+        <b id="polyConfirmLiveBalance" style="color:#10B981;font-family:'JetBrains Mono',monospace">$0.00</b>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--tx3)">Max Outlay Per Trade:</span>
+        <b style="color:#FBBF24;font-family:'JetBrains Mono',monospace">$5.00 (Safe Entry)</b>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--tx3)">Contracts Monitored:</span>
+        <b style="color:#38BDF8">BTC, ETH, SOL, XRP (5m Expiries)</b>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--tx3)">Risk Management:</span>
+        <span style="color:#A5B4FC">Auto TP @ 92¢ · Auto SL @ 28¢</span>
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:var(--tx2);line-height:1.5">
+      The scalper will only trigger if an algorithmic edge &gt; 12% is verified with low-latency Binance order-flow leading the Polymarket TWAP oracle.
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--bdr);padding-top:14px">
+      <button class="btn btn-x" onclick="closePolyLiveConfirmModal(false)" style="padding:9px 16px;font-size:12px">🛑 Cancel / Stay in Paper</button>
+      <button class="btn btn-go" onclick="closePolyLiveConfirmModal(true)" style="padding:9px 18px;font-size:12px;font-weight:800;background:linear-gradient(135deg,#DC2626,#EF4444);border-color:#EF4444">
+        🟢 Confirm &amp; Arm Live Scalper
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- CRYPTO SENTINEL AI COMMAND CENTER WORKSPACE                           -->
+<!-- ===================================================================== -->
+<div id="view-crypto" style="display:none">
+<main style="max-width:1720px">
+  <div class="left-col" style="flex:1">
+    <!-- Top Action & Status Banner -->
+    <div style="background:linear-gradient(90deg,rgba(245,158,11,.12),rgba(99,102,241,.06));border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div id="cryptoPulseDot" style="width:10px;height:10px;border-radius:50%;background:#10B981;box-shadow:0 0 12px #10B981;animation:p 1.5s infinite"></div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="font-size:14px;color:#F8FAFC">CRYPTO SENTINEL AI</b>
+            <span id="cryptoStatusPill" class="b b-p">● ENGINE READY</span>
+            <span id="cryptoRegimeBadge" class="b" style="background:rgba(245,158,11,.2);color:#FBBF24;border:1px solid rgba(245,158,11,.4)">REGIME: DETECTING...</span>
+            <span id="cryptoModeBadge" class="b b-d">SIMULATED PAPER</span>
+          </div>
+          <div id="cryptoBotDoing" style="font-size:12px;color:#94A3B8;margin-top:4px;font-family:'JetBrains Mono',monospace">
+            🤖 <b>CURRENT ACTIVITY:</b> <span id="cryptoCurrentTask">Initializing market scanner...</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="cryptoModeSelect" onchange="cryptoChangeMode(this.value)" style="background:#0F172A;border:1px solid var(--bdr);color:#F8FAFC;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;outline:none">
+          <option value="SIMULATED_PAPER">Simulated Paper Mode</option>
+          <option value="BINANCE_TESTNET">Binance Testnet API</option>
+        </select>
+        <select id="cryptoProfileSelect" onchange="cryptoChangeProfile(this.value)" style="background:#0F172A;border:1px solid #38BDF8;color:#38BDF8;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;outline:none;cursor:pointer">
+          <option value="FAST_SCALPER">⚡ Fast Scalper Mode (0.4R / 0.8R Sweet-Spot)</option>
+          <option value="OPTIMAL_GROWTH">⭐ Optimal Growth (1.0R / 2.0R Balanced)</option>
+          <option value="ULTRA_SAFE">🛡️ Ultra-Safe Prop Firm (0.25% Risk · 1.0R/2.0R)</option>
+          <option value="AGGRESSIVE_GROWTH">🚀 Aggressive Growth (2.00% Risk · 1.0R/2.0R)</option>
+        </select>
+        <button id="cryptoToggleBtn" class="btn btn-go" onclick="cryptoToggle()">▶ Start Engine</button>
+        <button class="btn btn-demo" onclick="cryptoScan()">🔍 Scan Universe</button>
+        <button class="btn btn-x" onclick="cryptoFlatten()">⚠ Flatten All</button>
+        <button class="btn btn-g" onclick="cryptoReset()">🔄 Reset</button>
+      </div>
+    </div>
+
+    <!-- Strategy Profile Live Details & Parameter Columns Banner -->
+    <div id="cryptoProfileBanner" style="background:#090D15;border:1px solid var(--bdr);border-left:4px solid #38BDF8;border-radius:8px;padding:12px 16px;margin-top:12px;font-family:'Inter',sans-serif">
+      <!-- Populated dynamically by JS -->
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="krow" style="margin-top:12px">
+      <div class="kc a">
+        <div class="kl">Crypto Account Equity</div>
+        <div class="kv" id="cBal">$1,000.00</div>
+        <div class="ks"><span>Peak: <b id="cPk" class="g">$1,000.00</b></span><span>Base: <b>$1,000.00</b></span></div>
+      </div>
+      <div class="kc p">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="kl">Realized Net PnL</div>
+          <span style="font-size:9.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace" id="cPnlSubBreakdown">Net After Fees</span>
+        </div>
+        <div class="kv g" id="cPnl">+$0.00</div>
+        <div class="ks">
+          <span>Gross: <b id="cGrossPnl" class="g">+$0.00</b></span>
+          <span>Fees: <b id="cTotalFees" class="r">-$0.00</b></span>
+          <span>WR: <b id="cWr" class="g">0%</b></span>
+          <span>Trades: <b id="cTrades">0</b></span>
+        </div>
+      </div>
+      <div class="kc d">
+        <div class="kl">Daily Risk &amp; Drawdown Lock</div>
+        <div class="kv" id="cDd">0.00%</div>
+        <div class="ks"><span style="color:var(--am)" id="cMaxLock">Max Lock: 3.00%</span><span id="cLockStatus" class="g">SAFE / ACTIVE</span></div>
+      </div>
+      <div class="kc m">
+        <div class="kl">Double Tap Protocol</div>
+        <div class="kv" style="color:var(--cy)" id="cDtHeader">1.5R ➔ 3.0R</div>
+        <div class="ks"><span id="cDtSub1">TP1: 50% Exit</span><span id="cDtSub2">Defensive SL at BE</span></div>
+      </div>
+    </div>
+
+    <!-- Active Trades (What is Taken, SL, TP1, TP2) -->
+    <div class="pn" style="margin-top:14px">
+      <div class="ph">
+        <div class="pt">🎯 Active Taken Trades (Double Tap OMS: SL, TP1, TP2)</div>
+        <span id="cryptoPosCount" class="b b-p">0 OPEN</span>
+      </div>
+      <div id="cryptoPositionsGrid" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div class="empty">No active trades open. Bot is continuously scanning the universe for high-probability setups.</div>
+      </div>
+    </div>
+
+    <!-- Opportunity Analysis Card (Is there an opportunity right now?) -->
+    <div class="pn" style="margin-top:14px">
+      <div class="ph">
+        <div class="pt">⚡ Analyzing Opportunities (Engine A: ICT | Engine B: Momentum | Engine C: Liquidation)</div>
+        <span class="b b-d">LIVE TELEMETRY</span>
+      </div>
+      <div id="cryptoAnalysisList" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div class="empty">Analyzing market structure across Top 12 Prime coins...</div>
+      </div>
+    </div>
+
+    <!-- Which Coins Picked and Why Picked (Top 12 Prime Screener & Active Focus) -->
+    <div class="pn" style="margin-top:14px">
+      <div class="ph">
+        <div class="pt">🪙 Which Coins Picked &amp; Why (Top 12 Prime Screener)</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="cryptoSearch" placeholder="Filter coin (e.g. PEPE, BTC)..." oninput="cryptoFilterTable()" style="background:#090D15;border:1px solid var(--bdr);color:#fff;padding:4px 8px;border-radius:6px;font-size:11px">
+        </div>
+      </div>
+
+      <!-- High Conviction Active Focus Cards -->
+      <div style="padding:14px;background:#090D15;border-bottom:1px solid var(--bdr)">
+        <div style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🔥 Top High-Conviction Coins Selected for Active Execution:</div>
+        <div id="cryptoFocusCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Screener Table -->
+      <div class="tw" style="max-height:360px;overflow-y:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Coin</th>
+              <th>Sector</th>
+              <th>Price</th>
+              <th>24h Change</th>
+              <th>24h Volume</th>
+              <th>Score</th>
+              <th>Why Picked / Market State</th>
+            </tr>
+          </thead>
+          <tbody id="cryptoScreenerTb">
+            <tr><td colspan="7" class="empty">Scanning universe...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent Closed Trades History -->
+    <div class="pn" style="margin-top:14px">
+      <div class="ph"><div class="pt">📜 Recent Closed Crypto Trades</div></div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Coin</th>
+              <th>Engine</th>
+              <th>Side</th>
+              <th>Entry ➔ Exit</th>
+              <th>Gross PnL</th>
+              <th>Fee</th>
+              <th>Net Take-Home</th>
+              <th>R-Multiple</th>
+              <th>Exit Reason</th>
+            </tr>
+          </thead>
+          <tbody id="cryptoTradesTb">
+            <tr><td colspan="10" class="empty">No closed trades yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AI Asset Intelligence & Behavioral Memory -->
+    <div class="pn" style="margin-top:14px">
+      <div class="ph" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="pt">🧠 AI Asset Intelligence &amp; Behavioral Memory</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <a href="/api/crypto/export-dataset" target="_blank" style="text-decoration:none;font-size:10px;padding:3px 8px;background:#1E293B;border:1px solid var(--bdr);color:#94A3B8;border-radius:4px;font-family:'JetBrains Mono',monospace">📥 Export AI Dataset (JSON)</a>
+          <div style="font-size:10px;color:var(--t3);font-family:'JetBrains Mono',monospace">Top 12 Prime Universe · Auto-Quarantine (24h Cooldown)</div>
+        </div>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Asset</th>
+              <th>Win Rate</th>
+              <th>Trades (W/L)</th>
+              <th>Gross PnL</th>
+              <th>Binance Fees</th>
+              <th>Net Take-Home</th>
+              <th>AI Behavioral Debrief &amp; Lesson Learned</th>
+            </tr>
+          </thead>
+          <tbody id="cryptoIntelligenceTb">
+            <tr><td colspan="8" class="empty">Loading asset intelligence...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: Bot Thinking & Live Activity Feed -->
+  <div class="right-col" style="width:360px;min-width:320px">
+    <div class="pn" style="position:sticky;top:115px">
+      <div class="ph">
+        <div class="pt">🤖 Bot Activity &amp; Decision Stream</div>
+        <span class="b b-p" style="font-size:9px">REAL-TIME</span>
+      </div>
+      <div id="cryptoActivityList" style="padding:12px;display:flex;flex-direction:column;gap:8px;max-height:750px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:11px">
+        <div class="empty">Awaiting activity logs...</div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
 <script>
 let R=false,AT=[],currentSessionInfo=null;
+let polyCurrentCoin = 'BTC';
+let polyCurrentTf = '5m';
+let polyTimelineCache = {};
 const $=id=>document.getElementById(id);
 const fx=(a,v)=>a.includes('USD')?v.toFixed(4):v.toFixed(2);
+const escHtml=s=>!s?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 // ── Running Institutional Clock & Session Countdown ──────────────────
 function tickRunningClock() {
@@ -1219,6 +1796,40 @@ function tickRunningClock() {
       currentSessionInfo._armed = false;
       fetch('/api/state').then(r => r.json()).then(U).catch(()=>{});
     }
+  }
+
+  // 3. Polymarket Fast-Expiry Candle Real-Time Continuous Clock (Exact 1s tick synchronized with Polymarket UTC epochs)
+  const nowSec = Math.floor(now.getTime() / 1000);
+  const tfSeconds = (typeof polyCurrentTf !== 'undefined' && polyCurrentTf === '1h') ? 3600 : ((typeof polyCurrentTf !== 'undefined' && polyCurrentTf === '15m') ? 900 : 300);
+  const currentTfEnd = Math.floor(nowSec / tfSeconds) * tfSeconds + tfSeconds;
+  const remSec = Math.max(0, currentTfEnd - nowSec);
+  const pmM = Math.floor(remSec / 60);
+  const pmS = remSec % 60;
+  const timerStr = (pmM < 10 ? '0' : '') + pmM + ':' + (pmS < 10 ? '0' : '') + pmS;
+  const polyTimerEl = $('poly5mTimer');
+  if (polyTimerEl) {
+    polyTimerEl.innerText = timerStr;
+    polyTimerEl.style.color = remSec <= 30 ? '#F43F5E' : (remSec <= 150 && remSec >= 60 ? '#FBBF24' : '#38BDF8');
+  }
+  const pillTimer = $('polyPillActiveTimer');
+  if (pillTimer) {
+    pillTimer.innerText = timerStr;
+  }
+
+  // 4. Polymarket Daily Market Series Expiry Timer (Exact Parity with Polymarket Screenshot: 07 : 43 : 26 HRS MINS SECS)
+  const sessionEndSec = Math.floor(nowSec / 86400) * 86400 + 86400;
+  const sRem = Math.max(0, sessionEndSec - nowSec);
+  const sH = String(Math.floor(sRem / 3600)).padStart(2, '0');
+  const sM = String(Math.floor((sRem % 3600) / 60)).padStart(2, '0');
+  const sS = String(sRem % 60).padStart(2, '0');
+  const sessTimerEl = $('polySessionTimer');
+  if (sessTimerEl) {
+    sessTimerEl.innerText = `${sH}:${sM}:${sS}`;
+  }
+
+  // Auto-refresh timeline when round changes
+  if (remSec === 0 && typeof fetchPolyTimeline === 'function') {
+    fetchPolyTimeline(polyCurrentCoin, polyCurrentTf);
   }
 }
 setInterval(tickRunningClock, 1000);
@@ -1563,23 +2174,491 @@ function switchMainTab(tab) {
   currentMainTab = tab;
   const tabIct = $('tabBtnIct');
   const tabPoly = $('tabBtnPoly');
+  const tabCrypto = $('tabBtnCrypto');
   const viewIct = $('view-ict');
   const viewPoly = $('view-poly');
+  const viewCrypto = $('view-crypto');
+
+  tabIct.classList.remove('active');
+  tabPoly.classList.remove('active');
+  if (tabCrypto) tabCrypto.classList.remove('active');
+
+  viewIct.style.display = 'none';
+  viewPoly.style.display = 'none';
+  if (viewCrypto) viewCrypto.style.display = 'none';
+
+  if (polyInterval) { clearInterval(polyInterval); polyInterval = null; }
+  if (cryptoInterval) { clearInterval(cryptoInterval); cryptoInterval = null; }
 
   if (tab === 'ict') {
     tabIct.classList.add('active');
-    tabPoly.classList.remove('active');
     viewIct.style.display = 'block';
-    viewPoly.style.display = 'none';
-    if (polyInterval) { clearInterval(polyInterval); polyInterval = null; }
-  } else {
-    tabIct.classList.remove('active');
+  } else if (tab === 'poly') {
     tabPoly.classList.add('active');
-    viewIct.style.display = 'none';
     viewPoly.style.display = 'block';
     loadPolymarketState();
-    if (!polyInterval) { polyInterval = setInterval(loadPolymarketState, 4000); }
+    if (!polyInterval) { polyInterval = setInterval(loadPolymarketState, 1000); }
+  } else if (tab === 'crypto') {
+    if (tabCrypto) tabCrypto.classList.add('active');
+    if (viewCrypto) viewCrypto.style.display = 'block';
+    loadCryptoState();
+    if (!cryptoInterval) { cryptoInterval = setInterval(loadCryptoState, 2500); }
   }
+}
+
+// ── Crypto Sentinel Client Intelligence & Rendering ────────────────────
+let cryptoInterval = null;
+let allCryptoScreener = [];
+let cryptoRunning = false;
+
+async function loadCryptoState() {
+  try {
+    const res = await fetch('/api/crypto/state');
+    const d = await res.json();
+    renderCrypto(d);
+  } catch (e) {}
+}
+
+function renderCrypto(d) {
+  if (!d) return;
+  cryptoRunning = d.running;
+  allCryptoScreener = d.screener_candidates || [];
+
+  // 1. Status & Header
+  const btn = $('cryptoToggleBtn');
+  if (btn) {
+    btn.className = d.running ? 'btn btn-x' : 'btn btn-go';
+    btn.innerText = d.running ? '⏸ Pause Engine' : '▶ Start Engine';
+  }
+  const pill = $('cryptoStatusPill');
+  if (pill) {
+    pill.innerText = d.running ? '● ENGINE ACTIVE' : '○ ENGINE STOPPED';
+    pill.className = d.running ? 'b b-p' : 'b b-q';
+  }
+  const dot = $('cryptoPulseDot');
+  if (dot) dot.style.background = d.running ? '#10B981' : '#F43F5E';
+
+  const reg = $('cryptoRegimeBadge');
+  if (reg) {
+    reg.innerText = 'REGIME: ' + (d.regime || 'BALANCED');
+  }
+
+  const task = $('cryptoCurrentTask');
+  if (task) task.innerText = d.status || 'Scanning markets...';
+
+  const modeBadge = $('cryptoModeBadge');
+  if (modeBadge) modeBadge.innerText = (d.account && d.account.mode) ? d.account.mode.replace('_', ' ') : 'SIMULATED PAPER';
+  const modeSelect = $('cryptoModeSelect');
+  if (modeSelect && d.account && d.account.mode && document.activeElement !== modeSelect) {
+    modeSelect.value = d.account.mode;
+  }
+
+  const profSelect = $('cryptoProfileSelect');
+  const selProf = d.selected_profile || (d.account && d.account.strategy_profile) || 'MODERATE_GROWTH';
+  if (profSelect && document.activeElement !== profSelect) {
+    profSelect.value = selProf;
+  }
+
+  // Strategy Profile Live Banner Details
+  const profBanner = $('cryptoProfileBanner');
+  if (profBanner && d.strategy_profiles) {
+    const pInfo = d.strategy_profiles[selProf] || d.strategy_profiles['MODERATE_GROWTH'];
+    const accBal = (d.account && d.account.balance) ? d.account.balance : 3800;
+    let riskCalc = (accBal * (pInfo.risk_per_trade_pct / 100));
+    if (pInfo.max_dollar_risk && riskCalc > pInfo.max_dollar_risk) riskCalc = pInfo.max_dollar_risk;
+    const riskDollar = riskCalc.toFixed(2);
+    const tp1Profit = (riskCalc * pInfo.target_1_r * 0.5).toFixed(2);
+    const tp2Profit = (riskCalc * pInfo.target_2_r * 0.5).toFixed(2);
+    const totalMaxProfit = (riskCalc * pInfo.target_1_r * 0.5 + riskCalc * pInfo.target_2_r * 0.5).toFixed(2);
+
+    profBanner.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:13px;font-weight:700;color:#F8FAFC">⚡ Active Strategy: ${pInfo.name}</span>
+          <span class="b b-p" style="font-size:9.5px;letter-spacing:0.05em">${pInfo.badge}</span>
+          <span style="font-size:11px;color:#94A3B8">· ⏱ ${pInfo.speed}</span>
+        </div>
+        <div style="font-size:11px;color:#38BDF8;font-weight:600">
+          Max Daily Drawdown Cap: ${pInfo.max_daily_drawdown_pct.toFixed(1)}%
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;background:#06080F;padding:10px 12px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px">
+        <div><span style="color:var(--tx3)">Risk Per Trade:</span> <b style="color:#F8FAFC">${pInfo.risk_per_trade_pct.toFixed(2)}% ($${riskDollar})</b></div>
+        <div><span style="color:var(--tx3)">Meme Risk Collar:</span> <b style="color:#FBBF24">${pInfo.meme_risk_pct.toFixed(2)}%</b></div>
+        <div><span style="color:var(--cy)">Target 1 (50%):</span> <b style="color:#38BDF8">${pInfo.target_1_r}R (~+$${tp1Profit})</b></div>
+        <div><span style="color:var(--gr)">Target 2 (Runner):</span> <b style="color:#34D399">${pInfo.target_2_r}R (~+$${tp2Profit})</b></div>
+        <div><span style="color:#A78BFA">Max Trade Yield:</span> <b style="color:#C4B5FD">+$${totalMaxProfit}</b></div>
+      </div>
+      <div style="margin-top:8px;font-size:11.5px;color:#94A3B8;line-height:1.4">
+        <span style="text-decoration:underline;text-decoration-color:#38BDF8;text-underline-offset:3px;color:#E2E8F0;font-weight:500">${pInfo.description}</span>
+      </div>
+    `;
+
+    // Also update stats cards
+    const dtH = $('cDtHeader');
+    if (dtH) dtH.innerText = `${pInfo.target_1_r}R ➔ ${pInfo.target_2_r}R`;
+    const dtS1 = $('cDtSub1');
+    if (dtS1) dtS1.innerText = `TP1: ${pInfo.target_1_r}R (50% Exit)`;
+    const dtS2 = $('cDtSub2');
+    if (dtS2) dtS2.innerText = (pInfo.id === 'FAST_SCALPER' ? 'Rapid Scalp TP2' : 'Defensive SL at BE');
+    const maxLockEl = $('cMaxLock');
+    if (maxLockEl) maxLockEl.innerText = `Max Lock: ${pInfo.max_daily_drawdown_pct.toFixed(2)}%`;
+  }
+
+  // 2. Stats
+  if (d.account) {
+    const acc = d.account;
+    $('cBal').innerText = '$' + acc.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (d.testnet_info) {
+      $('cPk').innerHTML = `<span style="color:#38BDF8">Avail: $${d.testnet_info.available_balance.toFixed(2)}</span>`;
+    } else {
+      $('cPk').innerText = '$' + acc.peak_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    
+    const grossVal = acc.gross_pnl !== undefined ? acc.gross_pnl : acc.realized_pnl;
+    const feeVal = acc.total_fees !== undefined ? acc.total_fees : 0.0;
+    const netVal = acc.net_pnl !== undefined ? acc.net_pnl : (grossVal - feeVal);
+
+    const pnlEl = $('cPnl');
+    pnlEl.innerText = (netVal >= 0 ? '+' : '') + '$' + netVal.toFixed(2);
+    pnlEl.className = 'kv ' + (netVal >= 0 ? 'g' : 'r');
+
+    const subBk = $('cPnlSubBreakdown');
+    if (subBk) subBk.innerText = `Net: ${netVal >= 0 ? '+' : ''}$${netVal.toFixed(2)}`;
+
+    const grossEl = $('cGrossPnl');
+    if (grossEl) {
+      grossEl.innerText = (grossVal >= 0 ? '+' : '') + '$' + grossVal.toFixed(2);
+      grossEl.className = grossVal >= 0 ? 'g' : 'r';
+    }
+    const feeEl = $('cTotalFees');
+    if (feeEl) feeEl.innerText = '-$' + feeVal.toFixed(2);
+
+    $('cWr').innerText = acc.win_rate_pct + '%';
+    $('cTrades').innerText = acc.total_trades + ` (${acc.wins}W / ${acc.losses}L)`;
+
+    const ddEl = $('cDd');
+    ddEl.innerText = acc.daily_drawdown_pct.toFixed(2) + '%';
+    ddEl.className = 'kv ' + (acc.daily_drawdown_pct > 0.8 ? 'r' : 'a');
+
+    const lockEl = $('cLockStatus');
+    if (acc.is_locked) {
+      lockEl.innerText = 'LOCKED (1% BREACH)';
+      lockEl.className = 'r';
+    } else {
+      lockEl.innerText = 'SAFE / ACTIVE';
+      lockEl.className = 'g';
+    }
+  }
+
+  // 3. Active Positions (What is Taken, SL, TP1, TP2)
+  const posCount = $('cryptoPosCount');
+  if (posCount) posCount.innerText = (d.open_positions.length) + ' OPEN';
+
+  const posGrid = $('cryptoPositionsGrid');
+  if (!d.open_positions || !d.open_positions.length) {
+    posGrid.innerHTML = '<div class="empty">No active trades open. Bot is continuously scanning the universe for high-probability setups.</div>';
+  } else {
+    posGrid.innerHTML = d.open_positions.map(p => {
+      const isLong = p.direction === 'LONG';
+      const sideClass = isLong ? 'b-l' : 'b-s';
+      const pnlColor = p.unrealized_pnl >= 0 ? 'color:var(--gr)' : 'color:var(--rd)';
+      const pnlSign = p.unrealized_pnl >= 0 ? '+' : '';
+
+      const markVal = (p.current_price !== undefined && p.current_price !== null ? p.current_price : p.entry_price);
+      const isProfitMove = isLong ? (markVal >= p.entry_price) : (markVal <= p.entry_price);
+      const markColor = isProfitMove ? '#10B981' : '#F43F5E';
+      const markArrow = isProfitMove ? '▲' : '▼';
+
+      const ageMins = p.entry_time ? Math.floor((Date.now() / 1000 - p.entry_time) / 60) : 0;
+      const ageBadge = `<span class="b b-d" style="font-size:9.5px;color:#94A3B8">⏱ ${ageMins}m</span>`;
+      const stagnantBadge = p.is_stagnant 
+        ? `<span class="b" style="font-size:9.5px;background:rgba(245,158,11,0.2);color:#FBBF24;border:1px solid #F59E0B;font-weight:700">⏳ STAGNANT (${ageMins}m)</span>` 
+        : '';
+
+      const t1Badge = p.t1_hit 
+        ? '<span class="b" style="font-size:10px;background:rgba(16,185,129,0.2);color:#10B981;border:1px solid #10B981;font-weight:700">✓ TP1 HIT (50% SECURED)</span>' 
+        : `<span class="b b-d" style="font-size:9.5px">⏳ TP1 Pending (${p.target_1.toFixed(p.entry_price<1?6:2)})</span>`;
+      const defBadge = p.defensive_active 
+        ? '<span class="b" style="font-size:10px;background:rgba(56,189,248,0.2);color:#38BDF8;border:1px solid #38BDF8;font-weight:600">🛡️ FEE-COVERED BE ARMED</span>' 
+        : `<span class="b b-q" style="font-size:9.5px">🛑 HARD STOP (${p.current_stop.toFixed(p.entry_price<1?6:2)})</span>`;
+
+      const feeCoverPrice = p.entry_price * (isLong ? 1.0011 : 0.9989);
+
+      return `
+        <div style="background:#0F172A;border:1px solid var(--bdr);border-left:4px solid ${isLong?'#10B981':'#F43F5E'};border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <b style="font-size:15px;color:#F8FAFC">${p.symbol}</b>
+              <span class="b ${sideClass}">${p.direction}</span>
+              <span class="b b-d" style="font-size:9.5px">${p.engine}</span>
+              ${ageBadge}
+              ${stagnantBadge}
+              ${t1Badge}
+              ${defBadge}
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="text-align:right">
+                <div style="font-size:14px;font-weight:700;${pnlColor}">${pnlSign}$${p.unrealized_pnl.toFixed(2)} (${pnlSign}${p.unrealized_r}R)</div>
+                <div style="font-size:10px;color:var(--tx3)">Size: ${p.quantity}</div>
+              </div>
+              <button class="btn btn-x" onclick="cryptoClosePos('${p.position_id}')" style="padding:4px 10px;font-size:10px">✕ Close</button>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;background:#090D15;padding:10px 12px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px">
+            <div><span style="color:var(--tx3)">Entry Price:</span> <b style="color:#F8FAFC">$${p.entry_price.toFixed(p.entry_price<1?6:2)}</b></div>
+            <div><span style="color:var(--tx2)">Dynamic Mark Price:</span> <b style="color:${markColor}">$${markVal.toFixed(p.entry_price<1?6:2)} ${markArrow}</b></div>
+            <div><span style="color:#64748B">Fee-Cover BE:</span> <b style="color:#94A3B8">$${feeCoverPrice.toFixed(p.entry_price<1?6:2)}</b></div>
+            <div><span style="color:var(--rd)">Hard Stop (SL):</span> <b style="color:#F43F5E">$${p.current_stop.toFixed(p.entry_price<1?6:2)}</b></div>
+            <div><span style="color:var(--cy)">Target 1:</span> <b style="color:#38BDF8">$${p.target_1.toFixed(p.entry_price<1?6:2)}</b> ${p.t1_hit ? '<span style="color:#10B981;font-weight:800">✓ DONE</span>' : ''}</div>
+            <div><span style="color:var(--gr)">Target 2:</span> <b style="color:#34D399">$${p.target_2.toFixed(p.entry_price<1?6:2)}</b></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 4. Opportunity Analysis List
+  const anaList = $('cryptoAnalysisList');
+  if (!d.latest_analyses || !d.latest_analyses.length) {
+    anaList.innerHTML = '<div class="empty">Analyzing market structure across Top 12 Prime coins...</div>';
+  } else {
+    anaList.innerHTML = d.latest_analyses.map(a => {
+      const isLong = a.direction === 'LONG';
+      const sideClass = isLong ? 'b-l' : 'b-s';
+      return `
+        <div style="background:#090D15;border:1px solid var(--bdr);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;gap:8px;align-items:center">
+              <b style="color:#F8FAFC">${a.symbol}</b>
+              <span class="b ${sideClass}">${a.direction}</span>
+              <span class="b b-d">${a.engine}</span>
+              <span class="b b-p" style="font-size:9.5px">Confidence: ${(a.confidence_score*100).toFixed(0)}%</span>
+            </div>
+            <div style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--tx2)">
+              SL: $${a.stop_loss.toFixed(a.current_price<1?6:2)} | TP1: $${a.target_1.toFixed(a.current_price<1?6:2)} | TP2: $${a.target_2.toFixed(a.current_price<1?6:2)}
+            </div>
+          </div>
+          <div style="font-size:11.5px;color:#94A3B8;line-height:1.4">
+            <b>Why Opportunity Exists:</b> ${a.reason}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 5. Which Coins Picked and Why (Focus Cards)
+  const focusWrap = $('cryptoFocusCards');
+  const focusPicks = (d.screener_candidates || []).filter(c => c.is_active_focus);
+  if (focusWrap) {
+    if (!focusPicks.length) {
+      focusWrap.innerHTML = '<div class="empty">No focus coins flagged yet. Run Screener.</div>';
+    } else {
+      focusWrap.innerHTML = focusPicks.map(c => {
+        const isPos = c.change_24h >= 0;
+        const chgClass = isPos ? 'g' : 'r';
+        const chgSign = isPos ? '+' : '';
+        const sectorColor = c.sector === 'MEME' ? 'rgba(236,72,153,.2);color:#F472B6;border:1px solid rgba(236,72,153,.4)' : 'rgba(99,102,241,.2);color:#A5B4FC;border:1px solid rgba(99,102,241,.4)';
+
+        return `
+          <div style="background:#0F172A;border:1px solid var(--bdr);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:6px">
+                <b style="font-size:14px;color:#F8FAFC">${c.symbol}</b>
+                <span class="b" style="${sectorColor};font-size:9px">${c.sector}</span>
+              </div>
+              <span class="b b-p" style="font-size:9.5px">Score: ${c.score}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'JetBrains Mono',monospace">
+              <span>Price: <b>$${c.price.toFixed(c.price<1?6:2)}</b></span>
+              <span class="${chgClass}">24h: <b>${chgSign}${c.change_24h}%</b></span>
+              <span style="color:var(--tx2)">Vol: $${(c.volume_24h/1000000).toFixed(1)}M</span>
+            </div>
+            <div style="font-size:11px;color:#CBD5E1;background:#090D15;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.04);line-height:1.4">
+              <span style="color:var(--am);font-weight:700">WHY PICKED:</span> ${c.why_picked}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 6. Screener Table
+  cryptoFilterTable();
+
+  // 7. Recent Closed Trades Table
+  const trTb = $('cryptoTradesTb');
+  if (trTb) {
+    if (!d.closed_trades || !d.closed_trades.length) {
+      trTb.innerHTML = '<tr><td colspan="10" class="empty">No closed trades yet.</td></tr>';
+    } else {
+      trTb.innerHTML = d.closed_trades.map(t => {
+        const isLong = t.direction === 'LONG';
+        const exitP = t.exit_price || t.entry_price;
+        const grossPnl = ((exitP - t.entry_price) * (isLong ? 1 : -1)) * (t.quantity || 1);
+        const fee = (t.fees_paid !== undefined && t.fees_paid > 0) ? t.fees_paid : ((t.quantity || 1) * t.entry_price * 0.0010);
+        const netPnl = grossPnl - fee;
+        const grossColor = grossPnl >= 0 ? 'g' : 'r';
+        const grossSign = grossPnl >= 0 ? '+' : '';
+        const netColor = netPnl >= 0 ? 'g' : 'r';
+        const netSign = netPnl >= 0 ? '+' : '';
+        const dateStr = new Date(t.exit_time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `
+          <tr>
+            <td>${dateStr}</td>
+            <td><b>${t.symbol}</b></td>
+            <td>${t.engine}</td>
+            <td><span class="b ${isLong?'b-l':'b-s'}">${t.direction}</span></td>
+            <td>$${t.entry_price.toFixed(t.entry_price<1?6:2)} ➔ $${t.exit_price ? t.exit_price.toFixed(t.entry_price<1?6:2) : '--'}</td>
+            <td class="${grossColor}"><b>${grossSign}$${grossPnl.toFixed(2)}</b></td>
+            <td style="color:#EF4444;font-family:'JetBrains Mono',monospace">-$${fee.toFixed(2)}</td>
+            <td class="${netColor}"><b>${netSign}$${netPnl.toFixed(2)}</b></td>
+            <td class="${grossColor}"><b>${grossSign}${t.unrealized_r}R</b></td>
+            <td><span class="b b-p">${escHtml(t.exit_reason || 'CLOSED')}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // 7b. AI Asset Intelligence & Behavioral Memory Table
+  const intelTb = $('cryptoIntelligenceTb');
+  if (intelTb) {
+    if (!d.coin_intelligence || !d.coin_intelligence.length) {
+      intelTb.innerHTML = '<tr><td colspan="8" class="empty">No intelligence metrics yet.</td></tr>';
+    } else {
+      intelTb.innerHTML = d.coin_intelligence.map(c => {
+        const isQuar = c.is_quarantined;
+        const statusBadge = isQuar 
+          ? `<span class="b" style="background:#7F1D1D;color:#FCA5A5;border:1px solid #EF4444">🔴 QUARANTINED (${c.quarantine_remaining_hours}h)</span>`
+          : (c.is_prime ? `<span class="b" style="background:#064E3B;color:#6EE7B7;border:1px solid #10B981">🟢 PRIME (ACTIVE)</span>` : `<span class="b b-d">⚪ ALTCOIN</span>`);
+        const winColor = c.win_rate >= 50 ? 'g' : (c.total_trades > 0 ? 'r' : 'dim');
+        const netColor = c.net_pnl > 0 ? 'g' : (c.net_pnl < 0 ? 'r' : 'dim');
+        const netSign = c.net_pnl > 0 ? '+' : '';
+        const grossColor = c.gross_pnl > 0 ? 'g' : (c.gross_pnl < 0 ? 'r' : 'dim');
+        const grossSign = c.gross_pnl > 0 ? '+' : '';
+        return `
+          <tr style="${isQuar ? 'opacity:0.85;background:rgba(239,68,68,0.06)' : ''}">
+            <td>${statusBadge}</td>
+            <td><b>${c.symbol}</b></td>
+            <td class="${winColor}"><b>${c.total_trades > 0 ? c.win_rate + '%' : '--'}</b></td>
+            <td>${c.total_trades} (${c.wins}W / ${c.losses}L)</td>
+            <td class="${grossColor}"><b>${grossSign}$${c.gross_pnl.toFixed(2)}</b></td>
+            <td style="color:#EF4444;font-family:'JetBrains Mono',monospace">-$${c.total_fees.toFixed(2)}</td>
+            <td class="${netColor}"><b>${netSign}$${c.net_pnl.toFixed(2)}</b></td>
+            <td style="font-size:11px;color:${isQuar?'#FCA5A5':'var(--t2)'}">${escHtml(c.debrief)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // 8. Bot Activity Stream
+  const actList = $('cryptoActivityList');
+  if (actList) {
+    if (!d.activity_logs || !d.activity_logs.length) {
+      actList.innerHTML = '<div class="empty">Awaiting activity logs...</div>';
+    } else {
+      actList.innerHTML = d.activity_logs.map(l => {
+        const timeStr = new Date(l.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        let badgeClass = 'b-d';
+        let borderLeftColor = '#64748B';
+        if (l.level === 'SUCCESS') { badgeClass = 'b-p'; borderLeftColor = '#10B981'; }
+        else if (l.level === 'WARNING') { badgeClass = 'b-q'; borderLeftColor = '#F59E0B'; }
+        else if (l.level === 'DANGER') { badgeClass = 'b-x'; borderLeftColor = '#EF4444'; }
+        else if (l.level === 'INFO') { badgeClass = 'b-d'; borderLeftColor = '#38BDF8'; }
+
+        return `
+          <div style="background:#0D131F;border:1px solid var(--bdr);border-left:3px solid ${borderLeftColor};border-radius:6px;padding:8px 10px;line-height:1.4">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span class="b ${badgeClass}" style="font-size:9px">${escHtml(l.action)}</span>
+              <span style="color:var(--tx3);font-size:9.5px;font-family:'JetBrains Mono',monospace">${timeStr}</span>
+            </div>
+            <div style="color:#E2E8F0;word-break:break-word;font-size:11px">
+              <b style="color:var(--am)">[${escHtml(l.coin)}]</b> ${escHtml(l.detail)}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+}
+
+function cryptoFilterTable() {
+  const q = ($('cryptoSearch') ? $('cryptoSearch').value : '').toUpperCase();
+  const tb = $('cryptoScreenerTb');
+  if (!tb) return;
+  const filtered = allCryptoScreener.filter(c => c.symbol.includes(q) || c.sector.includes(q) || c.name.toUpperCase().includes(q));
+  if (!filtered.length) {
+    tb.innerHTML = '<tr><td colspan="7" class="empty">No matching coins in universe.</td></tr>';
+    return;
+  }
+  tb.innerHTML = filtered.map(c => {
+    const isPos = c.change_24h >= 0;
+    const chgClass = isPos ? 'g' : 'r';
+    const chgSign = isPos ? '+' : '';
+    const focusTag = c.is_active_focus ? '<span class="b b-p" style="font-size:8.5px;margin-left:4px">ACTIVE FOCUS</span>' : '';
+    return `
+      <tr>
+        <td><b>${c.symbol}</b>${focusTag}</td>
+        <td><span class="b b-d" style="font-size:9.5px">${c.sector}</span></td>
+        <td>$${c.price.toFixed(c.price<1?6:2)}</td>
+        <td class="${chgClass}"><b>${chgSign}${c.change_24h}%</b></td>
+        <td>$${(c.volume_24h/1000000).toFixed(1)}M</td>
+        <td><b>${c.score}</b></td>
+        <td style="color:#CBD5E1;font-size:11px">${c.why_picked}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function cryptoToggle() {
+  await fetch(cryptoRunning ? '/api/crypto/stop' : '/api/crypto/start', { method: 'POST' });
+  setTimeout(loadCryptoState, 200);
+}
+async function cryptoScan() {
+  await fetch('/api/crypto/scan', { method: 'POST' });
+  setTimeout(loadCryptoState, 400);
+}
+async function cryptoFlatten() {
+  if (confirm('Flatten ALL open crypto positions?')) {
+    await fetch('/api/crypto/flatten', { method: 'POST' });
+    setTimeout(loadCryptoState, 200);
+  }
+}
+async function cryptoClosePos(id) {
+  if (confirm('Close position ' + id + '?')) {
+    await fetch('/api/crypto/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    setTimeout(loadCryptoState, 200);
+  }
+}
+async function cryptoReset() {
+  if (confirm('Reset Crypto Sentinel state to $1,000?')) {
+    await fetch('/api/crypto/reset', { method: 'POST' });
+    setTimeout(loadCryptoState, 200);
+  }
+}
+async function cryptoChangeMode(mode) {
+  await fetch('/api/crypto/mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode })
+  });
+  setTimeout(loadCryptoState, 200);
+}
+
+async function cryptoChangeProfile(profile) {
+  await fetch('/api/crypto/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile })
+  });
+  setTimeout(loadCryptoState, 200);
 }
 
 async function loadPolymarketState() {
@@ -1612,8 +2691,205 @@ function formatEndDate(isoStr) {
   }
 }
 
+// ── Polymarket Multi-Timeframe Timeline Engine ────────────────────────
+function selectPolyTimelineCoin(coin) {
+  polyCurrentCoin = coin;
+  ['BTC', 'ETH', 'SOL', 'XRP'].forEach(c => {
+    const btn = $('polyCoinTab_' + c);
+    if (btn) btn.className = (c === coin) ? 'poly-coin-tab-btn active' : 'poly-coin-tab-btn';
+  });
+  fetchPolyTimeline(polyCurrentCoin, polyCurrentTf);
+}
+
+function selectPolyTimelineTf(tf) {
+  polyCurrentTf = tf;
+  ['5m', '15m', '1h'].forEach(t => {
+    const btn = $('polyTfBtn_' + t);
+    if (btn) btn.className = (t === tf) ? 'poly-tf-btn active' : 'poly-tf-btn';
+  });
+  fetchPolyTimeline(polyCurrentCoin, polyCurrentTf);
+}
+
+function fetchPolyTimeline(coin, tf) {
+  const url = `/api/polymarket/crypto/timeline?coin=${encodeURIComponent(coin)}&tf=${encodeURIComponent(tf)}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      polyTimelineCache[`${coin}_${tf}`] = data;
+      renderPolyTimeline(data);
+    })
+    .catch(err => console.error("Error fetching timeline:", err));
+}
+
+function renderPolyTimeline(tl) {
+  if (!tl) return;
+  const coin = tl.coin || polyCurrentCoin;
+  const tf = tl.timeframe || polyCurrentTf;
+  const coinIcons = {'BTC':'🟠','ETH':'🔷','SOL':'🟣','XRP':'⚪'};
+  const icon = coinIcons[coin] || '🪙';
+  const dec = coin === 'XRP' ? 4 : 2;
+
+  // 1. Update Title & Header
+  if ($('polyTimelineCoinIcon')) $('polyTimelineCoinIcon').innerText = icon;
+  if ($('polyTimelineTitle')) $('polyTimelineTitle').innerText = `${coin} Up or Down ${tf}`;
+  
+  const act = tl.active_round || {};
+  if ($('polyTimelineWindow')) {
+    const winStr = act.time_window_et ? `${act.time_window_et} · ${act.time_window_utc}` : `${tf.toUpperCase()} Fast-Expiry Round`;
+    $('polyTimelineWindow').innerText = winStr;
+  }
+
+  // 2. Price to Beat (Strike) & Spot
+  const cDataForPtb = (window._lastPolyData && window._lastPolyData.btc_5m && window._lastPolyData.btc_5m.coins) ? window._lastPolyData.btc_5m.coins[coin] : null;
+  if ($('polyTimelinePtb')) {
+    const ptbVal = (act.price_to_beat !== undefined && act.price_to_beat !== null) ? act.price_to_beat : (cDataForPtb ? cDataForPtb.strike_price : null);
+    if (ptbVal !== undefined && ptbVal !== null && ptbVal > 0) {
+      $('polyTimelinePtb').innerText = '$' + ptbVal.toLocaleString('en-US', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+    } else {
+      $('polyTimelinePtb').innerText = 'Strike Locking...';
+    }
+  }
+
+  // Current Spot from live matrix
+  if ($('polyTimelineSpot') && window._lastPolyData && window._lastPolyData.btc_5m && window._lastPolyData.btc_5m.coins) {
+    const cData = window._lastPolyData.btc_5m.coins[coin];
+    if (cData && cData.spot_price) {
+      const sp = cData.spot_price;
+      const ptb = (act.price_to_beat !== undefined && act.price_to_beat !== null) ? act.price_to_beat : (cData.strike_price || sp);
+      const diff = sp - ptb;
+      const diffSign = diff >= 0 ? '+' : '';
+      const diffColor = diff >= 0 ? 'var(--gr)' : 'var(--rd)';
+      $('polyTimelineSpot').innerHTML = `$${sp.toLocaleString('en-US', {minimumFractionDigits: dec, maximumFractionDigits: dec})} <span style="font-size:11px;color:${diffColor}">(${diffSign}$${diff.toFixed(dec)})</span>`;
+    }
+  }
+
+  // 3. Slug and Direct Links
+  if ($('poly5mRoundId')) {
+    $('poly5mRoundId').innerText = act.slug || `${coin.toLowerCase()}-updown-${tf}`;
+  }
+  if ($('polyTimelineDirectLink')) {
+    $('polyTimelineDirectLink').href = act.polymarket_url || `https://polymarket.com/event/${act.slug}`;
+  }
+  if ($('poly5mOrderbookBadge')) {
+    if (act.closed) {
+      $('poly5mOrderbookBadge').innerText = '🔴 Round Closed';
+      $('poly5mOrderbookBadge').style.background = 'rgba(239,68,68,.15)';
+      $('poly5mOrderbookBadge').style.color = '#F87171';
+    } else if (act.accepting_orders) {
+      $('poly5mOrderbookBadge').innerText = '🟢 Accepting Orders';
+      $('poly5mOrderbookBadge').style.background = 'rgba(16,185,129,.15)';
+      $('poly5mOrderbookBadge').style.color = 'var(--gr)';
+    } else {
+      $('poly5mOrderbookBadge').innerText = '🟡 Pending Orders';
+      $('poly5mOrderbookBadge').style.background = 'rgba(245,158,11,.15)';
+      $('poly5mOrderbookBadge').style.color = '#FBBF24';
+    }
+  }
+
+  // 4. Polymarket Horizon Ribbon Bar (Exact Replica of Polymarket UI)
+  const ribbon = $('polyTimelineRibbon');
+  if (ribbon) {
+    let html = '';
+
+    // Past rounds expander / outcome pills
+    html += `
+      <div style="display:inline-flex;align-items:center;gap:5px;border-right:1px solid rgba(255,255,255,.1);padding-right:8px;margin-right:4px">
+        <span class="poly-pill-past-btn" title="Resolved rounds on Polymarket">Past ▾</span>
+    `;
+
+    (tl.past_rounds || []).forEach(p => {
+      const isUp = (p.outcome === 'UP');
+      const cls = isUp ? 'up' : 'down';
+      const arrow = isUp ? '▲' : '▼';
+      const label = `${p.label} - ${p.outcome}${p.price_to_beat ? ' ($' + p.price_to_beat + ')' : ''}`;
+      html += `
+        <a href="${p.polymarket_url}" target="_blank" rel="noopener noreferrer" class="poly-pill-outcome ${cls}" title="${label}">
+          ${arrow}
+        </a>
+      `;
+    });
+    html += `</div>`;
+
+    // Active round pill (with pulsating live indicator)
+    const actLabel = act.label || 'Active';
+    html += `
+      <a href="${act.polymarket_url}" target="_blank" rel="noopener noreferrer" class="poly-pill-active" title="Active Round: Closes in ${act.closes_in}">
+        <span class="poly-pulse-dot" style="width:8px;height:8px;background:#38BDF8;box-shadow:0 0 8px #38BDF8"></span>
+        <span>${actLabel}</span>
+        <span style="font-size:10px;color:#A5B4FC;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:10px" id="polyPillActiveTimer">${act.closes_in || 'Live'}</span>
+      </a>
+    `;
+
+    // Upcoming rounds pills
+    (tl.upcoming_rounds || []).forEach(u => {
+      html += `
+        <a href="${u.polymarket_url}" target="_blank" rel="noopener noreferrer" class="poly-pill-upcoming" title="Starts ${u.status} (${u.time_window_et})">
+          <span>${u.label}</span>
+          <span style="font-size:9.5px;color:var(--tx3)">(${u.status})</span>
+        </a>
+      `;
+    });
+
+    ribbon.innerHTML = html;
+  }
+
+  // 5. Upcoming Rounds Grid Cards
+  const upGrid = $('poly5mUpcomingGrid');
+  if (upGrid && tl.upcoming_rounds) {
+    if ($('polyUpcomingHeaderLabel')) {
+      $('polyUpcomingHeaderLabel').innerText = `🗓️ Polymarket API Schedule · Next Upcoming ${tf.toUpperCase()} Rounds (24/7 Aligned):`;
+    }
+    upGrid.innerHTML = tl.upcoming_rounds.map((u, idx) => {
+      const intervalNum = parseInt(tf) || 5;
+      const unit = tf.slice(-1).toUpperCase();
+      return `
+        <div style="background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:800;color:#38BDF8">
+              ${idx === 0 ? `⏭ NEXT ROUND (+${tf.toUpperCase()})` : `ROUND +${(idx+1)*intervalNum}${unit}`}
+            </span>
+            <span class="b b-p" style="font-size:9.5px;padding:2px 7px">${u.status || 'SCHEDULED'}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+            <span style="color:var(--tx3)">Time Window (ET):</span>
+            <span style="color:#A5B4FC;font-family:'JetBrains Mono',monospace;font-weight:700">${u.time_window_et}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px">
+            <span style="color:var(--tx3)">Time Window (UTC):</span>
+            <span style="color:var(--tx2);font-family:'JetBrains Mono',monospace">${u.time_window_utc}</span>
+          </div>
+          <div style="border-top:1px dashed rgba(255,255,255,.07);padding-top:5px;margin-top:2px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:9.5px;color:var(--tx3)">Direct Contract:</span>
+            <a href="${u.polymarket_url}" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:#38BDF8;text-decoration:none;font-weight:600">Open on Polymarket ↗</a>
+          </div>
+          <!-- Clickable & Underlined 4-Coin Projected Strikes -->
+          <div style="border-top:1px dashed rgba(255,255,255,.07);padding-top:4px;margin-top:2px">
+            <div style="font-size:9.5px;color:var(--tx3);margin-bottom:3px;font-weight:700">Projected Strikes (Click to Open Round):</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px">
+              ${['BTC', 'ETH', 'SOL', 'XRP'].map(sym => {
+                const dec = sym === 'XRP' ? 4 : 2;
+                const cData = (window._lastPolyData && window._lastPolyData.btc_5m && window._lastPolyData.btc_5m.coins) ? window._lastPolyData.btc_5m.coins[sym] : null;
+                const px = cData ? (cData.spot_price || cData.current_price || 0) : 0;
+                const cSlug = `${sym.toLowerCase()}-updown-${tf}-${u.timestamp}`;
+                const cUrl = `https://polymarket.com/event/${cSlug}`;
+                return `
+                  <a href="${cUrl}" target="_blank" rel="noopener noreferrer" style="font-size:9.5px;color:#38BDF8;text-decoration:underline;text-underline-offset:2px;font-family:'JetBrains Mono',monospace;font-weight:700;display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.04);padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.08);transition:all .15s" title="Open ${sym} ${tf} contract directly on Polymarket.com">
+                    <span>${coinIcons[sym] || ''}${sym}: $${px.toFixed(dec)}</span>
+                    <span style="font-size:8px">↗</span>
+                  </a>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
 function renderPolymarket(d) {
   if (!d) return;
+  window._lastPolyData = d;
   polyRunning = !!d.running;
   const polyBtn = $('polyEngBtn');
   if (polyBtn) {
@@ -1645,8 +2921,8 @@ function renderPolymarket(d) {
   if (d.kpis) {
     const k = d.kpis;
     if ($('polyKpiMarkets')) $('polyKpiMarkets').innerText = k.monitored_markets || 0;
-    if ($('polyKpiEquity')) $('polyKpiEquity').innerText = '$' + (k.portfolio_equity || 500).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-    if ($('polyKpiCash')) $('polyKpiCash').innerText = '$' + (k.cash || 500).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    if ($('polyKpiEquity')) $('polyKpiEquity').innerText = '$' + (k.portfolio_equity || 25).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    if ($('polyKpiCash')) $('polyKpiCash').innerText = '$' + (k.cash || 25).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
     if ($('polyKpiInvested')) $('polyKpiInvested').innerText = '$' + (Math.max(0, (k.portfolio_equity - k.cash)) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
     if ($('polyKpiEdgeOpp')) $('polyKpiEdgeOpp').innerText = k.opportunities || 0;
     const pnl = k.total_pnl || 0;
@@ -1654,6 +2930,12 @@ function renderPolymarket(d) {
     if (pnlEl) {
       pnlEl.innerText = (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
       pnlEl.className = 'kv ' + (pnl >= 0 ? 'g' : 'r');
+    }
+    if ($('polyKpiCommissions')) $('polyKpiCommissions').innerText = '$' + (k.scalper_commissions || 0).toFixed(3);
+    if ($('polyKpiScalperPnl')) {
+      const spnl = k.scalper_pnl || 0;
+      $('polyKpiScalperPnl').innerText = (spnl >= 0 ? '+' : '') + '$' + spnl.toFixed(2);
+      $('polyKpiScalperPnl').className = spnl >= 0 ? 'g' : 'r';
     }
   }
 
@@ -1669,18 +2951,23 @@ function renderPolymarket(d) {
     renderPolyEvidence(allPolyEvidence);
   }
 
-  // Active Open Bets Grid (Visual Trade Slips with End Date & Reason)
+  // Active Open Bets Grid (Visual Trade Slips with End Date, Strategy Badge, Dynamic TP/SL & Reason)
+  window.lastPolyData = d;
   const posGrid = $('polyPositionsGrid');
-  const pos = (d.portfolio && d.portfolio.open_positions) || [];
-  if ($('polyPosCount')) $('polyPosCount').innerText = pos.length + ' Open';
+  const allPos = (d.portfolio && d.portfolio.open_positions) || [];
+  const pos = (typeof currentPolyBetFilter !== 'undefined' && currentPolyBetFilter !== 'ALL')
+    ? allPos.filter(p => (p.strategy_type || 'ASYMMETRIC_EDGE') === currentPolyBetFilter)
+    : allPos;
+
+  if ($('polyPosCount')) $('polyPosCount').innerText = `${allPos.length} Open (${pos.length} shown)`;
   if (posGrid) {
     if (!pos.length) {
       posGrid.innerHTML = `
         <div class="empty" style="grid-column:1/-1;padding:32px 16px;text-align:center">
           <div style="font-size:26px;margin-bottom:8px">🎯</div>
-          <div style="font-weight:700;color:var(--tx1);font-size:14px;margin-bottom:6px">No Active Bets Open</div>
+          <div style="font-weight:700;color:var(--tx1);font-size:14px;margin-bottom:6px">No Active Bets Open ${currentPolyBetFilter !== 'ALL' ? 'for this Strategy' : ''}</div>
           <div style="font-size:12px;color:var(--tx2);max-width:540px;margin:0 auto;line-height:1.5">
-            The AI Superforecaster is scanning Polymarket for mispricings (&ge;6% edge). When an edge is detected, an automated $25 max paper order is executed with its closing date and transparent rationale shown here.
+            The AI Dual-Engine is actively scanning: <b>💎 Yield Harvester</b> (80-96¢, $75 max) and <b>🎯 Asymmetric Hunter</b> (5-65¢, $25 max) with automated Take-Profit and Stop-Loss exits.
           </div>
         </div>
       `;
@@ -1698,15 +2985,30 @@ function renderPolymarket(d) {
         const maxProfit = (p.shares * 1.0 - p.cost_basis).toFixed(2);
         const endDateStr = formatEndDate(p.end_date);
         const whyReason = p.reason || 'AI edge calculated from real-time probabilistic divergence and news sentiment.';
+        
+        const isYield = (p.strategy_type === 'HIGH_PROBABILITY_YIELD');
+        const stratBadge = isYield 
+          ? `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;letter-spacing:0.5px;background:rgba(234,179,8,.15);color:#FBBF24;border:1px solid rgba(234,179,8,.4)">💎 YIELD HARVESTER</span>`
+          : `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;letter-spacing:0.5px;background:rgba(129,140,248,.15);color:#A5B4FC;border:1px solid rgba(129,140,248,.4)">🎯 ASYMMETRIC EDGE</span>`;
+
+        const tpVal = p.take_profit_px ? Number(p.take_profit_px).toFixed(3) : null;
+        const slVal = p.stop_loss_px ? Number(p.stop_loss_px).toFixed(3) : null;
+        const exitTargetsHtml = (tpVal && slVal) ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:6px 10px;font-size:11px;font-family:'JetBrains Mono',monospace">
+            <span style="color:var(--gr)">🎯 Auto TP Target: <b>$${tpVal}</b></span>
+            <span style="color:var(--rd)">🛡️ Emergency SL: <b>$${slVal}</b></span>
+          </div>
+        ` : '';
 
         return `
           <div style="background:var(--bg3);border:1px solid ${outcomeBorder};border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-              <div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                 <span style="display:inline-block;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:0.5px;background:${outcomeBg};color:${outcomeColor};border:1px solid ${outcomeBorder}">
                   BOUGHT ${p.outcome}
                 </span>
-                <span style="margin-left:8px;font-size:11px;color:var(--tx3);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:4px">${p.category || 'Prediction'}</span>
+                ${stratBadge}
+                <span style="font-size:11px;color:var(--tx3);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:4px">${p.category || 'Prediction'}</span>
               </div>
               <div style="text-align:right">
                 <div style="font-size:10.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace">Unrealized P&L</div>
@@ -1722,6 +3024,9 @@ function renderPolymarket(d) {
               <span style="color:var(--tx2);font-weight:600">Market Closes:</span>
               <span style="color:#A5B4FC;font-weight:700;font-family:'JetBrains Mono',monospace">${endDateStr}</span>
             </div>
+
+            <!-- Active Dynamic Exits (Auto TP & SL) -->
+            ${exitTargetsHtml}
 
             <!-- Position Metrics Grid -->
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;background:var(--bg2);border-radius:6px;text-align:center">
@@ -1757,9 +3062,14 @@ function renderPolymarket(d) {
               <div style="font-size:12px;color:var(--tx1);line-height:1.45">${whyReason}</div>
             </div>
 
-            <button class="btn btn-demo" style="width:100%;justify-content:center;padding:7px;margin-top:auto" onclick="openDeepDive('${p.market_id}')">
-              🔬 Inspect Research Dossier &amp; Timeline
-            </button>
+            <div style="display:flex;gap:8px;margin-top:auto">
+              <button class="btn btn-demo" style="flex:1;justify-content:center;padding:7px;font-size:11px" onclick="openDeepDive('${p.market_id}')">
+                🔬 Dossier
+              </button>
+              <button class="btn btn-stop" style="flex:1;justify-content:center;padding:7px;font-size:11px" onclick="polyClosePosition(${p.id}, '${p.outcome}', ${p.shares}, ${p.shares * p.current_price})">
+                💰 Sell Now ($${(p.shares * p.current_price).toFixed(2)})
+              </button>
+            </div>
           </div>
         `;
       }).join('');
@@ -1771,21 +3081,41 @@ function renderPolymarket(d) {
   const trades = (d.portfolio && d.portfolio.recent_trades) || [];
   if (tradesTb) {
     if (!trades.length) {
-      tradesTb.innerHTML = '<tr><td colspan="9" class="empty">No simulated executions yet.</td></tr>';
+      tradesTb.innerHTML = '<tr><td colspan="10" class="empty">No simulated executions yet.</td></tr>';
     } else {
-      tradesTb.innerHTML = trades.map(t => `
-        <tr>
-          <td style="color:var(--tx3);font-family:'JetBrains Mono',monospace">${(t.timestamp || '').slice(11, 19)}</td>
-          <td><span class="b b-p">${t.action}</span></td>
-          <td><span class="b ${t.outcome === 'YES' ? 'b-l' : 'b-s'}">${t.outcome}</span></td>
-          <td><b>${t.question || t.market_id}</b></td>
-          <td style="color:#A5B4FC;font-family:'JetBrains Mono',monospace;font-size:11px">${formatEndDate(t.end_date)}</td>
-          <td style="font-family:'JetBrains Mono',monospace">${t.shares}</td>
-          <td style="font-family:'JetBrains Mono',monospace">$${t.price.toFixed(3)}</td>
-          <td style="font-family:'JetBrains Mono',monospace"><b>$${t.dollar_value.toFixed(2)}</b></td>
-          <td style="font-size:11px;color:var(--tx2);max-width:280px;line-height:1.3" title="${t.reason || ''}">${(t.reason || 'AI edge execution').slice(0, 110)}${(t.reason && t.reason.length > 110) ? '...' : ''}</td>
-        </tr>
-      `).join('');
+      tradesTb.innerHTML = trades.map(t => {
+        const isY = (t.strategy_type === 'HIGH_PROBABILITY_YIELD');
+        const stratTag = isY 
+          ? `<span style="color:#FBBF24;font-size:10.5px;font-weight:700">💎 YIELD</span>` 
+          : `<span style="color:#A5B4FC;font-size:10.5px;font-weight:700">🎯 EDGE</span>`;
+        const trig = t.exit_trigger || '';
+        const trigBadge = trig === 'TAKE_PROFIT' 
+          ? `<span class="b" style="background:rgba(16,185,129,.2);color:var(--gr)">🎯 TP HIT</span>`
+          : (trig === 'STOP_LOSS' 
+            ? `<span class="b" style="background:rgba(244,63,94,.2);color:var(--rd)">🛡️ SL HIT</span>`
+            : (trig === 'MANUAL' || trig === 'MANUAL_FLATTEN'
+              ? `<span class="b" style="background:rgba(234,179,8,.2);color:#FBBF24">💰 SOLD</span>`
+              : (trig === 'EXPIRATION' 
+                ? `<span class="b" style="background:rgba(99,102,241,.2);color:#A5B4FC">📅 SETTLED</span>`
+                : `<span class="b b-p">⚡ ENTRY</span>`)));
+        return `
+          <tr>
+            <td style="color:var(--tx3);font-family:'JetBrains Mono',monospace">${(t.timestamp || '').slice(11, 19)}</td>
+            <td><span class="b b-p">${t.action}</span></td>
+            <td><span class="b ${t.outcome === 'YES' ? 'b-l' : 'b-s'}">${t.outcome}</span></td>
+            <td>${stratTag}</td>
+            <td><b>${t.question || t.market_id}</b></td>
+            <td style="color:#A5B4FC;font-family:'JetBrains Mono',monospace;font-size:11px">${formatEndDate(t.end_date)}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${t.shares}</td>
+            <td style="font-family:'JetBrains Mono',monospace">$${t.price.toFixed(3)}</td>
+            <td style="font-family:'JetBrains Mono',monospace"><b>$${t.dollar_value.toFixed(2)}</b></td>
+            <td style="font-size:11px;color:var(--tx2);max-width:280px;line-height:1.3" title="${t.reason || ''}">
+              <div style="margin-bottom:3px">${trigBadge}</div>
+              <div>${(t.reason || 'AI edge execution').slice(0, 100)}${(t.reason && t.reason.length > 100) ? '...' : ''}</div>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
   }
 
@@ -1808,6 +3138,462 @@ function renderPolymarket(d) {
         <div class="act-desc">${act.details}</div>
       </div>
     `).join('');
+  }
+
+  // ── Render 5-Minute Multi-Crypto Microstructure Scalper (BTC, ETH, SOL, XRP) ──────
+  if (d.btc_5m) {
+    const s = d.btc_5m;
+    if ($('poly5mBal')) $('poly5mBal').innerText = '$' + (s.balance !== undefined ? s.balance : 50).toFixed(2);
+    if ($('poly5mPnl')) {
+      const pnlVal = s.realized_pnl || 0;
+      $('poly5mPnl').innerText = (pnlVal >= 0 ? '+' : '') + '$' + pnlVal.toFixed(2);
+      $('poly5mPnl').style.color = pnlVal >= 0 ? 'var(--gr)' : 'var(--rd)';
+    }
+    if ($('poly5mWinRate')) $('poly5mWinRate').innerText = (s.win_rate || 0).toFixed(1) + '%';
+    if ($('poly5mFees')) $('poly5mFees').innerText = '$' + (s.total_commissions_paid || 0).toFixed(3);
+    if ($('poly5mRecord')) $('poly5mRecord').innerText = `${s.total_won || 0}W - ${s.total_lost || 0}L`;
+    
+    const toggleBtn = $('btn5mToggle');
+    const statusBadge = $('poly5mStatusBadge');
+    if (toggleBtn) {
+      if (!s.is_enabled) {
+        toggleBtn.innerText = '▶ Start 5M Scalper';
+        toggleBtn.className = 'btn btn-demo';
+        if (statusBadge) {
+          statusBadge.innerText = '⏸ SCALPER PAUSED · CLICK BUTTON TO START';
+          statusBadge.style.background = 'rgba(239,68,68,.15)';
+          statusBadge.style.color = '#F87171';
+        }
+      } else if (s.waiting_for_next_round) {
+        toggleBtn.innerText = '⏳ Armed (Wait Session)';
+        toggleBtn.className = 'btn btn-g';
+        if (statusBadge) {
+          const targetUtc = s.target_round_ts ? new Date(s.target_round_ts * 1000).toISOString().slice(11, 16) + ' UTC' : 'Next Round';
+          statusBadge.innerText = `⏳ ARMED · WAITING FOR FRESH 5M SESSION AT ${targetUtc} (SKIPPED MID-CANDLE)`;
+          statusBadge.style.background = 'rgba(99,102,241,.2)';
+          statusBadge.style.color = '#A5B4FC';
+        }
+      } else {
+        toggleBtn.innerText = '⏹ Pause 5M Scalper';
+        toggleBtn.className = 'btn btn-stop';
+        if (statusBadge) {
+          statusBadge.innerText = '🟢 4-COIN PARALLEL SCALPER ACTIVE (SWEET SPOT 20¢ - 82¢)';
+          statusBadge.style.background = 'rgba(16,185,129,.15)';
+          statusBadge.style.color = 'var(--gr)';
+        }
+      }
+    }
+
+    const liveAccBadge = $('polyLiveAccountBadge');
+    let isLiveMode = false;
+    if (d.live_account) {
+      const la = d.live_account;
+      isLiveMode = (la.live_enabled || la.trading_mode === 'LIVE');
+      
+      // Update Mode Buttons
+      const btnPaper = $('btnPolyModePaper');
+      const btnLive = $('btnPolyModeLive');
+      if (btnPaper && btnLive) {
+        if (isLiveMode) {
+          btnLive.style.background = 'rgba(239,68,68,.3)';
+          btnLive.style.color = '#F87171';
+          btnPaper.style.background = 'transparent';
+          btnPaper.style.color = 'var(--tx3)';
+        } else {
+          btnPaper.style.background = 'rgba(99,102,241,.3)';
+          btnPaper.style.color = '#A5B4FC';
+          btnLive.style.background = 'transparent';
+          btnLive.style.color = 'var(--tx3)';
+        }
+      }
+
+      if (liveAccBadge) {
+        if (la.connected) {
+          const addrStr = la.wallet_address ? la.wallet_address.slice(0, 6) + '...' + la.wallet_address.slice(-4) : 'Connected';
+          const balStr = (la.usdc_balance || 0).toFixed(2);
+          const modeStr = isLiveMode ? '🔴 LIVE REAL TRADING' : '🟡 PAPER (Wallet Linked)';
+          liveAccBadge.innerText = `${modeStr} · ${addrStr} ($${balStr} USDC.e)`;
+          liveAccBadge.style.background = isLiveMode ? 'rgba(239,68,68,.15)' : 'rgba(245,158,11,.15)';
+          liveAccBadge.style.color = isLiveMode ? '#F87171' : '#FBBF24';
+        } else {
+          liveAccBadge.innerText = '📝 Paper Simulation Mode';
+          liveAccBadge.style.background = 'rgba(255,255,255,.06)';
+          liveAccBadge.style.color = 'var(--tx3)';
+        }
+      }
+
+      if (isLiveMode && $('poly5mBal') && la.connected) {
+        $('poly5mBal').innerText = '$' + (la.usdc_balance || 0).toFixed(2) + ' (USDC.e)';
+      }
+    }
+
+    const r = s.round;
+    if (r) {
+      const sigBadge = $('poly5mSignalBadge');
+      if (sigBadge) {
+        sigBadge.innerText = (r.signal !== 'ABSTAIN' ? `${r.signal} ON ${r.symbol}` : 'ABSTAIN');
+        sigBadge.className = 'b ' + (r.signal === 'BUY_UP' ? 'b-l' : (r.signal === 'BUY_DOWN' ? 'b-s' : 'b-p'));
+      }
+      if ($('poly5mPatternBadge')) $('poly5mPatternBadge').innerText = `${r.symbol}: ${r.ict_fvg_status || 'NEUTRAL'}`;
+      if ($('poly5mReason')) $('poly5mReason').innerText = r.signal_reason || '';
+    }
+
+    // Render Next 5M Session Predictions
+    const predGrid = $('poly5mPredictionsGrid');
+    const predCountdown = $('polyPredCountdown');
+    if (predGrid && s.predictions) {
+      const predCoins = ['BTC', 'ETH', 'SOL', 'XRP'];
+      let cdSec = 0;
+      predGrid.innerHTML = predCoins.map(sym => {
+        const p = s.predictions[sym] || {};
+        const dir = p.prediction || 'NEUTRAL';
+        const conf = p.confidence || 50;
+        const cat = p.catalyst || 'Analyzing price action...';
+        if (p.seconds_until_next_round) cdSec = p.seconds_until_next_round;
+
+        let dirColor = '#94A3B8';
+        let dirBg = 'rgba(255,255,255,.05)';
+        let dirIcon = '⚪';
+        if (dir === 'UP') {
+          dirColor = '#34D399';
+          dirBg = 'rgba(16,185,129,.15)';
+          dirIcon = '🟢';
+        } else if (dir === 'DOWN') {
+          dirColor = '#F87171';
+          dirBg = 'rgba(239,68,68,.15)';
+          dirIcon = '🔴';
+        }
+
+        return `
+          <div style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;font-weight:800;color:#F8FAFC">${sym}</span>
+              <span style="font-size:10.5px;font-weight:700;color:${dirColor};background:${dirBg};padding:2px 7px;border-radius:4px;display:inline-flex;align-items:center;gap:4px">
+                ${dirIcon} ${dir}
+              </span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--tx3)">
+              <span>AI Confidence:</span>
+              <span style="font-weight:700;color:#F8FAFC">${conf.toFixed(0)}%</span>
+            </div>
+            <div style="width:100%;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden">
+              <div style="width:${conf}%;height:100%;background:${dir === 'UP' ? '#10B981' : (dir === 'DOWN' ? '#EF4444' : '#6366F1')};border-radius:2px"></div>
+            </div>
+            <div style="font-size:9.5px;color:#94A3B8;line-height:1.3;margin-top:2px" title="${cat}">
+              ${cat.length > 55 ? cat.slice(0, 52) + '...' : cat}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (predCountdown && cdSec > 0) {
+        const m = Math.floor(cdSec / 60);
+        const sec = cdSec % 60;
+        predCountdown.innerText = `Next Round Starting in ${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      }
+    }
+
+    // Render Polymarket Multi-Timeframe Timeline Ribbon & Upcoming Rounds
+    if (s.timeline) {
+      const tCoin = s.timeline.coin || 'BTC';
+      const tTf = s.timeline.timeframe || '5m';
+      polyTimelineCache[`${tCoin}_${tTf}`] = s.timeline;
+    }
+
+    const currentKey = `${polyCurrentCoin}_${polyCurrentTf}`;
+    if (polyTimelineCache[currentKey]) {
+      renderPolyTimeline(polyTimelineCache[currentKey]);
+    } else {
+      fetchPolyTimeline(polyCurrentCoin, polyCurrentTf);
+    }
+
+    // Render 4-Coin Parallel Live Contract Slugs in Header
+    const activeBar = $('polyActiveCoinsBar');
+    if (activeBar && s.coins) {
+      const coinIcons = {'BTC':'🟠','ETH':'🔷','SOL':'🟣','XRP':'⚪'};
+      activeBar.innerHTML = Object.keys(s.coins).map(sym => {
+        const c = s.coins[sym];
+        const isFocus = (sym === polyCurrentCoin);
+        const slug = c.slug || c.round_id || `${sym.toLowerCase()}-updown-5m`;
+        const polyUrl = c.polymarket_url || `https://polymarket.com/event/${slug}`;
+        const borderCol = isFocus ? 'rgba(56,189,248,.6)' : 'rgba(255,255,255,.1)';
+        const bgCol = isFocus ? 'rgba(56,189,248,.15)' : 'rgba(0,0,0,.3)';
+        return `
+          <div style="background:${bgCol};border:1px solid ${borderCol};border-radius:6px;padding:3px 8px;display:inline-flex;align-items:center;gap:6px">
+            <span style="font-size:12px">${coinIcons[sym] || ''}</span>
+            <span style="font-size:11px;font-weight:800;color:var(--tx1)">${sym}:</span>
+            <a href="${polyUrl}" target="_blank" rel="noopener noreferrer" style="font-size:10.5px;color:#38BDF8;font-family:'JetBrains Mono',monospace;text-decoration:underline;text-underline-offset:2px;font-weight:700" title="Verify ${sym} active contract live on Polymarket.com">
+              ${slug} ↗
+            </a>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render 4-Coin Live Matrix Grid (BTC, ETH, SOL, XRP)
+    const coinsGrid = $('poly5mCoinsGrid');
+    if (coinsGrid && s.coins) {
+      const coinIcons = {'BTC':'🟠','ETH':'🔷','SOL':'🟣','XRP':'⚪'};
+      const bestSym = (r && r.symbol) ? r.symbol : 'BTC';
+      const cStats = s.coin_stats || {};
+
+      coinsGrid.innerHTML = Object.keys(s.coins).map(sym => {
+        const c = s.coins[sym];
+        const isBest = (sym === bestSym);
+        const decDigits = sym === 'XRP' ? 4 : 2;
+        const deltaVal = c.price_delta || 0;
+        const deltaColor = deltaVal >= 0 ? 'var(--gr)' : 'var(--rd)';
+        const deltaStr = (deltaVal >= 0 ? '+' : '') + '$' + deltaVal.toFixed(decDigits);
+        
+        const spotPx = c.spot_price || c.current_price || 0;
+        const twapPx = c.twap_price || c.current_price || 0;
+        const lagVal = c.oracle_lag_delta || (spotPx - twapPx);
+        const lagColor = lagVal > 0 ? 'var(--gr)' : (lagVal < 0 ? 'var(--rd)' : 'var(--tx3)');
+        const lagDir = lagVal > 0 ? '▲ Spot Leading Up' : (lagVal < 0 ? '▼ Spot Leading Down' : '● In Sync');
+        const projTwap = c.projected_twap || twapPx;
+
+        const stat = cStats[sym] || { trades: 0, wins: 0, losses: 0, pnl: 0, commissions_paid: 0 };
+        const statPnlColor = stat.pnl >= 0 ? 'var(--gr)' : 'var(--rd)';
+
+        const edgeUp = ((c.calculated_prob_up - c.market_price_up) * 100).toFixed(1);
+        const edgeDown = ((c.calculated_prob_down - c.market_price_down) * 100).toFixed(1);
+        const borderStyle = isBest ? 'border:1.5px solid #FBBF24;box-shadow:0 0 12px rgba(245,158,11,.2)' : 'border:1px solid var(--bdr)';
+        const cardBg = isBest ? 'background:rgba(245,158,11,.05)' : 'background:var(--bg2)';
+        const polyUrl = c.polymarket_url || `https://polymarket.com/event/${c.slug || c.round_id}`;
+
+        return `
+          <div style="${cardBg};${borderStyle};border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:15px">${coinIcons[sym] || '🪙'}</span>
+                <a href="${polyUrl}" target="_blank" rel="noopener noreferrer" style="font-size:13px;font-weight:800;color:var(--tx1);text-decoration:none;display:inline-flex;align-items:center;gap:3px" title="Open ${sym} 5m contract directly on Polymarket.com">
+                  ${sym}/USDT <span style="font-size:9.5px;color:#38BDF8">↗</span>
+                </a>
+                ${isBest ? '<span style="font-size:9.5px;background:#FBBF24;color:#000;font-weight:900;padding:1px 5px;border-radius:3px">FOCUS</span>' : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="b ${c.signal === 'BUY_UP' ? 'b-l' : (c.signal === 'BUY_DOWN' ? 'b-s' : 'b-p')}" style="padding:1px 6px;font-size:10px">${c.signal}</span>
+                <a href="${polyUrl}" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:#38BDF8;font-weight:700;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.25);padding:2px 7px;border-radius:4px;text-decoration:none;display:inline-flex;align-items:center;gap:2px" title="Verify ${sym} live on Polymarket">
+                  <span>🔗 Trade</span> <span>↗</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Active Contract Slug Line (Underlined & Direct Link) -->
+            <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);padding:4px 8px;border-radius:4px;font-size:10px">
+              <span style="color:var(--tx3);font-weight:700">Contract:</span>
+              <a href="${polyUrl}" target="_blank" rel="noopener noreferrer" style="font-family:'JetBrains Mono',monospace;color:#38BDF8;font-weight:700;text-decoration:underline;text-underline-offset:2px" title="Click to verify ${sym} contract on Polymarket">
+                ${c.slug || c.round_id} ↗
+              </a>
+            </div>
+
+            <!-- DUAL PRICE: Live Spot vs Polymarket TWAP Oracle -->
+            <div style="background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:7px 9px;display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:10px;color:var(--tx3)">Live Binance Spot:</span>
+                <span style="font-size:12px;font-weight:800;color:#F8FAFC;font-family:'JetBrains Mono',monospace">$${spotPx.toLocaleString('en-US', {minimumFractionDigits: decDigits, maximumFractionDigits: decDigits})}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:10px;color:var(--tx3)">Polymarket Chainlink TWAP:</span>
+                <span style="font-size:12px;font-weight:800;color:#38BDF8;font-family:'JetBrains Mono',monospace">$${twapPx.toLocaleString('en-US', {minimumFractionDigits: decDigits, maximumFractionDigits: decDigits})}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed rgba(255,255,255,.08);padding-top:3px;margin-top:2px">
+                <span style="font-size:9.5px;color:var(--tx3)">Oracle Delta &amp; Lag:</span>
+                <span style="font-size:10.5px;font-weight:700;color:${lagColor};font-family:'JetBrains Mono',monospace">${(lagVal >= 0 ? '+' : '')}$${lagVal.toFixed(decDigits)} (${lagDir})</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:9.5px;color:var(--tx3)">60s Projected TWAP:</span>
+                <span style="font-size:11px;font-weight:700;color:#A5B4FC;font-family:'JetBrains Mono',monospace">$${projTwap.toLocaleString('en-US', {minimumFractionDigits: decDigits, maximumFractionDigits: decDigits})}</span>
+              </div>
+            </div>
+
+            <!-- Price vs Strike -->
+            <div style="display:flex;justify-content:space-between;align-items:baseline;background:rgba(0,0,0,.2);border-radius:6px;padding:6px 8px">
+              <div>
+                <div style="font-size:9px;color:var(--tx3)">Locked Strike (P₀)</div>
+                <div style="font-size:12px;font-weight:800;color:var(--tx1);font-family:'JetBrains Mono',monospace">$${(c.strike_price || 0).toLocaleString('en-US', {minimumFractionDigits: decDigits})}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:9px;color:var(--tx3)">Delta vs Strike</div>
+                <div style="font-size:12px;font-weight:800;color:${deltaColor};font-family:'JetBrains Mono',monospace">${deltaStr} (${(c.z_score || 0).toFixed(1)}σ)</div>
+              </div>
+            </div>
+
+            <!-- Probability & Edge -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10.5px">
+              <div style="background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.15);border-radius:4px;padding:4px 6px">
+                <div style="color:#38BDF8;font-weight:700">▲ Up ${((c.calculated_prob_up || 0.5) * 100).toFixed(0)}%</div>
+                <div style="color:var(--tx3);font-size:9.5px">Mkt: ${((c.market_price_up || 0.5) * 100).toFixed(0)}¢ (${edgeUp >= 0 ? '+' : ''}${edgeUp}%)</div>
+              </div>
+              <div style="background:rgba(244,63,94,.05);border:1px solid rgba(244,63,94,.15);border-radius:4px;padding:4px 6px">
+                <div style="color:#F43F5E;font-weight:700">▼ Down ${((c.calculated_prob_down || 0.5) * 100).toFixed(0)}%</div>
+                <div style="color:var(--tx3);font-size:9.5px">Mkt: ${((c.market_price_down || 0.5) * 100).toFixed(0)}¢ (${edgeDown >= 0 ? '+' : ''}${edgeDown}%)</div>
+              </div>
+            </div>
+
+            <!-- Per-Coin Record & P&L -->
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;color:var(--tx3);background:rgba(255,255,255,.02);padding:3px 6px;border-radius:4px">
+              <span>Record: <b style="color:var(--tx1)">${stat.wins || 0}W - ${stat.losses || 0}L</b></span>
+              <span>Net P&amp;L: <b style="color:${statPnlColor}">${stat.pnl >= 0 ? '+' : ''}$${(stat.pnl || 0).toFixed(2)}</b></span>
+              <span>Fees: <b style="color:#FBBF24">$${(stat.commissions_paid || 0).toFixed(3)}</b></span>
+            </div>
+
+            <!-- Next 5 Scheduled Rounds Strip for this coin (Click to Open) -->
+            <div style="border-top:1px dashed rgba(255,255,255,.08);padding-top:6px;margin-top:2px">
+              <div style="font-size:9.5px;color:var(--tx3);margin-bottom:4px;display:flex;justify-content:space-between">
+                <span style="font-weight:700;color:var(--tx2)">Next 5M Rounds (Click to Open):</span>
+                <span style="color:#A5B4FC;font-family:'JetBrains Mono',monospace">24/7 Epochs</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                ${(c.next_rounds || []).map(nr => `
+                  <a href="${nr.url}" target="_blank" rel="noopener noreferrer" style="font-size:9.5px;font-family:'JetBrains Mono',monospace;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);color:#38BDF8;padding:2px 6px;border-radius:4px;text-decoration:underline;text-underline-offset:2px;display:inline-flex;align-items:center;gap:3px;font-weight:700;transition:all .15s" title="Starts ${nr.status} (${nr.time_utc})">
+                    <span>${nr.label} (${nr.time_utc.slice(0,5)})</span>
+                    <span style="font-size:8px">↗</span>
+                  </a>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Active trade slip (Supports up to 2 parallel coin trades with staggered condition timer)
+    const slip = $('poly5mActiveSlip');
+    if (slip) {
+      const activeTrades = (s.active_trades && s.active_trades.length) ? s.active_trades : (s.active_trade ? [s.active_trade] : []);
+      if (activeTrades.length > 0) {
+        const coinIcons = {'BTC':'🟠','ETH':'🔷','SOL':'🟣','XRP':'⚪'};
+        const isSingleTradeMode = s.max_concurrent_trades === 1;
+        const lowBalance2ndCoin = (!isSingleTradeMode && activeTrades.length === 1 && (s.balance !== undefined && s.balance < 10.0));
+        const staggerBanner = isSingleTradeMode
+          ? `<div style="background:rgba(59,130,246,.08);border:1px dashed rgba(59,130,246,.25);border-radius:6px;padding:6px 10px;font-size:10.5px;color:#60A5FA;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <span>🎯</span> <span><b>Single-Trade Priority Mode:</b> 1 active position max ($5.00 outlay). Other 3 coins locked until current trade resolves.</span>
+            </div>`
+          : (lowBalance2ndCoin
+            ? `<div style="background:rgba(239,68,68,.1);border:1px dashed rgba(239,68,68,.3);border-radius:6px;padding:6px 10px;font-size:10.5px;color:var(--rd);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                <span>🛡️</span> <span><b>Bankroll Protection:</b> Available balance is <b>$${(s.balance || 0).toFixed(2)}</b> (&lt; $10.00). 2nd coin trade is locked until bankroll recovers &ge; $10.00.</span>
+              </div>`
+            : ((activeTrades.length === 1 && (s.stagger_timer_remaining || 0) > 0)
+              ? `<div style="background:rgba(245,158,11,.1);border:1px dashed rgba(245,158,11,.3);border-radius:6px;padding:6px 10px;font-size:10.5px;color:#FBBF24;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                  <span>⏳</span> <span><b>Condition Timer Active:</b> 2nd coin slot unlocks in <b>${s.stagger_timer_remaining}s</b> (Verifying independent momentum &amp; &ge;70% edge).</span>
+                </div>`
+              : (activeTrades.length === 1
+                ? `<div style="background:rgba(16,185,129,.08);border:1px dashed rgba(16,185,129,.25);border-radius:6px;padding:6px 10px;font-size:10.5px;color:var(--gr);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                    <span>🎯</span> <span><b>2nd Coin Slot Ready:</b> Monitoring remaining 3 coins for verified displacement &amp; 20¢–82¢ sweet spot ($10 bullet ready).</span>
+                  </div>`
+                : '')));
+
+        slip.innerHTML = staggerBanner + `<div style="display:grid;grid-template-columns:${activeTrades.length > 1 ? 'repeat(auto-fit,minmax(280px,1fr))' : '1fr'};gap:10px">` + activeTrades.map(t => {
+          const isUp = t.outcome === 'UP';
+          const dec = t.symbol === 'XRP' ? 4 : 2;
+          const floatingVal = t.floating_value !== undefined ? t.floating_value : t.cost;
+          const floatingPnl = t.floating_pnl !== undefined ? t.floating_pnl : 0;
+          const floatingPct = t.floating_pnl_pct !== undefined ? t.floating_pnl_pct : 0;
+          const pnlColor = floatingPnl >= 0 ? 'var(--gr)' : 'var(--rd)';
+          const pnlSign = floatingPnl >= 0 ? '+' : '';
+          const entryOdds = (t.entry_price * 100).toFixed(0);
+          const curOdds = t.current_price !== undefined ? (t.current_price * 100).toFixed(0) : entryOdds;
+
+          return `
+            <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:14px">${coinIcons[t.symbol] || '🪙'}</span>
+                  <span class="b ${isUp ? 'b-l' : 'b-s'}" style="font-size:10px;padding:2px 7px;white-space:nowrap;letter-spacing:0.3px">ACTIVE ${t.outcome} on ${t.symbol}</span>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:var(--tx1);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:4px;white-space:nowrap">
+                  $${t.cost.toFixed(2)} Outlay
+                </div>
+              </div>
+
+              <!-- LIVE FLOATING MARKET VALUE & REAL-TIME P&L -->
+              <div style="background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 10px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+                  <span style="font-size:10px;color:var(--tx3);text-transform:uppercase;font-weight:700">Live Floating Value:</span>
+                  <span style="font-size:14px;font-weight:800;color:${pnlColor};font-family:'JetBrains Mono',monospace">
+                    $${floatingVal.toFixed(2)} <span style="font-size:11px">(${pnlSign}$${floatingPnl.toFixed(2)} · ${pnlSign}${floatingPct}%)</span>
+                  </span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--tx2)">
+                  <span>Odds Movement: <b>${entryOdds}¢ → <span style="color:#38BDF8">${curOdds}¢</span></b></span>
+                  <button class="btn btn-demo" style="padding:2px 7px;font-size:9.5px;font-weight:700" onclick="poly5mCashout('${t.symbol}')">
+                    💰 Cash Out ($${floatingVal.toFixed(2)})
+                  </button>
+                </div>
+              </div>
+
+              <div style="font-size:11px;color:var(--tx2)">
+                <b>${t.shares}</b> shares @ $${t.entry_price.toFixed(3)} | Fee: <b style="color:#FBBF24">$${(t.commission || 0).toFixed(3)}</b>
+              </div>
+
+              <div style="background:rgba(0,0,0,.25);border-radius:4px;padding:5px 8px;font-size:10px;display:flex;flex-direction:column;gap:2px">
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--tx3)">Spot at Entry:</span>
+                  <span style="font-family:'JetBrains Mono',monospace;color:var(--tx1)">$${(t.spot_price_at_entry || 0).toFixed(dec)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--tx3)">TWAP Oracle at Entry:</span>
+                  <span style="font-family:'JetBrains Mono',monospace;color:#38BDF8">$${(t.twap_price_at_entry || 0).toFixed(dec)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between">
+                  <span style="color:var(--tx3)">Oracle Lead Delta:</span>
+                  <span style="font-family:'JetBrains Mono',monospace;color:${(t.oracle_lag_at_entry || 0) >= 0 ? 'var(--gr)' : 'var(--rd)'}">${(t.oracle_lag_at_entry || 0) >= 0 ? '+' : ''}$${(t.oracle_lag_at_entry || 0).toFixed(dec)}</span>
+                </div>
+              </div>
+
+              <!-- Max Settlement Payout -->
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;border-top:1px dashed rgba(255,255,255,.06);padding-top:4px">
+                <span style="color:var(--tx3)">Max Payout at $1.00:</span>
+                <span style="color:var(--gr);font-weight:700;font-family:'JetBrains Mono',monospace">$${(t.shares * 1.0).toFixed(2)} (+$${(t.shares * 1.0 - t.cost - (t.commission || 0)).toFixed(2)} Net)</span>
+              </div>
+            </div>
+          `;
+        }).join('') + '</div>';
+      } else {
+        slip.innerHTML = '<div style="font-size:11.5px;color:var(--tx3)">No active position for this 5-minute round. Monitoring 4 coins in parallel ($5 outlay · exactly 1 trade active across all coins)...</div>';
+      }
+    }
+
+    // History
+    const histList = $('poly5mHistoryList');
+    if (histList) {
+      if (s.history && s.history.length) {
+        histList.innerHTML = s.history.map(h => {
+          const isWon = h.status === 'WON';
+          const dec = h.symbol === 'XRP' ? 4 : 2;
+          const entryTwap = h.twap_price_at_entry ? `$${h.twap_price_at_entry.toFixed(dec)}` : '';
+          const settlePx = h.settlement_price ? `$${h.settlement_price.toFixed(dec)}` : '';
+          const pxDetail = (entryTwap && settlePx) ? ` · TWAP: ${entryTwap} → ${settlePx}` : '';
+          const feeStr = h.commission ? ` · Fee: $${h.commission.toFixed(3)}` : '';
+          let triggerBadge = '';
+          if (h.reason && h.reason.includes('Auto Take-Profit')) {
+            triggerBadge = '<span class="b" style="background:rgba(16,185,129,.2);color:var(--gr);font-size:9px;padding:1px 4px;margin-left:4px">🎯 TP HIT</span>';
+          } else if (h.reason && h.reason.includes('Auto Stop-Loss')) {
+            triggerBadge = '<span class="b" style="background:rgba(244,63,94,.2);color:var(--rd);font-size:9px;padding:1px 4px;margin-left:4px">🛡️ SL HIT</span>';
+          } else if (h.reason && h.reason.includes('Early Cashout')) {
+            triggerBadge = '<span class="b" style="background:rgba(245,158,11,.2);color:#FBBF24;font-size:9px;padding:1px 4px;margin-left:4px">💰 CASH OUT</span>';
+          }
+
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.02);padding:5px 8px;border-radius:4px;font-size:11px">
+              <div>
+                <span class="b ${h.outcome === 'UP' ? 'b-l' : 'b-s'}" style="padding:1px 5px;font-size:9.5px">${h.outcome}</span>
+                <b style="color:var(--tx1);margin-left:4px">${h.symbol || 'BTC'}</b>
+                ${triggerBadge}
+                <span style="font-family:'JetBrains Mono',monospace;margin-left:4px;color:var(--tx3)">${h.round_id.slice(-6)}</span>
+                <span style="font-size:9.5px;color:var(--tx3)">${pxDetail}${feeStr}</span>
+              </div>
+              <span style="color:${isWon ? 'var(--gr)' : 'var(--rd)'};font-weight:700;font-family:'JetBrains Mono',monospace">
+                ${isWon ? '+' : ''}$${h.pnl.toFixed(2)} (${h.status})
+              </span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        histList.innerHTML = '<div style="font-size:11.5px;color:var(--tx3)">No completed 5M scalps yet.</div>';
+      }
+    }
   }
 }
 
@@ -1840,19 +3626,34 @@ function renderPolyCards(list) {
     const pNoPct = Math.round(pNo * 100);
     const forecast = m.forecast_probability || pYes;
     const forecastPct = (forecast * 100).toFixed(1);
+    const indepPct = m.independent_probability ? (m.independent_probability * 100).toFixed(1) + '%' : forecastPct + '%';
+    const baseRatePct = m.base_rate ? (m.base_rate * 100).toFixed(1) + '%' : '30.0%';
     const edge = m.edge || 0;
     const edgePct = (edge * 100).toFixed(1);
     const edgeSign = edge >= 0 ? '+' : '';
     const hasEdge = Math.abs(edge) >= 0.06;
     const edgeColor = hasEdge ? (edge >= 0 ? 'var(--gr)' : 'var(--rd)') : 'var(--tx2)';
-    const signalBadge = edge >= 0.06 ? '<span class="b b-l">BUY YES</span>' : (edge <= -0.06 ? '<span class="b b-s">BUY NO</span>' : '<span class="b b-d">HOLD</span>');
+    const isAbstain = !!m.recommend_abstain;
+    const signalBadge = isAbstain
+      ? '<span class="b" style="background:rgba(239,68,68,.15);color:var(--rd);border:1px solid rgba(239,68,68,.3)">ABSTAIN</span>'
+      : (edge >= 0.06 ? '<span class="b b-l">BUY YES</span>' : (edge <= -0.06 ? '<span class="b b-s">BUY NO</span>' : '<span class="b b-d">HOLD</span>'));
     const thesis = m.reasoning || 'Awaiting initial Bayesian intelligence synthesis...';
     const closeStr = formatEndDate(m.end_date);
+
+    const qScore = Math.round(m.qualification_score || 70);
+    const qTier = m.qualification_tier || 'MONITOR';
+    const qBg = qTier === 'DEEP_RESEARCH' ? 'rgba(16,185,129,.15)' : (qTier === 'MONITOR' ? 'rgba(245,158,11,.15)' : 'rgba(255,255,255,.05)');
+    const qColor = qTier === 'DEEP_RESEARCH' ? 'var(--gr)' : (qTier === 'MONITOR' ? 'var(--am)' : 'var(--tx3)');
+    const qualPill = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:${qBg};color:${qColor};border:1px solid ${qColor}44">${qTier} ${qScore}/100</span>`;
+    const redTeamWarning = m.counterarguments ? `<div style="font-size:10px;color:var(--am);margin-top:6px;padding:4px 8px;background:rgba(245,158,11,.08);border-radius:4px;border-left:2px solid var(--am);line-height:1.3"><b>🛡️ Red Team:</b> ${m.counterarguments.slice(0, 120)}...</div>` : '';
 
     return `
       <div class="pm-card">
         <div class="pm-card-top">
-          <span class="b b-p">${m.category || 'General'}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="b b-p">${m.category || 'General'}</span>
+            ${qualPill}
+          </div>
           <span style="font-size:11px;color:#A5B4FC;font-weight:600;display:flex;align-items:center;gap:4px">
             📅 Closes: ${closeStr}
           </span>
@@ -1890,11 +3691,12 @@ function renderPolyCards(list) {
             <span style="color:#A5B4FC;font-weight:700">AI Model Forecast: ${forecastPct}%</span>
             <span style="color:${edgeColor};font-weight:800;font-family:'JetBrains Mono',monospace">${edgeSign}${edgePct}% Edge</span>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:10px;color:var(--tx3)">Confidence: ${Math.round((m.confidence || 0.75)*100)}%</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:10px;color:var(--tx3)">
+            <span>Blind AI: <b style="color:#F8FAFC">${indepPct}</b> | Base: ${baseRatePct}</span>
             <div>${signalBadge}</div>
           </div>
-          <div class="pm-thesis"><b>💡 Thesis:</b> ${thesis}</div>
+          ${redTeamWarning}
+          <div class="pm-thesis"><b>💡 Adversarial Synthesis:</b> ${thesis}</div>
         </div>
 
         <button class="btn btn-demo" style="width:100%;justify-content:center;padding:7px;margin-top:auto" onclick="openDeepDive('${m.id}')">
@@ -1909,7 +3711,7 @@ function renderPolyTable(list) {
   const tb = $('polyMarketTb');
   if (!tb) return;
   if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="9" class="empty">No matching prediction contracts found.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" class="empty">No matching prediction contracts found.</td></tr>';
     return;
   }
   tb.innerHTML = list.map(m => {
@@ -1917,13 +3719,22 @@ function renderPolyTable(list) {
     const edgePct = (edge * 100).toFixed(1);
     const edgeSign = edge >= 0 ? '+' : '';
     const edgeColor = Math.abs(edge) >= 0.06 ? (edge >= 0 ? 'g' : 'r') : 'tx2';
-    const action = edge >= 0.06 ? '<span class="b b-l">BUY YES</span>' : (edge <= -0.06 ? '<span class="b b-s">BUY NO</span>' : '<span class="b b-d">HOLD</span>');
+    const isAbstain = !!m.recommend_abstain;
+    const action = isAbstain
+      ? '<span class="b" style="background:rgba(239,68,68,.15);color:var(--rd);border:1px solid rgba(239,68,68,.3)">ABSTAIN</span>'
+      : (edge >= 0.06 ? '<span class="b b-l">BUY YES</span>' : (edge <= -0.06 ? '<span class="b b-s">BUY NO</span>' : '<span class="b b-d">HOLD</span>'));
+    const qScore = Math.round(m.qualification_score || 70);
+    const qTier = m.qualification_tier || 'MONITOR';
+    const qColor = qTier === 'DEEP_RESEARCH' ? 'var(--gr)' : (qTier === 'MONITOR' ? 'var(--am)' : 'var(--tx3)');
+
     return `<tr>
       <td><b>${m.question}</b></td>
       <td><span class="b b-p">${m.category}</span></td>
+      <td><span style="color:${qColor};font-weight:700;font-size:11px">${qTier} (${qScore})</span></td>
       <td style="color:#A5B4FC;font-family:'JetBrains Mono',monospace;font-size:11px">${formatEndDate(m.end_date)}</td>
       <td>$${(m.volume_24h || 0).toLocaleString('en-US', {maximumFractionDigits:0})}</td>
       <td>$${m.price_yes.toFixed(2)} / $${m.price_no.toFixed(2)}</td>
+      <td style="color:#38BDF8;font-weight:700">${((m.independent_probability || m.price_yes) * 100).toFixed(1)}%</td>
       <td style="color:#A5B4FC;font-weight:700">${((m.forecast_probability || 0.5) * 100).toFixed(1)}%</td>
       <td class="${edgeColor}"><b>${edgeSign}${edgePct}%</b></td>
       <td>${action}</td>
@@ -1983,7 +3794,22 @@ async function openDeepDive(marketId) {
     const m = allPolyMarkets.find(x => x.id === marketId) || {};
     $('modalQuestion').innerText = m.question || marketId;
     $('modalCategory').innerText = m.category || 'PREDICTION CONTRACT';
-    $('modalResolution').innerText = 'Resolution Source: ' + (m.resolution_source || 'Polymarket UMA Oracle') + ' · 📅 Market Closes: ' + formatEndDate(m.end_date);
+    let resDetails = '';
+    if (m.resolution_spec) {
+      try {
+        const rs = typeof m.resolution_spec === 'string' ? JSON.parse(m.resolution_spec) : m.resolution_spec;
+        resDetails = `
+          <div style="margin-top:10px;padding:12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;font-size:11.5px">
+            <div style="font-weight:700;color:#A5B4FC;margin-bottom:4px">📜 Agent 01 · Resolution Specification</div>
+            <div style="color:var(--tx1);margin-bottom:3px"><b>YES Trigger:</b> ${rs.yes_condition || 'Standard occurrence'}</div>
+            <div style="color:var(--tx2);margin-bottom:3px"><b>NO Trigger:</b> ${rs.no_condition || 'Failure to occur by deadline'}</div>
+            <div style="color:var(--tx3);font-size:10.5px"><b>Standard:</b> ${rs.effective_vs_announced || 'Official Release'} | <b>Ambiguity Risk:</b> <span style="color:${rs.ambiguity_risk === 'HIGH' ? 'var(--rd)' : 'var(--gr)'}">${rs.ambiguity_risk || 'LOW'}</span></div>
+          </div>
+        `;
+      } catch (err) {}
+    }
+
+    $('modalResolution').innerHTML = 'Resolution Source: ' + (m.resolution_source || 'Polymarket UMA Oracle') + ' · 📅 Market Closes: ' + formatEndDate(m.end_date) + resDetails;
 
     // Render Timeline
     const tlList = $('modalTimelineList');
@@ -2052,6 +3878,251 @@ async function polyReset() {
   }
 }
 
+async function polyClosePosition(id, outcome, shares, currentVal) {
+  if (confirm(`Liquidate ${shares} shares of ${outcome} now for $${currentVal.toFixed(2)} cash?`)) {
+    const res = await fetch('/api/polymarket/close', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: id})
+    });
+    const d = await res.json();
+    if (d.ok) {
+      loadPolymarketState();
+    }
+  }
+}
+
+async function polyFlattenAll() {
+  if (confirm('Liquidate ALL active open paper bets at current market prices?')) {
+    const res = await fetch('/api/polymarket/flatten', { method: 'POST' });
+    const d = await res.json();
+    if (d.ok) {
+      loadPolymarketState();
+    }
+  }
+}
+
+// ── Polymarket Live API & Credentials Management ───────────────────────
+function openPolyKeyModal() {
+  const modal = $('polyKeyModal');
+  if (!modal) return;
+  const resBox = $('polyModalTestResult');
+  if (resBox) resBox.style.display = 'none';
+
+  // Fetch current live account status to prefill if exists
+  fetch('/api/polymarket/live/status')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.configured) {
+        if ($('polyModalFunderAddress') && data.funder_address) {
+          $('polyModalFunderAddress').value = data.funder_address;
+        }
+      }
+    })
+    .catch(() => {});
+
+  modal.style.display = 'flex';
+}
+
+function closePolyKeyModal() {
+  const modal = $('polyKeyModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function togglePolyKeyVisibility() {
+  const inp = $('polyModalPrivateKey');
+  if (!inp) return;
+  inp.type = (inp.type === 'password') ? 'text' : 'password';
+}
+
+async function testPolyCredentials() {
+  const btn = $('btnTestPolyCreds');
+  const resBox = $('polyModalTestResult');
+  const pk = ($('polyModalPrivateKey')?.value || '').trim();
+  const funder = ($('polyModalFunderAddress')?.value || '').trim();
+  const sigType = parseInt($('polyModalSigType')?.value || '0', 10);
+
+  if (resBox) {
+    resBox.style.display = 'block';
+    resBox.style.background = 'rgba(56,189,248,.1)';
+    resBox.style.border = '1px solid rgba(56,189,248,.3)';
+    resBox.style.color = '#38BDF8';
+    resBox.innerText = '⏳ Connecting to Polygon RPC & Polymarket CLOB... Testing signature & querying balance...';
+  }
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/polymarket/live/test', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        private_key: pk,
+        funder_address: funder,
+        signature_type: sigType
+      })
+    });
+    const d = await res.json();
+    if (resBox) {
+      if (d.connected) {
+        resBox.style.background = 'rgba(16,185,129,.12)';
+        resBox.style.border = '1px solid #10B981';
+        resBox.style.color = '#10B981';
+        resBox.innerHTML = `
+          ✅ <b>Pre-Flight Connection Successful!</b><br>
+          • Wallet Address: <code>${d.wallet_address || 'OK'}</code><br>
+          • Funder Address: <code>${d.funder_address || 'Direct Signer'}</code><br>
+          • Spendable USDC.e Balance: <b>$${(d.usdc_balance || 0).toFixed(2)}</b><br>
+          • CTF Token Allowance: <b>$${(d.allowance || 0).toFixed(2)}</b><br>
+          Ready for live gasless execution!
+        `;
+      } else {
+        resBox.style.background = 'rgba(239,68,68,.12)';
+        resBox.style.border = '1px solid #EF4444';
+        resBox.style.color = '#F87171';
+        resBox.innerHTML = `❌ <b>Connection Failed:</b> ${d.reason || 'Invalid credentials or network timeout'}`;
+      }
+    }
+  } catch (err) {
+    if (resBox) {
+      resBox.style.background = 'rgba(239,68,68,.12)';
+      resBox.style.border = '1px solid #EF4444';
+      resBox.style.color = '#F87171';
+      resBox.innerText = '❌ Error testing connection: ' + err.message;
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function savePolyCredentials() {
+  const btn = $('btnSavePolyCreds');
+  const pk = ($('polyModalPrivateKey')?.value || '').trim();
+  const funder = ($('polyModalFunderAddress')?.value || '').trim();
+  const sigType = parseInt($('polyModalSigType')?.value || '0', 10);
+
+  if (!pk) {
+    alert('Please enter your Polygon private key.');
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/polymarket/live/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        private_key: pk,
+        funder_address: funder,
+        signature_type: sigType
+      })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      alert('✅ Polymarket live credentials saved securely in .env and applied to Live Executor!');
+      closePolyKeyModal();
+      loadPolymarketState();
+    } else {
+      alert('❌ Failed to save credentials: ' + (d.reason || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('❌ Error saving credentials: ' + err.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function setPolyTradingMode(isLive) {
+  if (isLive) {
+    // Check if live account is configured
+    try {
+      const res = await fetch('/api/polymarket/live/status');
+      const st = await res.json();
+      if (!st.configured) {
+        alert('⚠️ No Polymarket live credentials configured yet.\nPlease enter your Polygon Private Key in the setup modal to enable Live Mode.');
+        openPolyKeyModal();
+        return;
+      }
+    } catch (e) {}
+  }
+
+  const res = await fetch('/api/polymarket/live/toggle-mode', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ live_enabled: isLive, mode: isLive ? 'LIVE' : 'PAPER' })
+  });
+  const d = await res.json();
+  loadPolymarketState();
+}
+
+async function polyToggle5mScalper() {
+  // Check if current mode is LIVE and scalper is stopped -> Show safety confirmation
+  const isLive = window.lastPolyData?.live_account?.trading_mode === 'LIVE' || window.lastPolyData?.live_account?.live_enabled;
+  const isStopped = !window.lastPolyData?.btc_5m?.is_enabled;
+
+  if (isLive && isStopped) {
+    const balEl = $('polyConfirmLiveBalance');
+    if (balEl && window.lastPolyData?.live_account) {
+      balEl.innerText = '$' + (window.lastPolyData.live_account.usdc_balance || 0).toFixed(2) + ' USDC.e';
+    }
+    const modal = $('polyLiveConfirmModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      return;
+    }
+  }
+
+  await _doPolyToggle5mScalper();
+}
+
+async function _doPolyToggle5mScalper() {
+  const res = await fetch('/api/polymarket/5m/toggle', { method: 'POST' });
+  const d = await res.json();
+  if (d.ok) {
+    loadPolymarketState();
+  }
+}
+
+function closePolyLiveConfirmModal(confirmed) {
+  const modal = $('polyLiveConfirmModal');
+  if (modal) modal.style.display = 'none';
+  if (confirmed) {
+    _doPolyToggle5mScalper();
+  }
+}
+
+async function poly5mCashout(sym) {
+  if (confirm(`Cash out and lock in live profit on ${sym} now?`)) {
+    const res = await fetch('/api/polymarket/5m/cashout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ symbol: sym })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      loadPolymarketState();
+    }
+  }
+}
+
+async function polyForceSettle() {
+  const res = await fetch('/api/polymarket/5m/settle', { method: 'POST' });
+  const d = await res.json();
+  loadPolymarketState();
+}
+
+let currentPolyBetFilter = 'ALL';
+function setPolyBetFilter(filter) {
+  currentPolyBetFilter = filter;
+  ['All', 'Yield', 'Edge'].forEach(id => {
+    const el = document.getElementById('btnPolyFilter' + id);
+    if (el) el.classList.remove('active');
+  });
+  if (filter === 'ALL' && document.getElementById('btnPolyFilterAll')) document.getElementById('btnPolyFilterAll').classList.add('active');
+  if (filter === 'HIGH_PROBABILITY_YIELD' && document.getElementById('btnPolyFilterYield')) document.getElementById('btnPolyFilterYield').classList.add('active');
+  if (filter === 'ASYMMETRIC_EDGE' && document.getElementById('btnPolyFilterEdge')) document.getElementById('btnPolyFilterEdge').classList.add('active');
+  if (window.lastPolyData) renderPolymarketState(window.lastPolyData);
+}
+
 connectStream();
 </script>
 </body>
@@ -2079,13 +4150,30 @@ class Handler(BaseHTTPRequestHandler):
             self._html(HTML)
         elif self.path == "/api/state":
             self._json(BOT.get_full_state())
+        elif self.path == "/api/crypto/state":
+            self._json(CRYPTO_BOT.get_dashboard_state())
+        elif self.path == "/api/crypto/export-dataset":
+            self._json(CRYPTO_BOT.storage.export_dataset_json())
         elif self.path == "/api/polymarket/state":
             self._json(POLY_BOT.get_full_state())
+        elif self.path == "/api/polymarket/live/status":
+            self._json(POLY_BOT.get_live_account_status())
+        elif self.path.startswith("/api/polymarket/crypto/timeline"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            coin = qs.get("coin", ["BTC"])[0]
+            tf = qs.get("tf", ["5m"])[0]
+            self._json(POLY_BOT.btc_analyzer.get_polymarket_timeline(coin, tf))
         elif self.path.startswith("/api/polymarket/timeline"):
             from urllib.parse import urlparse, parse_qs
             qs = parse_qs(urlparse(self.path).query)
-            m_id = qs.get("id", [""])[0]
-            self._json(POLY_BOT.memory.get_market_timeline(m_id))
+            if "coin" in qs or "tf" in qs:
+                coin = qs.get("coin", ["BTC"])[0]
+                tf = qs.get("tf", ["5m"])[0]
+                self._json(POLY_BOT.btc_analyzer.get_polymarket_timeline(coin, tf))
+            else:
+                m_id = qs.get("id", [""])[0]
+                self._json(POLY_BOT.memory.get_market_timeline(m_id))
         elif self.path == "/api/session-debriefs":
             self._json(BOT.storage.get_latest_session_debriefs(limit=10))
         elif self.path == "/api/stream":
@@ -2146,6 +4234,75 @@ class Handler(BaseHTTPRequestHandler):
             POLY_BOT.stop(); self._json({"ok": True})
         elif self.path == "/api/polymarket/reset":
             POLY_BOT.reset_system(); self._json({"ok": True})
+        elif self.path == "/api/polymarket/close":
+            body = self._read_body()
+            pos_id = int(body.get("id", 0))
+            res = POLY_BOT.close_position(pos_id)
+            self._json({"ok": True, "result": res})
+        elif self.path == "/api/polymarket/flatten":
+            res = POLY_BOT.flatten_all()
+            self._json({"ok": True, "closed_count": len(res)})
+        elif self.path == "/api/polymarket/5m/toggle":
+            is_active = POLY_BOT.toggle_5m_scalper()
+            self._json({"ok": True, "is_enabled": is_active})
+        elif self.path == "/api/polymarket/5m/cashout":
+            body = self._read_body()
+            sym = body.get("symbol", "")
+            res = POLY_BOT.cashout_5m_trade(sym)
+            self._json({"ok": True, "result": res})
+        elif self.path == "/api/polymarket/5m/settle":
+            count = POLY_BOT.force_settle_5m()
+            self._json({"ok": True, "settled_count": count})
+        elif self.path == "/api/polymarket/live/test":
+            body = self._read_body()
+            pk = body.get("private_key", "")
+            funder = body.get("funder_address", "")
+            sig_type = body.get("signature_type")
+            res = POLY_BOT.test_live_credentials(pk, funder, sig_type)
+            self._json(res)
+        elif self.path == "/api/polymarket/live/save":
+            body = self._read_body()
+            pk = body.get("private_key", "")
+            funder = body.get("funder_address", "")
+            sig_type = body.get("signature_type")
+            live_enabled = bool(body.get("live_enabled", False))
+            res = POLY_BOT.update_live_credentials(pk, funder, sig_type, live_enabled)
+            self._json(res)
+        elif self.path == "/api/polymarket/live/toggle-mode":
+            body = self._read_body()
+            is_live = bool(body.get("live_enabled", False)) or (str(body.get("mode", "")).upper() == "LIVE")
+            status = POLY_BOT.set_live_mode(is_live)
+            self._json({"ok": True, "status": status})
+        elif self.path == "/api/crypto/start":
+            CRYPTO_BOT.start(); self._json({"ok": True})
+        elif self.path == "/api/crypto/stop":
+            CRYPTO_BOT.stop(); self._json({"ok": True})
+        elif self.path == "/api/crypto/scan":
+            CRYPTO_BOT.force_scan(); self._json({"ok": True})
+        elif self.path == "/api/crypto/flatten":
+            CRYPTO_BOT.flatten_all(); self._json({"ok": True})
+        elif self.path == "/api/crypto/close":
+            body = self._read_body()
+            pos_id = body.get("id", "")
+            account = CRYPTO_BOT.storage.get_account()
+            open_pos = CRYPTO_BOT.storage.get_open_positions()
+            target = next((p for p in open_pos if p.position_id == pos_id), None)
+            if target:
+                p = CRYPTO_BOT.data_feed.get_current_price(target.symbol)
+                CRYPTO_BOT.order_mgr.close_position_manually(pos_id, p, account)
+            self._json({"ok": True})
+        elif self.path == "/api/crypto/reset":
+            CRYPTO_BOT.reset(); self._json({"ok": True})
+        elif self.path == "/api/crypto/mode":
+            body = self._read_body()
+            mode = body.get("mode", "SIMULATED_PAPER")
+            CRYPTO_BOT.storage.set_mode(mode)
+            self._json({"ok": True})
+        elif self.path == "/api/crypto/profile":
+            body = self._read_body()
+            prof = body.get("profile", "MODERATE_GROWTH")
+            CRYPTO_BOT.set_strategy_profile(prof)
+            self._json({"ok": True, "profile": prof})
         else:
             self.send_error(404)
 
@@ -2169,6 +4326,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class SilentThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
     def handle_error(self, request, client_address):
         """Suppress benign browser disconnect errors when user refreshes or closes tab."""
         import sys
@@ -2176,6 +4334,16 @@ class SilentThreadingHTTPServer(ThreadingHTTPServer):
         if err_type in (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
             return
         super().handle_error(request, client_address)
+
+
+def arm_engines_on_boot(poly_bot, crypto_bot):
+    """
+    Starts the autonomous engines that are safe to run unattended on server boot.
+    The Polymarket 5M scalper is deliberately left untouched: its trading mode is
+    decided once at construction from POLYMARKET_LIVE_ENABLED, and arming it
+    requires an explicit operator action (Start Auto-Pilot / scalper toggle).
+    """
+    crypto_bot.start()
 
 
 def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
@@ -2189,10 +4357,12 @@ def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
     print("  Dual-Engine Intelligence · Live Activity Stream · Automated Auto-Pilot")
     print("=" * 84)
     print("[*] Stream active. Press Ctrl+C in terminal to shutdown.\n")
+    arm_engines_on_boot(poly_bot=POLY_BOT, crypto_bot=CRYPTO_BOT)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
         print("\n[!] Shutting down.")
         BOT.stop()
         POLY_BOT.stop()
+        CRYPTO_BOT.stop()
         srv.server_close()

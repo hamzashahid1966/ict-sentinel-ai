@@ -1,0 +1,192 @@
+//@version=5
+strategy("XAUUSD Dual Strategy: IMP + Sweep Reclaim (v1.7)",
+         overlay=true,
+         initial_capital=10000,
+         default_qty_type=strategy.fixed,
+         default_qty_value=1,
+         currency=currency.USD,
+         pyramiding=0,
+         slippage=2,
+         commission_type=strategy.commission.cash_per_contract,
+         commission_value=0.04)
+
+// ==========================================
+// CHANGES vs v1.6
+// 1. H1 EMAs no longer peek at the unfinished hour ([1] + lookahead_on).
+// 2. ta.crossover/crossunder moved out of `if` blocks (they were calculated
+//    inconsistently inside conditionals, a likely reason Scenario A never fired).
+// 3. Stop-loss and take-profit are attached on the entry bar itself (no
+//    unprotected first bar).
+// 4. Fixed-dollar thresholds ($1 tolerance, $0.50 buffer, $1.50-$15 SL range)
+//    replaced with ATR multiples so they adapt to gold's volatility.
+// 5. Quantity rounds DOWN to the broker's lot step, so risk never exceeds riskPct.
+// 6. Day reset uses the UTC calendar day, matching the UTC sessions.
+// 7. Optional flat-at-session-end for open positions.
+// 8. Optional debug markers showing raw signals BEFORE the SL-size filter.
+// ==========================================
+
+// ==========================================
+// 1. INPUTS
+// ==========================================
+enableScenarioA  = input.bool(true, "Enable Scenario A: Momentum Pullback", group="Strategy Engine")
+enableScenarioB  = input.bool(true, "Enable Scenario B: Liquidity Sweep & Reclaim", group="Strategy Engine")
+
+tradeSession     = input.session("0700-1700", "Trading Window (UTC)", group="Sessions")
+asiaSession      = input.session("0000-0700", "Asia Benchmark Window (UTC)", group="Sessions")
+flatAtSessionEnd = input.bool(true, "Close open trades when trading window ends", group="Sessions")
+
+h1FastLen        = input.int(20, "H1 Fast EMA", group="Trend Filter")
+h1SlowLen        = input.int(50, "H1 Slow EMA", group="Trend Filter")
+m5EmaLen         = input.int(20, "M5 Dynamic Trend EMA", group="Trend Filter")
+
+atrLen           = input.int(14, "ATR Length", group="Volatility (ATR) Settings")
+pbTolAtr         = input.float(0.3, "Pullback Tolerance (x ATR)", step=0.05, group="Volatility (ATR) Settings")
+slBufAtr         = input.float(0.1, "Stop Buffer (x ATR)", step=0.05, group="Volatility (ATR) Settings")
+minSlAtr         = input.float(0.5, "Min Stop Distance (x ATR)", step=0.1, group="Volatility (ATR) Settings")
+maxSlAtr         = input.float(3.0, "Max Stop Distance (x ATR)", step=0.1, group="Volatility (ATR) Settings")
+
+rrRatio          = input.float(1.6, "Risk:Reward Ratio (R-multiple)", step=0.1, group="Risk & Execution")
+riskPct          = input.float(0.5, "Risk Per Trade (% of Equity)", step=0.1, group="Risk & Execution")
+maxTradesPerDay  = input.int(3, "Max Trades Per Day", minval=1, maxval=6, group="Risk & Execution")
+qtyStep          = input.float(0.01, "Quantity Step (broker min lot, in oz/contracts)", step=0.01, group="Risk & Execution")
+
+showDebug        = input.bool(false, "Show raw signals (before SL-size filter)", group="Debug")
+
+// ==========================================
+// 2. BENCHMARK LEVELS & SESSIONS
+// ==========================================
+pdh = request.security(syminfo.tickerid, "D", high[1], barmerge.gaps_off, barmerge.lookahead_on)
+pdl = request.security(syminfo.tickerid, "D", low[1],  barmerge.gaps_off, barmerge.lookahead_on)
+
+inAsia         = not na(time(timeframe.period, asiaSession  + ":1234567", "UTC"))
+inTradeSession = not na(time(timeframe.period, tradeSession + ":1234567", "UTC"))
+
+var float asiaHigh = na
+var float asiaLow  = na
+
+if inAsia
+    if not inAsia[1]
+        asiaHigh := high
+        asiaLow  := low
+    else
+        asiaHigh := math.max(asiaHigh, high)
+        asiaLow  := math.min(asiaLow, low)
+
+newDay = ta.change(dayofmonth(time, "UTC")) != 0
+
+var int tradesToday = 0
+if newDay
+    tradesToday := 0
+
+atr = ta.atr(atrLen)
+
+// ==========================================
+// 3. REGIME FILTER (H1) - non-repainting
+// ==========================================
+h1Fast = request.security(syminfo.tickerid, "60", ta.ema(close, h1FastLen)[1], barmerge.gaps_off, barmerge.lookahead_on)
+h1Slow = request.security(syminfo.tickerid, "60", ta.ema(close, h1SlowLen)[1], barmerge.gaps_off, barmerge.lookahead_on)
+
+h1Bullish = (h1Fast > h1Slow) and (close > h1Fast)
+h1Bearish = (h1Fast < h1Slow) and (close < h1Fast)
+
+m5Ema = ta.ema(close, m5EmaLen)
+
+// Crosses computed on every bar (global scope) for consistent history
+crossUpAsiaHigh = ta.crossover(close, asiaHigh)
+crossDnAsiaLow  = ta.crossunder(close, asiaLow)
+crossUpAsiaLow  = ta.crossover(close, asiaLow)
+crossDnAsiaHigh = ta.crossunder(close, asiaHigh)
+
+swingHigh2 = math.max(high[1], high[2])
+swingLow2  = math.min(low[1], low[2])
+crossUpSwing = ta.crossover(close, swingHigh2)
+crossDnSwing = ta.crossunder(close, swingLow2)
+
+// ==========================================
+// 4. SCENARIO A: MOMENTUM PULLBACK (IMP)
+// ==========================================
+var bool  bullBroken      = false
+var bool  bearBroken      = false
+var float activeBullLevel = na
+var float activeBearLevel = na
+
+if newDay
+    bullBroken      := false
+    bearBroken      := false
+    activeBullLevel := na
+    activeBearLevel := na
+
+if inTradeSession and h1Bullish and not bullBroken and not na(asiaHigh) and crossUpAsiaHigh
+    bullBroken      := true
+    activeBullLevel := asiaHigh
+
+if inTradeSession and h1Bearish and not bearBroken and not na(asiaLow) and crossDnAsiaLow
+    bearBroken      := true
+    activeBearLevel := asiaLow
+
+canTrade = inTradeSession and (tradesToday < maxTradesPerDay) and strategy.position_size == 0
+
+rawA_Long  = enableScenarioA and inTradeSession and h1Bullish and not na(activeBullLevel) and (low[1]  >= activeBullLevel - pbTolAtr * atr) and (close[1] >= m5Ema[1]) and crossUpSwing
+rawA_Short = enableScenarioA and inTradeSession and h1Bearish and not na(activeBearLevel) and (high[1] <= activeBearLevel + pbTolAtr * atr) and (close[1] <= m5Ema[1]) and crossDnSwing
+
+condA_Long  = rawA_Long  and canTrade
+condA_Short = rawA_Short and canTrade
+
+// ==========================================
+// 5. SCENARIO B: LIQUIDITY SWEEP & RECLAIM
+// ==========================================
+rawB_Buy  = enableScenarioB and inTradeSession and not na(asiaLow)  and (low[1]  < asiaLow  or low[2]  < asiaLow)  and crossUpAsiaLow  and (close > open)
+rawB_Sell = enableScenarioB and inTradeSession and not na(asiaHigh) and (high[1] > asiaHigh or high[2] > asiaHigh) and crossDnAsiaHigh and (close < open)
+
+condB_Buy  = rawB_Buy  and canTrade
+condB_Sell = rawB_Sell and canTrade
+
+// ==========================================
+// 6. POSITION SIZING & EXECUTION
+// ==========================================
+riskCash = strategy.equity * (riskPct / 100.0)
+
+longSig  = condA_Long or condB_Buy
+shortSig = condA_Short or condB_Sell
+
+if longSig
+    isA     = condA_Long
+    sigName = isA ? "IMP-Long" : "Sweep-Buy"
+    sl      = (isA ? math.min(low, swingLow2) : math.min(low[1], low)) - slBufAtr * atr
+    slDist  = close - sl
+    if slDist >= minSlAtr * atr and slDist <= maxSlAtr * atr
+        q = math.floor((riskCash / slDist) / qtyStep) * qtyStep
+        if q >= qtyStep
+            tp = close + slDist * rrRatio
+            strategy.entry(sigName, strategy.long, qty=q)
+            strategy.exit("X-" + sigName, from_entry=sigName, stop=sl, limit=tp)
+            tradesToday += 1
+            activeBullLevel := na
+else if shortSig
+    isA     = condA_Short
+    sigName = isA ? "IMP-Short" : "Sweep-Sell"
+    sl      = (isA ? math.max(high, swingHigh2) : math.max(high[1], high)) + slBufAtr * atr
+    slDist  = sl - close
+    if slDist >= minSlAtr * atr and slDist <= maxSlAtr * atr
+        q = math.floor((riskCash / slDist) / qtyStep) * qtyStep
+        if q >= qtyStep
+            tp = close - slDist * rrRatio
+            strategy.entry(sigName, strategy.short, qty=q)
+            strategy.exit("X-" + sigName, from_entry=sigName, stop=sl, limit=tp)
+            tradesToday += 1
+            activeBearLevel := na
+
+if flatAtSessionEnd and not inTradeSession and strategy.position_size != 0
+    strategy.close_all(comment="Session End")
+
+// ==========================================
+// 7. CHART VISUALS
+// ==========================================
+plot(inTradeSession ? asiaHigh : na, "Asia High", color=color.new(color.green, 20), style=plot.style_linebr, linewidth=2)
+plot(inTradeSession ? asiaLow  : na, "Asia Low",  color=color.new(color.red, 20),   style=plot.style_linebr, linewidth=2)
+plot(m5Ema, "M5 EMA", color=color.new(color.blue, 30), linewidth=1)
+
+plotshape(showDebug and rawA_Long,  "Raw A Long",  shape.triangleup,   location.belowbar, color.orange, size=size.tiny)
+plotshape(showDebug and rawA_Short, "Raw A Short", shape.triangledown, location.abovebar, color.orange, size=size.tiny)
+plotshape(showDebug and rawB_Buy,   "Raw B Buy",   shape.circle,       location.belowbar, color.aqua,   size=size.tiny)
+plotshape(showDebug and rawB_Sell,  "Raw B Sell",  shape.circle,       location.abovebar, color.aqua,   size=size.tiny)
