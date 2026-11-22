@@ -34,6 +34,7 @@ class MultiCryptoPaperScalper:
         self.last_analysis: Optional[Dict[str, Any]] = None
         self.live_executor = None
         self.trading_mode: str = "PAPER"  # "PAPER" or "LIVE"
+        self.btc_only: bool = True  # Strict BTC-only mode by default
 
         # Start continuous 1-second background microstructure processing loop
         self._bg_thread = None
@@ -232,21 +233,35 @@ class MultiCryptoPaperScalper:
             if self.is_enabled and not self.waiting_for_next_round and len(self.active_trades) < self.max_concurrent_trades and self.balance >= 5.0 and can_stagger_enter:
                 all_coins = analysis.get("coins", {})
                 cur_round_ts_str = str(cur_round_ts)
-                candidate_coins = [
-                    rd for sym, rd in all_coins.items()
-                    if rd.signal in ["BUY_UP", "BUY_DOWN"]
-                    and sym not in self.active_trades
-                    and f"{rd.round_id}_{sym}" not in self.rejected_rounds
-                    and not any(t.round_id.split("-")[-1] == cur_round_ts_str for t in self.trade_history)
-                ]
-                def _calc_edge(rd):
-                    if rd.signal == "BUY_UP": return rd.calculated_prob_up - rd.market_price_up
-                    if rd.signal == "BUY_DOWN": return rd.calculated_prob_down - rd.market_price_down
-                    return 0.0
-                candidate_coins.sort(key=_calc_edge, reverse=True)
+
+                # BTC-Only Mode: Restrict exclusively to BTC (in both LIVE and PAPER mode) for 1-active-trade focus
+                if (getattr(self, "btc_only", True) and self.max_concurrent_trades == 1) or self.trading_mode == "LIVE":
+                    btc_rd = all_coins.get("BTC")
+                    candidate_coins = []
+                    if (
+                        btc_rd
+                        and btc_rd.signal in ["BUY_UP", "BUY_DOWN"]
+                        and "BTC" not in self.active_trades
+                        and f"{btc_rd.round_id}_BTC" not in self.rejected_rounds
+                        and not any(t.round_id.split("-")[-1] == cur_round_ts_str for t in self.trade_history)
+                    ):
+                        candidate_coins = [btc_rd]
+                else:
+                    candidate_coins = [
+                        rd for sym, rd in all_coins.items()
+                        if rd.signal in ["BUY_UP", "BUY_DOWN"]
+                        and sym not in self.active_trades
+                        and f"{rd.round_id}_{sym}" not in self.rejected_rounds
+                        and not any(t.round_id.split("-")[-1] == cur_round_ts_str for t in self.trade_history)
+                    ]
+                    def _calc_edge(rd):
+                        if rd.signal == "BUY_UP": return rd.calculated_prob_up - rd.market_price_up
+                        if rd.signal == "BUY_DOWN": return rd.calculated_prob_down - rd.market_price_down
+                        return 0.0
+                    candidate_coins.sort(key=_calc_edge, reverse=True)
 
                 if candidate_coins:
-                    # Enforce strict staggered execution: enter 1 coin at a time with condition timer & verified edge
+                    # Enforce strict staggered execution: enter candidate with condition timer & verified edge
                     self._execute_entry(candidate_coins[0])
 
             return self.get_state()
@@ -258,7 +273,17 @@ class MultiCryptoPaperScalper:
 
         outcome = "UP" if r.signal == "BUY_UP" else "DOWN"
         market_px = r.market_price_up if outcome == "UP" else r.market_price_down
-        exec_px = min(0.99, round(market_px + 0.005, 3))
+        # Paper fills happen at the LIVE best ask, the same price a taker order crosses. Without a live
+        # book there is no honest fill price, so paper mode stands aside (live mode has its own book check).
+        if self.trading_mode != "LIVE" and getattr(r, "price_source", "gamma") != "clob":
+            if not getattr(self, "_no_book_notice_sent", False):
+                self._no_book_notice_sent = True
+                if self.activity_callback:
+                    self.activity_callback("5M_SCALP", "Paper entry skipped: no live order book", f"{r.symbol}: price source is '{getattr(r, 'price_source', 'gamma')}', not the CLOB. Stale quotes produce fictional fills.", "warning")
+            return
+        exec_px = round(market_px, 3)
+        if exec_px >= 0.99 or exec_px <= 0.0:
+            return
 
         # Strict risk sizing: $5.00 fixed outlay per coin
         outlay_target = 5.0
@@ -489,6 +514,12 @@ class MultiCryptoPaperScalper:
 
             cur_px = c_round.market_price_up if trade.outcome == "UP" else c_round.market_price_down
             top_bid = 0.0
+            # Paper exits are priced at the live best bid (what a seller actually receives), never the ask.
+            if trade.mode != "LIVE" and getattr(c_round, "price_source", "gamma") == "clob":
+                live_bid = c_round.bid_up if trade.outcome == "UP" else c_round.bid_down
+                if live_bid and live_bid > 0:
+                    cur_px = live_bid
+                    top_bid = live_bid
 
             # Real-Time CLOB Orderbook Check: In live mode, read top executable bid for selling into pops
             if trade.mode == "LIVE" and self.live_executor and getattr(self.live_executor, "client", None) and c_round.clob_token_ids:
@@ -516,12 +547,28 @@ class MultiCryptoPaperScalper:
             # Never exit early on theoretical prices if no marketable bid exists.
             # Hold to resolution for guaranteed 100¢ ($1.00) settlement payout without spread penalty.
             if trade.mode == "LIVE":
-                # Real CLOB Early Profit Exit: Only if a real buyer offers a massive surge (>= 85¢ or >= entry + 12¢)
-                if top_bid >= 0.85 or (top_bid >= trade.entry_price + 0.12 and top_bid >= 0.62):
-                    self.cashout_trade(sym, reason="AUTO_TAKE_PROFIT", exit_price=top_bid)
-                # True Emergency Stop-Loss: Only if consensus probability collapsed <= 18¢ AND a reasonable bid >= 10¢ exists
-                elif cur_px <= 0.18 and top_bid >= 0.10:
+                if top_bid > 0:
+                    floating_val = round(trade.shares * top_bid, 2)
+                    exit_comm = self.calculate_polymarket_fee(trade.shares, top_bid)
+                    net_profit = round(floating_val - trade.cost - trade.commission - exit_comm, 2)
+
+                    # 1. ⚡ Fast $1.00 - $2.00 Profit Lock:
+                    # Cash out immediately the moment live CLOB bid guarantees >= +$1.00 net profit (+20% to +40% on $5)!
+                    if net_profit >= 1.00:
+                        self.cashout_trade(sym, reason="AUTO_QUICK_POP", exit_price=top_bid)
+                        continue
+
+                    # 2. 🎯 Big Surge Ceiling (>= 80¢ or net profit >= +$2.00)
+                    if top_bid >= 0.80 or net_profit >= 2.00:
+                        self.cashout_trade(sym, reason="AUTO_TAKE_PROFIT", exit_price=top_bid)
+                        continue
+
+                # 3. 🛡️ True Emergency Stop-Loss:
+                # Only if consensus probability collapsed <= 18¢ AND a reasonable bid >= 12¢ exists
+                if cur_px <= 0.18 and top_bid >= 0.12:
                     self.cashout_trade(sym, reason="AUTO_STOP_LOSS", exit_price=top_bid)
+                    continue
+
                 # Otherwise: HOLD TO RESOLUTION to claim full $1.00 payout at the 5-minute mark!
                 continue
 
@@ -584,6 +631,9 @@ class MultiCryptoPaperScalper:
                     c_round = self.last_analysis["coins"].get(symbol)
                     if c_round:
                         cur_px = c_round.market_price_up if trade.outcome == "UP" else c_round.market_price_down
+                        live_bid = c_round.bid_up if trade.outcome == "UP" else c_round.bid_down
+                        if trade.mode != "LIVE" and getattr(c_round, "price_source", "gamma") == "clob" and live_bid:
+                            cur_px = live_bid
 
             # LIVE SELL EXECUTION
             if trade.mode == "LIVE" and self.live_executor and self.live_executor.is_live_enabled:
@@ -669,6 +719,10 @@ class MultiCryptoPaperScalper:
                     "seconds_remaining": best_r.seconds_remaining,
                     "market_price_up": best_r.market_price_up,
                     "market_price_down": best_r.market_price_down,
+                    "bid_up": getattr(best_r, "bid_up", 0.0),
+                    "bid_down": getattr(best_r, "bid_down", 0.0),
+                    "price_source": getattr(best_r, "price_source", "gamma"),
+                    "oracle_source": getattr(best_r, "oracle_source", "binance"),
                     "calculated_prob_up": best_r.calculated_prob_up,
                     "calculated_prob_down": best_r.calculated_prob_down,
                     "z_score": best_r.z_score,
@@ -717,6 +771,10 @@ class MultiCryptoPaperScalper:
                     "seconds_remaining": r.seconds_remaining,
                     "market_price_up": r.market_price_up,
                     "market_price_down": r.market_price_down,
+                    "bid_up": getattr(r, "bid_up", 0.0),
+                    "bid_down": getattr(r, "bid_down", 0.0),
+                    "price_source": getattr(r, "price_source", "gamma"),
+                    "oracle_source": getattr(r, "oracle_source", "binance"),
                     "calculated_prob_up": r.calculated_prob_up,
                     "calculated_prob_down": r.calculated_prob_down,
                     "z_score": r.z_score,

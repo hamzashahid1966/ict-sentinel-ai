@@ -34,6 +34,9 @@ class Btc5mRound:
     resolved_outcome: Optional[str] = None  # "UP", "DOWN"
     clob_token_ids: Optional[Any] = None    # [token_id_up, token_id_down]
     oracle_source: str = "binance"          # "chainlink" (resolution series) or "binance" (exchange fallback)
+    bid_up: float = 0.0                     # live CLOB best bid for UP (what a seller receives)
+    bid_down: float = 0.0                   # live CLOB best bid for DOWN
+    price_source: str = "gamma"             # "clob" = market_price_* are live best asks; "gamma" = stale outcomePrices; "estimate" = synthetic
 
 
 @dataclass

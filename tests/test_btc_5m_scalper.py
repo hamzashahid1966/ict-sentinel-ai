@@ -39,6 +39,7 @@ class TestBtc5mScalper(unittest.TestCase):
         # Mock Polymarket CLOB Gamma API fetch
         self.analyzer.fetch_polymarket_market = MagicMock(return_value={
             "found": True,
+            "price_source": "clob",
             "slug": "btc-updown-5m-test",
             "title": "Bitcoin Up or Down 5m",
             "price_up": 0.50,
@@ -87,6 +88,7 @@ class TestBtc5mScalper(unittest.TestCase):
         self.mock_feed.get_price.return_value = 58845.0  # +$45 displacement
         self.analyzer.fetch_polymarket_market = MagicMock(return_value={
             "found": True,
+            "price_source": "clob",
             "slug": f"btc-updown-5m-{round_ts}",
             "title": "Bitcoin Up or Down 5m",
             "price_up": 0.60,    # Market offers UP at 60¢
@@ -101,6 +103,7 @@ class TestBtc5mScalper(unittest.TestCase):
     def test_paper_execution_and_sizing(self):
         """Paper bet sizing must never exceed $10.00 max risk per 5m round."""
         mock_round = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-updown-5m-mock",
             slug="mock",
             title="Mock Round",
@@ -132,6 +135,7 @@ class TestBtc5mScalper(unittest.TestCase):
     def test_automated_settlement_win(self):
         """Winning round resolves at $1.00 per share, properly updating realized P&L and bankroll."""
         mock_round = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-updown-5m-win",
             slug="mock",
             title="Mock Round",
@@ -156,6 +160,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # Simulate round rollover where final price is 58850.0 (UP wins!)
         settle_round = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-updown-5m-next",  # New round started
             slug="mock-next",
             title="Next Round",
@@ -262,6 +267,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # 1. Setup a position in BTC UP
         trade_btc = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-tp-test",
             slug="mock",
             title="Mock BTC",
@@ -286,6 +292,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # Simulate price surging to 93¢ -> Must Auto Take-Profit!
         r_tp = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-tp-test",
             slug="mock",
             title="Mock BTC",
@@ -312,6 +319,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # 2. Setup a position in ETH UP that reverses into a stop-loss
         trade_eth = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="eth-sl-test",
             slug="mock-eth",
             title="Mock ETH",
@@ -336,6 +344,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # Simulate price dropping to 24¢ -> Must Auto Stop-Loss Bailout!
         r_sl = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="eth-sl-test",
             slug="mock-eth",
             title="Mock ETH",
@@ -372,6 +381,7 @@ class TestBtc5mScalper(unittest.TestCase):
         self.mock_feed.get_volatility.return_value = 15.0
         self.analyzer.fetch_polymarket_market = MagicMock(return_value={
             "found": True,
+            "price_source": "clob",
             "slug": f"btc-updown-5m-{round_ts}",
             "title": "Bitcoin Up or Down 5m",
             "price_up": 0.75,
@@ -400,6 +410,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # If price wicks down to 49¢ (<= 50¢), it must trigger AUTO_STOP_LOSS bailout immediately!
         r_wick = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="late-wick",
             slug="mock",
             title="Mock BTC",
@@ -433,6 +444,7 @@ class TestBtc5mScalper(unittest.TestCase):
         self.scalper.balance = 25.0
 
         r1 = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-5m-stagger",
             slug="mock1",
             title="Mock BTC",
@@ -453,6 +465,7 @@ class TestBtc5mScalper(unittest.TestCase):
             symbol="BTC"
         )
         r2 = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="sol-5m-stagger",
             slug="mock2",
             title="Mock SOL",
@@ -507,6 +520,7 @@ class TestBtc5mScalper(unittest.TestCase):
         """Allows locking in live floating profit early before expiration."""
         self.scalper.balance = 25.0
         r = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-cashout-test",
             slug="mock",
             title="Mock BTC",
@@ -531,6 +545,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # Simulate odds floating up from 50¢ to 90¢ in our favor
         r_current = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-cashout-test",
             slug="mock",
             title="Mock BTC",
@@ -575,12 +590,14 @@ class TestBtc5mScalper(unittest.TestCase):
         fresh_scalper.max_concurrent_trades = 2
 
         r_btc = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="round-btc", slug="mock-btc", title="Mock BTC", strike_price=50000.0, current_btc_price=50050.0,
             price_delta=50.0, start_time=1700000000, end_time=1700000300, seconds_remaining=120,
             market_price_up=0.50, market_price_down=0.50, calculated_prob_up=0.85, calculated_prob_down=0.15,
             z_score=2.2, ict_fvg_status="BULLISH_DISPLACEMENT", signal="BUY_UP", signal_reason="BTC Edge", symbol="BTC"
         )
         r_eth = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="round-eth", slug="mock-eth", title="Mock ETH", strike_price=3000.0, current_btc_price=3010.0,
             price_delta=10.0, start_time=1700000000, end_time=1700000300, seconds_remaining=120,
             market_price_up=0.50, market_price_down=0.50, calculated_prob_up=0.82, calculated_prob_down=0.18,
@@ -627,6 +644,7 @@ class TestBtc5mScalper(unittest.TestCase):
         s.is_enabled = True
 
         r_entry = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-5m-reentrant", slug="mock", title="Mock BTC", strike_price=60000.0, current_btc_price=60040.0,
             price_delta=40.0, start_time=1700000000, end_time=1700000300, seconds_remaining=120,
             market_price_up=0.45, market_price_down=0.55, calculated_prob_up=0.85, calculated_prob_down=0.15,
@@ -637,6 +655,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # Price pops to 70¢ (+25¢ profit, > 68¢ pop threshold)
         r_pop = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-5m-reentrant", slug="mock", title="Mock BTC", strike_price=60000.0, current_btc_price=60080.0,
             price_delta=80.0, start_time=1700000000, end_time=1700000300, seconds_remaining=110,
             market_price_up=0.70, market_price_down=0.30, calculated_prob_up=0.95, calculated_prob_down=0.05,
@@ -662,6 +681,7 @@ class TestBtc5mScalper(unittest.TestCase):
         s.is_enabled = True
 
         r_entry = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-5m-time-exit", slug="mock", title="Mock BTC", strike_price=60000.0, current_btc_price=60040.0,
             price_delta=40.0, start_time=1700000000, end_time=1700000300, seconds_remaining=240,
             market_price_up=0.50, market_price_down=0.50, calculated_prob_up=0.85, calculated_prob_down=0.15,
@@ -676,6 +696,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # Price is up modestly by +6¢ (0.56)
         r_modest = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-5m-time-exit", slug="mock", title="Mock BTC", strike_price=60000.0, current_btc_price=60050.0,
             price_delta=50.0, start_time=1700000000, end_time=1700000300, seconds_remaining=175,
             market_price_up=0.56, market_price_down=0.44, calculated_prob_up=0.88, calculated_prob_down=0.12,
@@ -692,6 +713,7 @@ class TestBtc5mScalper(unittest.TestCase):
         s.is_enabled = True
 
         r_late = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-5m-late", slug="mock", title="Mock BTC", strike_price=60000.0, current_btc_price=60060.0,
             price_delta=60.0, start_time=1700000000, end_time=1700000300, seconds_remaining=90,
             market_price_up=0.72, market_price_down=0.28, calculated_prob_up=0.98, calculated_prob_down=0.02,
@@ -702,6 +724,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
         # Price dips to 70¢ (loss of 2¢, but above 68¢). Must NOT exit as QUICK_POP!
         r_dip = Btc5mRound(
+            price_source="clob",  # fixtures model a live order book
             round_id="btc-5m-late", slug="mock", title="Mock BTC", strike_price=60000.0, current_btc_price=60055.0,
             price_delta=55.0, start_time=1700000000, end_time=1700000300, seconds_remaining=80,
             market_price_up=0.70, market_price_down=0.30, calculated_prob_up=0.97, calculated_prob_down=0.03,

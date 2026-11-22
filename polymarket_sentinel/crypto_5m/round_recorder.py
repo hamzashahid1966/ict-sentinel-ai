@@ -241,6 +241,7 @@ class RoundRecorder:
             if isinstance(prices, str):
                 prices = json.loads(prices)
             up = float(prices[0]) if prices else None
+            gamma_up = up
             # Gamma's outcomePrices lag the order book by minutes; prefer the live CLOB midpoint for the UP token.
             toks = m.get("clobTokenIds")
             if isinstance(toks, str):
@@ -259,7 +260,7 @@ class RoundRecorder:
             outcome = None
             if up is not None and (m.get("closed") or up >= 0.95 or up <= 0.05):
                 outcome = "UP" if up >= 0.5 else "DOWN"
-            return {"found": True, "price_up": up, "price_to_beat": float(ptb) if ptb is not None else None,
+            return {"found": True, "price_up": up, "gamma_price_up": gamma_up, "price_to_beat": float(ptb) if ptb is not None else None,
                     "closed": bool(m.get("closed")), "outcome": outcome}
         except Exception:
             return {"found": False}
@@ -298,12 +299,16 @@ class RoundRecorder:
         self._store_ticks(rows)
 
     def _poll_gamma(self, now: float, round_ts: int):
+        rows: List[Tuple[float, str, str, float]] = []
         for coin in self.coins:
             g = self._fetch_gamma(coin, round_ts)
             with self.lock:
                 self.gamma[coin] = g
                 if g.get("found") and g.get("price_up") is not None:
-                    self._append(coin, "clob_up", now, g["price_up"], [])
+                    self._append(coin, "clob_up", now, g["price_up"], rows)
+                if g.get("found") and g.get("gamma_price_up") is not None:
+                    self._append(coin, "gamma_up", now, g["gamma_price_up"], rows)
+        self._store_ticks(rows)
 
     def _close_round(self, round_ts: int):
         for coin in self.coins:

@@ -36,6 +36,17 @@ CLEAN_MOVE_THRESHOLD = {
     "XRP": 0.0060
 }
 
+CLOB_BOOK_TTL_SECONDS = 2.0
+CLOB_HOST = "https://clob.polymarket.com"
+
+
+def best_levels(book: Dict[str, Any]):
+    """(best_bid, best_ask) from a CLOB order book payload; None where that side is empty."""
+    bids = [float(b["price"]) for b in (book or {}).get("bids", []) if float(b.get("price", 0)) > 0]
+    asks = [float(a["price"]) for a in (book or {}).get("asks", []) if float(a.get("price", 0)) > 0]
+    return (max(bids) if bids else None, min(asks) if asks else None)
+
+
 DOMINANT_LEAD_THRESHOLD = {
     "BTC": 50.00,
     "ETH": 3.20,
@@ -51,6 +62,7 @@ class MultiCryptoRoundAnalyzer:
         self.lock = threading.RLock()
         self._strike_prices: Dict[str, float] = {}  # key: f"{coin}_{round_ts}" -> P0
         self._timeline_cache: Dict[str, Any] = {}
+        self._book_cache: Dict[str, Any] = {}
         self._ssl_ctx = ssl._create_unverified_context()
         self._headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
 
@@ -79,15 +91,37 @@ class MultiCryptoRoundAnalyzer:
             self._strike_prices[key] = px
             return px
 
+    def _http_json(self, url: str, timeout: float = 2.5) -> Any:
+        req = urllib.request.Request(url, headers=self._headers)
+        with urllib.request.urlopen(req, context=self._ssl_ctx, timeout=timeout) as res:
+            return json.loads(res.read())
+
+    def _fetch_clob_book(self, token_id: str) -> Optional[Dict[str, Any]]:
+        """Live order book for one outcome token, cached for CLOB_BOOK_TTL_SECONDS."""
+        now = time.time()
+        hit = self._book_cache.get(token_id)
+        if hit and now - hit[0] < CLOB_BOOK_TTL_SECONDS:
+            return hit[1]
+        try:
+            book = self._http_json(f"{CLOB_HOST}/book?token_id={token_id}", timeout=2.5)
+        except Exception:
+            return None
+        self._book_cache[token_id] = (now, book)
+        return book
+
     def fetch_polymarket_market(self, coin: str, round_ts: int, timeframe: str = "5m") -> Dict[str, Any]:
-        """Fetches live outcome prices, official strike, and orderbook readiness from Polymarket Gamma API."""
+        """
+        Fetches the round's market from Gamma and prices it from the LIVE CLOB order book.
+        price_up / price_down are the best asks (what a buyer pays now); bid_up / bid_down are the
+        best bids (what a seller receives). Gamma's outcomePrices lag the book by minutes and are
+        kept only as gamma_price_* for reference; price_source says which one you are looking at.
+        """
         coin_slug = coin.lower()
         slug = f"{coin_slug}-updown-{timeframe}-{round_ts}"
         url = f"https://gamma-api.polymarket.com/events?slug={slug}"
         try:
-            req = urllib.request.Request(url, headers=self._headers)
-            with urllib.request.urlopen(req, context=self._ssl_ctx, timeout=2.5) as res:
-                data = json.loads(res.read())
+            data = self._http_json(url, timeout=2.5)
+            if True:
                 if data and len(data) > 0:
                     ev = data[0]
                     markets = ev.get("markets", [])
@@ -119,12 +153,31 @@ class MultiCryptoRoundAnalyzer:
                             except Exception:
                                 pass
 
+                        gamma_up, gamma_down = px_up, px_down
+                        bid_up = bid_down = 0.0
+                        price_source = "gamma"
+                        if clob_token_ids and len(clob_token_ids) >= 2 and not is_closed:
+                            book_up = self._fetch_clob_book(str(clob_token_ids[0]))
+                            book_down = self._fetch_clob_book(str(clob_token_ids[1]))
+                            b_up, a_up = best_levels(book_up) if book_up else (None, None)
+                            b_dn, a_dn = best_levels(book_down) if book_down else (None, None)
+                            if a_up is not None and a_dn is not None:
+                                px_up, px_down = a_up, a_dn
+                                bid_up, bid_down = (b_up or 0.0), (b_dn or 0.0)
+                                price_source = "clob"
+                                accepting_orders = accepting_orders and True
+
                         return {
                             "found": True,
                             "slug": slug,
                             "title": ev.get("title", f"{coin} Up or Down 5m"),
                             "price_up": px_up,
                             "price_down": px_down,
+                            "bid_up": bid_up,
+                            "bid_down": bid_down,
+                            "gamma_price_up": gamma_up,
+                            "gamma_price_down": gamma_down,
+                            "price_source": price_source,
                             "accepting_orders": accepting_orders,
                             "closed": is_closed,
                             "resolution_status": resolution_status,
@@ -142,6 +195,11 @@ class MultiCryptoRoundAnalyzer:
             "title": f"{coin} Up or Down 5m ({time.strftime('%H:%M', time.gmtime(round_ts))} UTC)",
             "price_up": 0.50,
             "price_down": 0.50,
+            "bid_up": 0.0,
+            "bid_down": 0.0,
+            "gamma_price_up": None,
+            "gamma_price_down": None,
+            "price_source": "estimate",
             "accepting_orders": True,
             "closed": False,
             "resolution_status": "",
@@ -205,6 +263,8 @@ class MultiCryptoRoundAnalyzer:
                 symbol=coin, spot_price=spot_px, twap_price=twap_px, oracle_lag_delta=lag_delta,
                 projected_twap=projected_twap, clob_token_ids=poly_data.get("clob_token_ids"),
                 oracle_source=str(oracle.get("source", "binance")),
+                bid_up=float(poly_data.get("bid_up") or 0.0), bid_down=float(poly_data.get("bid_down") or 0.0),
+                price_source=str(poly_data.get("price_source", "gamma")),
             )
         initial_strike = poly_data.get("price_to_beat") if poly_data.get("price_to_beat") else twap_px
         strike_px = self.get_or_set_strike(coin, round_ts, initial_strike)
@@ -386,7 +446,10 @@ class MultiCryptoRoundAnalyzer:
             oracle_lag_delta=lag_delta,
             projected_twap=projected_twap,
             clob_token_ids=poly_data.get("clob_token_ids"),
-            oracle_source=str(oracle.get("source", "binance"))
+            oracle_source=str(oracle.get("source", "binance")),
+            bid_up=float(poly_data.get("bid_up") or 0.0),
+            bid_down=float(poly_data.get("bid_down") or 0.0),
+            price_source=str(poly_data.get("price_source", "gamma")) if poly_data.get("found") else "estimate"
         )
 
     def get_upcoming_rounds(self, count: int = 3, now_ts: Optional[int] = None) -> List[Dict[str, Any]]:
