@@ -9,7 +9,7 @@ import datetime
 import json
 import threading
 from typing import List, Optional, Dict, Any
-from .config import DB_PATH, INITIAL_CAPITAL
+from .config import NY_TZ, DB_PATH, INITIAL_CAPITAL
 from .models import Position, TradeRecord, AccountState, AILogEntry
 
 class StorageEngine:
@@ -194,7 +194,9 @@ class StorageEngine:
                     "ALTER TABLE trade_history ADD COLUMN target_tp1_price REAL",
                     "ALTER TABLE trade_history ADD COLUMN target_tp2_price REAL",
                     "ALTER TABLE trade_history ADD COLUMN invalidation_reason TEXT",
-                    "ALTER TABLE trade_history ADD COLUMN target_liquidity_pool TEXT"
+                    "ALTER TABLE trade_history ADD COLUMN target_liquidity_pool TEXT",
+                    "ALTER TABLE account ADD COLUMN day_anchor_date TEXT",
+                    "ALTER TABLE account ADD COLUMN day_start_balance REAL"
                 ]:
                     try:
                         cursor.execute(col_sql)
@@ -239,11 +241,31 @@ class StorageEngine:
                 open_positions_count=pos_count
             )
 
-    def update_account_balance(self, dollar_pnl: float):
+    def get_daily_drawdown(self, day_str: str) -> float:
+        """
+        Loss so far on `day_str` (YYYY-MM-DD, Eastern), measured from the balance at the
+        first fill of that day. A day with no fills yet has zero drawdown, so a bad day
+        locks trading for the rest of that day only and never carries into the next.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT balance, peak_balance, realized_pnl, max_drawdown_dollars FROM account WHERE account_id = 'primary'")
+            cursor.execute("SELECT balance, day_anchor_date, day_start_balance FROM account WHERE account_id = 'primary'")
             acc = cursor.fetchone()
+            if acc is None or acc['day_anchor_date'] != day_str or acc['day_start_balance'] is None:
+                return 0.0
+            return max(0.0, acc['day_start_balance'] - acc['balance'])
+
+    def update_account_balance(self, dollar_pnl: float, day_str: Optional[str] = None):
+        if day_str is None:
+            day_str = datetime.datetime.now(NY_TZ).date().isoformat()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT balance, peak_balance, realized_pnl, max_drawdown_dollars, day_anchor_date, day_start_balance FROM account WHERE account_id = 'primary'")
+            acc = cursor.fetchone()
+
+            # Anchor the daily budget at the pre-fill balance the first time a day sees a fill.
+            if acc['day_anchor_date'] != day_str or acc['day_start_balance'] is None:
+                cursor.execute("UPDATE account SET day_anchor_date = ?, day_start_balance = ? WHERE account_id = 'primary'", (day_str, acc['balance']))
 
             new_balance = acc['balance'] + dollar_pnl
             new_peak = max(acc['peak_balance'], new_balance)

@@ -13,7 +13,7 @@ import sys
 import time
 import argparse
 import datetime
-from ict_sentinel.config import ASSET_SPECS
+from ict_sentinel.config import ASSET_SPECS, AUTO_TRADING_ENABLED
 from ict_sentinel.models import Candle
 from ict_sentinel.storage import StorageEngine
 from ict_sentinel.data_feed import DataFeedEngine
@@ -39,8 +39,11 @@ def run_agent_cycle(data_feed: DataFeedEngine, ipda: IPDAEngine, order_mgr: Orde
         # 1. Update existing positions (Check Center Mass 1.5R, Trailing Stops & trigger Memory post-mortem)
         order_mgr.update_positions_with_bar(asset, current_bar)
 
-        # 2. Evaluate for new algorithmic setups with Memory Engine gating
-        signal = ipda.evaluate_market(asset, candles, memory_engine=memory_engine)
+        # 2. Evaluate for new algorithmic setups with Memory Engine gating (only when the kill switch is on)
+        if not AUTO_TRADING_ENABLED:
+            continue
+        signal = ipda.evaluate_market(asset, candles, memory_engine=memory_engine,
+                                      now_utc=datetime.datetime.now(datetime.timezone.utc))
         if signal:
             order_mgr.open_position_from_signal(signal, current_bar.timestamp_et)
 
@@ -157,6 +160,7 @@ def run_demo_simulation(storage: StorageEngine, ipda: IPDAEngine, advisor: AIAdv
         'EURUSD': os.path.join(BASE_DIR, '..', 'real_data', 'EURUSD_5m_60d.csv'),
     }
 
+    memory_engine.persist_knowledge = False  # replay: exercise memory in SQLite, never the permanent ledger
     print("\n[*] Starting accelerated multi-asset paper trading simulation with Self-Learning Memory...")
     for asset, path in data_files.items():
         if not os.path.exists(path):
@@ -238,6 +242,8 @@ def main():
 
     # Default action or --run: Execute continuous monitoring loop
     print("[*] Launching ICT Sentinel AI Autonomous Engine...")
+    if not AUTO_TRADING_ENABLED:
+        print("[!] AUTO-TRADING DISABLED: ICT_AUTO_TRADING_ENABLED is not true. Positions are managed, no new entries. See docs/GOLD_LONDON_MODEL_VALIDATION.md")
     print("[*] Press Ctrl+C to stop.\n")
     try:
         while True:

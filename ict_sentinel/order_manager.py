@@ -41,8 +41,8 @@ class OrderManager:
         # 1. Enforce Daily Drawdown Circuit Breaker ($50.00 max daily loss)
         from .config import MAX_DAILY_DRAWDOWN_PCT, INITIAL_CAPITAL
         max_daily_loss = (MAX_DAILY_DRAWDOWN_PCT / 100.0) * INITIAL_CAPITAL  # $50.00
-        acct = self.storage.get_account_state()
-        current_dd = max(0.0, acct.peak_balance - acct.balance)
+        today_str = current_time.date().isoformat()
+        current_dd = self.storage.get_daily_drawdown(today_str)
         if current_dd >= max_daily_loss:
             log_entry = self.advisor.create_system_log(
                 category="CIRCUIT_BREAKER",
@@ -189,7 +189,7 @@ class OrderManager:
                     pnl_pts = (exit_price - pos.entry_price) if is_long else (pos.entry_price - exit_price)
                     dollar_pnl = (pnl_pts * spec['point_value']) - friction
                     
-                    self.storage.update_account_balance(dollar_pnl)
+                    self.storage.update_account_balance(dollar_pnl, day_str=current_bar.timestamp_et.date().isoformat())
                     tr = TradeRecord(
                         trade_id=pos.position_id,
                         asset=pos.asset,
@@ -238,7 +238,7 @@ class OrderManager:
                     dollar_pnl = (pts * spec['point_value']) - friction
                 pnl_pts = dollar_pnl / spec['point_value']
 
-                self.storage.update_account_balance(dollar_pnl)
+                self.storage.update_account_balance(dollar_pnl, day_str=current_bar.timestamp_et.date().isoformat())
                 tr = TradeRecord(
                     trade_id=pos.position_id,
                     asset=pos.asset,
@@ -305,7 +305,7 @@ class OrderManager:
                     outcome = 'DEFENSIVE_STOP' if pos.center_mass_filled else 'LOSS'
                     pos.invalidation_reason = 'DEFENSIVE_TRAILING_STOP' if pos.center_mass_filled else 'HARD_STOP_BREACH'
 
-                    self.storage.update_account_balance(dollar_pnl)
+                    self.storage.update_account_balance(dollar_pnl, day_str=current_bar.timestamp_et.date().isoformat())
                     tr = TradeRecord(
                         trade_id=pos.position_id,
                         asset=pos.asset,
@@ -343,7 +343,7 @@ class OrderManager:
                     pnl_pts = abs(exit_price - pos.entry_price)
                     dollar_pnl = (pnl_pts * spec['point_value']) - friction
 
-                    self.storage.update_account_balance(dollar_pnl)
+                    self.storage.update_account_balance(dollar_pnl, day_str=current_bar.timestamp_et.date().isoformat())
                     tr = TradeRecord(
                         trade_id=pos.position_id,
                         asset=pos.asset,
@@ -420,7 +420,7 @@ class OrderManager:
                         dollar_pnl = pos.realized_pnl + pnl_runner_dollar
                         pnl_pts = dollar_pnl / spec['point_value']
 
-                    self.storage.update_account_balance(dollar_pnl)
+                    self.storage.update_account_balance(dollar_pnl, day_str=current_bar.timestamp_et.date().isoformat())
                     pos.invalidation_reason = 'HARD_STOP_BREACH' if not pos.center_mass_filled else 'DEFENSIVE_TRAILING_STOP'
                     tr = TradeRecord(
                         trade_id=pos.position_id,
@@ -462,7 +462,7 @@ class OrderManager:
                         dollar_pnl = pos.realized_pnl + pnl_runner_dollar
                         pnl_pts = dollar_pnl / spec['point_value']
 
-                        self.storage.update_account_balance(dollar_pnl)
+                        self.storage.update_account_balance(dollar_pnl, day_str=current_bar.timestamp_et.date().isoformat())
                         tr = TradeRecord(
                             trade_id=pos.position_id,
                             asset=pos.asset,

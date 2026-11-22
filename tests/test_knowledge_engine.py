@@ -5,6 +5,7 @@ Verifies parsing of foundational concepts, execution rules, lecture citations, a
 
 import os
 import unittest
+import tests  # noqa: F401  (bootstraps ICT_KNOWLEDGE_DIR so test trades never touch the real ledger)
 from ict_sentinel.knowledge_engine import KnowledgeEngine
 
 class TestKnowledgeEngine(unittest.TestCase):

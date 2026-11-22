@@ -9,6 +9,7 @@ Validates:
 
 import os
 import unittest
+import tests  # noqa: F401  (bootstraps ICT_KNOWLEDGE_DIR so test trades never touch the real ledger)
 import datetime
 import tempfile
 from zoneinfo import ZoneInfo

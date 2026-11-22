@@ -11,9 +11,12 @@ from .ai_advisor import AIAdvisor
 from .models import Position, TradeRecord, Candle
 
 class MemoryEngine:
-    def __init__(self, storage: StorageEngine, advisor: AIAdvisor):
+    def __init__(self, storage: StorageEngine, advisor: AIAdvisor, persist_knowledge: bool = True):
         self.storage = storage
         self.advisor = advisor
+        # When False (demo replays, tests) closed trades still update the SQLite memory but are
+        # not appended to the permanent ict_mentorship_knowledge ledger.
+        self.persist_knowledge = persist_knowledge
 
     def process_trade_completion(self, tr: TradeRecord, pos: Position, current_bar: Candle):
         """
@@ -50,7 +53,7 @@ class MemoryEngine:
         )
 
         # Sync to persistent machine-readable knowledge ledger
-        if hasattr(self.advisor, 'knowledge') and self.advisor.knowledge:
+        if self.persist_knowledge and hasattr(self.advisor, 'knowledge') and self.advisor.knowledge:
             self.advisor.knowledge.record_learning_episode({
                 "episode_id": ep_id,
                 "asset": tr.asset,

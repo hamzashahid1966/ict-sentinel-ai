@@ -14,6 +14,8 @@ logger = logging.getLogger("ICTSentinel.Knowledge")
 class KnowledgeEngine:
     def __init__(self, knowledge_dir: Optional[str] = None):
         if knowledge_dir is None:
+            knowledge_dir = os.environ.get("ICT_KNOWLEDGE_DIR")
+        if not knowledge_dir:
             # Locate relative to project root
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             knowledge_dir = os.path.join(base_dir, "ict_mentorship_knowledge")

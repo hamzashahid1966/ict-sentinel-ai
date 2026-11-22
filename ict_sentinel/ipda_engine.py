@@ -6,7 +6,7 @@ Codifies the full 52-Lecture algorithmic logic into a deterministic rule engine.
 import datetime
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Any
-from .config import ASSET_SPECS, SESSION_WINDOWS, NY_TZ, LON_TZ
+from .config import ASSET_SPECS, SESSION_WINDOWS, NY_TZ, LON_TZ, MAX_BAR_AGE_MINUTES
 from .models import Candle, PDArray, SessionDebrief, TradeRecord
 
 @dataclass
@@ -33,6 +33,21 @@ class IPDAEngine:
         first_friday = first_day + datetime.timedelta(days=days_to_friday)
         first_monday = first_friday - datetime.timedelta(days=4)
         return first_monday <= d <= first_friday
+
+    @staticmethod
+    def bars_are_fresh(candles: List[Candle], now_utc: datetime.datetime, max_age_minutes: Optional[int] = None) -> bool:
+        """
+        True when the latest bar opened within `max_age_minutes` of `now_utc`.
+        Sessions are derived from bar timestamps, so a cached or CSV tape from days ago
+        would otherwise look like a valid live killzone and get traded as if it were now.
+        """
+        if not candles:
+            return False
+        limit = MAX_BAR_AGE_MINUTES if max_age_minutes is None else max_age_minutes
+        last = candles[-1].timestamp
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=datetime.timezone.utc)
+        return (now_utc - last) <= datetime.timedelta(minutes=limit)
 
     @staticmethod
     def get_current_session(time_et: datetime.time) -> Optional[str]:
@@ -255,8 +270,12 @@ class IPDAEngine:
         return None
 
 
-    def evaluate_market(self, asset: str, candles: List[Candle], memory_engine: Optional[Any] = None) -> Optional[AlgorithmicSignal]:
+    def evaluate_market(self, asset: str, candles: List[Candle], memory_engine: Optional[Any] = None,
+                        now_utc: Optional[datetime.datetime] = None) -> Optional[AlgorithmicSignal]:
         if len(candles) < 15:
+            return None
+        # Live callers pass the wall clock; replays and backtests leave it None.
+        if now_utc is not None and not self.bars_are_fresh(candles, now_utc):
             return None
 
         current_candle = candles[-1]
