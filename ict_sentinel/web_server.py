@@ -980,131 +980,22 @@ svg.es{width:100%;height:100%;overflow:visible}
 <!-- ===================================================================== -->
 <div id="view-poly" style="display:none">
 <main style="max-width:1720px">
-  <!-- LEFT COLUMN (Radar, Cards, Evidence, Positions) -->
+  <!-- LEFT COLUMN (BTC 5M Scalper Terminal) -->
   <div class="left-col">
-    <!-- Active Agent Gig & Surveillance Status Banner -->
-    <div class="poly-gig-banner">
-      <div class="poly-gig-left">
-        <div class="poly-pulse-dot"></div>
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">AUTONOMOUS PREDICTION AGENT · CURRENT WORKING GIG</div>
-          <div style="font-size:13.5px;font-weight:700;color:#F8FAFC" id="polyGigText">Surveillance Mode: Monitoring 29+ liquid contracts &amp; scanning breaking news</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <button id="polyEngBtn" class="btn btn-go" onclick="polyToggleAuto()">▶ Start Auto-Pilot</button>
-        <button class="btn btn-demo" onclick="polyScan()">🔍 Sync Polymarket Tape</button>
-        <button id="polyResearchBtn" class="btn btn-demo" onclick="polyResearch()">🔬 Deep Research Cycle</button>
-        <button class="btn btn-g" onclick="polyReset()">🔄 Reset Portfolio</button>
-      </div>
-    </div>
-
-    <!-- Polymarket KPIs -->
-    <div class="krow">
-      <div class="kc a">
-        <div class="kl">Monitored Contracts</div>
-        <div class="kv" id="polyKpiMarkets">0</div>
-        <div class="ks"><span>Volume &gt; $10k/24h</span><span>Active Orders</span></div>
-      </div>
-      <div class="kc p">
-        <div class="kl">Simulated Bankroll &amp; Equity</div>
-        <div class="kv g" id="polyKpiEquity">$25.00</div>
-        <div class="ks"><span>Cash: <b id="polyKpiCash">$25.00</b></span><span>Invested: <b id="polyKpiInvested">$0.00</b></span></div>
-      </div>
-      <div class="kc">
-        <div class="kl">Edge Discrepancies</div>
-        <div class="kv" id="polyKpiEdgeOpp">0</div>
-        <div class="ks"><span>Threshold: &ge; 6%</span><span>Mispricing Detected</span></div>
-      </div>
-      <div class="kc">
-        <div class="kl">Paper PnL &amp; Commissions</div>
-        <div class="kv" id="polyKpiPnl">+$0.00</div>
-        <div class="ks"><span>Fees Paid: <b id="polyKpiCommissions" style="color:#FBBF24">$0.000</b></span><span>5M Scalper: <b id="polyKpiScalperPnl" class="g">+$0.00</b></span></div>
-      </div>
-    </div>
-
-    <!-- Polymarket Category Chips & View Switcher -->
-    <div class="pn" style="padding:12px 18px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.01);flex-wrap:wrap;gap:12px">
-      <div class="poly-chips-row" id="polyCategoryChips">
-        <div class="poly-chip active" onclick="setPolyCategory('ALL', this)">🌐 All Markets</div>
-        <div class="poly-chip" onclick="setPolyCategory('OPPORTUNITY', this)">⚡ Edge Discrepancies (&ge;6%)</div>
-        <div class="poly-chip" onclick="setPolyCategory('Economy', this)">📈 Economy &amp; Fed</div>
-        <div class="poly-chip" onclick="setPolyCategory('Tech', this)">💻 Tech &amp; AI</div>
-        <div class="poly-chip" onclick="setPolyCategory('Politics', this)">🏛️ Politics</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="display:flex;background:#0E1424;border:1px solid var(--bdr);border-radius:8px;padding:2px">
-          <button id="viewBtnCards" class="btn btn-demo" style="border:none;padding:5px 12px;font-size:11px" onclick="setPolyView('cards')">🗂️ Cards View</button>
-          <button id="viewBtnTable" class="btn btn-g" style="border:none;padding:5px 12px;font-size:11px" onclick="setPolyView('table')">📊 Table View</button>
-        </div>
-        <input class="si" id="polySearch" placeholder="Search questions..." oninput="filterPolyMarkets()" style="width:200px">
-      </div>
-    </div>
-
-    <!-- Live Polymarket Prediction Cards Grid (Default Polymarket View) -->
-    <div id="polyCardsWrap" class="pm-grid">
-      <div class="empty" style="grid-column:1/-1">Scanning active Polymarket order books...</div>
-    </div>
-
-    <!-- Live Polymarket Table (Alternative Institutional View) -->
-    <div id="polyTableWrap" class="pn" style="display:none">
-      <div class="ph">
-        <div class="pt">🔮 Live Prediction Market Spreadsheet</div>
-        <span class="b b-p">Order Book Depth</span>
-      </div>
-      <div class="tw">
-        <table>
-          <thead>
-            <tr>
-              <th>Contract Question</th>
-              <th>Category</th>
-              <th>Qualification</th>
-              <th>Market Closes</th>
-              <th>24h Volume</th>
-              <th>Market (YES / NO)</th>
-              <th>Blind AI</th>
-              <th>Final Calibrated</th>
-              <th>Edge</th>
-              <th>Signal</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="polyMarketTb">
-            <tr><td colspan="11" class="empty">Scanning Polymarket order books...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Breaking News & Evidence Intelligence Feed (PROMINENT NEW SECTION) -->
-    <div class="pn">
-      <div class="ph" style="background:rgba(99,102,241,.03)">
-        <div class="pt">
-          <span>📰</span> Breaking News &amp; Verified Evidence Feed
-          <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr);margin-left:6px" id="polyEvidenceCount">0 Analyzed</span>
-        </div>
-        <span style="font-size:11px;color:var(--tx2);font-family:'JetBrains Mono',monospace">Live Sentiment &amp; Credibility Weighting</span>
-      </div>
-      <div style="padding:14px">
-        <div class="news-feed-grid" id="polyNewsFeed">
-          <div class="empty">Ingesting and sentiment-scoring news articles...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4-COIN 5-MINUTE MICROSTRUCTURE SCALPER PANEL -->
+    <!-- BTC 5-MINUTE QUANTITATIVE SCALPER TERMINAL -->
     <div class="pn" style="border:1px solid rgba(245,158,11,.3);background:linear-gradient(180deg,rgba(245,158,11,.04),rgba(15,23,42,.7))">
       <div class="ph" style="background:rgba(245,158,11,.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px">
           <div class="pt">
-            <span style="font-size:16px">⚡</span> 5-Minute Intra-Candle Scalper
-            <span class="tab-badge" style="background:rgba(245,158,11,.15);color:#FBBF24;margin-left:6px" id="poly5mStatusBadge">4-COIN ONLY · OTHER EVENT BIDS DISCONNECTED</span>
+            <span style="font-size:16px">⚡</span> BTC 5-Minute Quantitative Scalper
+            <span class="tab-badge" style="background:rgba(245,158,11,.15);color:#FBBF24;margin-left:6px" id="poly5mStatusBadge">BTC ONLY · 1¢-2¢ TIGHT CLOB SPREAD</span>
           </div>
           <button id="btn5mToggle" class="btn btn-demo" style="padding:4px 10px;font-size:10px" onclick="polyToggle5mScalper()">
             🟢 Scalper Active
           </button>
           <button class="btn btn-demo" style="padding:4px 9px;font-size:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15)" onclick="polyForceSettle()" title="Force-settle any expired rounds directly against Polymarket contracts">
             ⚡ Sync / Settle
+          </button>
           </button>
           <!-- Mode Switcher Pill -->
           <div style="display:inline-flex;align-items:center;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:2px;gap:2px">
@@ -1132,13 +1023,10 @@ svg.es{width:100%;height:100%;overflow:visible}
       <div style="padding:16px">
         <!-- Interactive Polymarket Timeframe & Coin Navigator Bar -->
         <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:8px 12px;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-          <!-- Coin Selector -->
+          <!-- Asset Selector -->
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:10.5px;color:var(--tx3);font-weight:700;text-transform:uppercase;margin-right:2px">Asset:</span>
-            <button class="poly-coin-tab-btn active" id="polyCoinTab_BTC" onclick="selectPolyTimelineCoin('BTC')">🟠 BTC</button>
-            <button class="poly-coin-tab-btn" id="polyCoinTab_ETH" onclick="selectPolyTimelineCoin('ETH')">🔷 ETH</button>
-            <button class="poly-coin-tab-btn" id="polyCoinTab_SOL" onclick="selectPolyTimelineCoin('SOL')">🟣 SOL</button>
-            <button class="poly-coin-tab-btn" id="polyCoinTab_XRP" onclick="selectPolyTimelineCoin('XRP')">⚪ XRP</button>
+            <button class="poly-coin-tab-btn active" id="polyCoinTab_BTC" style="background:rgba(245,158,11,.2);border-color:#F59E0B;color:#FBBF24;font-weight:800;pointer-events:none">🟠 BTC Only (Deep CLOB Liquidity · 1¢-2¢ Spread)</button>
           </div>
           <!-- Timeframe Selector -->
           <div style="display:flex;align-items:center;gap:6px">
@@ -1219,13 +1107,7 @@ svg.es{width:100%;height:100%;overflow:visible}
               </a>
             </div>
           </div>
-          <!-- 4-Coin Live Contract Slugs & Direct Polymarket Verification Strip -->
-          <div style="border-top:1px dashed rgba(255,255,255,.07);padding-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:10px;color:var(--tx3);font-weight:700;text-transform:uppercase">Active Contracts (All 4 Coins):</span>
-            <div id="polyActiveCoinsBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <!-- Dynamically populated 4 coins with clickable slugs -->
-            </div>
-          </div>
+
         </div>
 
         <!-- Polymarket Upcoming Rounds Timeline Cards -->
@@ -1241,22 +1123,22 @@ svg.es{width:100%;height:100%;overflow:visible}
           </div>
         </div>
 
-        <!-- 4-Coin Live Matrix (BTC, ETH, SOL, XRP) -->
+        <!-- BTC Live Microstructure Surveillance & Orderbook Matrix -->
         <div style="font-size:11px;font-weight:800;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
-          📊 4-Asset Microstructure Surveillance &amp; Edge Matrix:
+          📊 BTC Microstructure Surveillance &amp; Orderbook Terminal:
         </div>
-        <div id="poly5mCoinsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:14px">
-          <!-- Dynamically populated 4 coins -->
+        <div id="poly5mCoinsGrid" style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px">
+          <!-- Dynamically populated BTC card -->
         </div>
 
         <!-- Best Selected Setup Callout Banner -->
         <div id="poly5mBestBanner" style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;font-weight:800;color:#A5B4FC">🎯 TARGET SETUP:</span>
+            <span style="font-size:11px;font-weight:800;color:#A5B4FC">🎯 BTC TARGET SETUP:</span>
             <span id="poly5mSignalBadge" class="b b-p">ABSTAIN</span>
             <span id="poly5mPatternBadge" style="font-size:10.5px;color:#A5B4FC;background:rgba(255,255,255,.05);padding:3px 7px;border-radius:4px">NEUTRAL SWEEP</span>
           </div>
-          <div style="font-size:11.5px;color:var(--tx1);flex:1;text-align:right" id="poly5mReason">Scanning 4 coins for clean displacement...</div>
+          <div style="font-size:11.5px;color:var(--tx1);flex:1;text-align:right" id="poly5mReason">Scanning BTC 1m/2m order flow for clean displacement...</div>
         </div>
 
         <!-- Next 5M Session Predictive Radar Widget -->
@@ -1264,12 +1146,12 @@ svg.es{width:100%;height:100%;overflow:visible}
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:14px">🔮</span>
-              <span style="font-size:12px;font-weight:800;letter-spacing:0.04em;color:#A5B4FC;text-transform:uppercase">Next 5M Session Predictive Radar</span>
+              <span style="font-size:12px;font-weight:800;letter-spacing:0.04em;color:#A5B4FC;text-transform:uppercase">Next 5M Session Predictive Radar (BTC)</span>
               <span class="tab-badge" style="background:rgba(99,102,241,.2);color:#C4B5FD;font-size:9.5px">AI Chart &amp; Momentum Forecast</span>
             </div>
             <div style="font-size:10.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace" id="polyPredCountdown">Next Round Starting in --:--</div>
           </div>
-          <div id="poly5mPredictionsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">
+          <div id="poly5mPredictionsGrid" style="display:grid;grid-template-columns:1fr;gap:10px">
             <div style="font-size:11.5px;color:var(--tx3);padding:8px">Evaluating candlestick anatomy &amp; momentum...</div>
           </div>
         </div>
@@ -1278,13 +1160,13 @@ svg.es{width:100%;height:100%;overflow:visible}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
           <!-- Active 5M Bet Slip -->
           <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px">
-            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase">Active 5M Bet Slip ($5 Max Risk · 1 Active Trade Only)</div>
+            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase">Active 5M Bet Slip ($5 Max Risk · BTC Focus)</div>
             <div id="poly5mActiveSlip" style="font-size:12px;color:var(--tx2)">No active position for this 5-minute round.</div>
           </div>
 
           <!-- Recent 5M Round Settlements -->
           <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px">
-            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase">Recent 5M Scalp History (BTC · ETH · SOL · XRP)</div>
+            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase">Recent 5M Scalp History (BTC Only)</div>
             <div id="poly5mHistoryList" style="max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
               <div style="font-size:11.5px;color:var(--tx3)">No completed 5M scalps yet.</div>
             </div>
@@ -1293,97 +1175,17 @@ svg.es{width:100%;height:100%;overflow:visible}
       </div>
     </div>
 
-    <!-- Active Paper Bets & Positions Section (Visual Trade Slips) -->
-    <div class="pn">
-      <div class="ph" style="background:rgba(99,102,241,.03);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="pt">
-            <span>🎯</span> Active Open Bets
-            <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr);margin-left:6px" id="polyPosCount">0 Bets Open</span>
-          </div>
-          <div style="display:flex;gap:4px">
-            <button class="tab-btn active" id="btnPolyFilterAll" style="padding:3px 9px;font-size:10px" onclick="setPolyBetFilter('ALL')">All Strategies</button>
-            <button class="tab-btn" id="btnPolyFilterYield" style="padding:3px 9px;font-size:10px" onclick="setPolyBetFilter('HIGH_PROBABILITY_YIELD')">💎 Yield Harvester</button>
-            <button class="tab-btn" id="btnPolyFilterEdge" style="padding:3px 9px;font-size:10px" onclick="setPolyBetFilter('ASYMMETRIC_EDGE')">🎯 Asymmetric Hunter</button>
-          </div>
-        </div>
-        <span style="font-size:11px;color:var(--tx2);font-family:'JetBrains Mono',monospace">Dual-Engine Active Exits (Auto TP &amp; Emergency SL Enabled)</span>
-      </div>
-      <div style="padding:16px">
-        <div id="polyPositionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px">
-          <div class="empty" style="grid-column:1/-1">No active bets yet. The AI is scanning for mispriced contracts with &ge;6% edge...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Paper Trades Ledger -->
-    <div class="pn">
-      <div class="ph">
-        <div class="pt">📖 Paper Trade Execution Ledger</div>
-        <span class="sub">Simulated Fill Log</span>
-      </div>
-      <div class="tw" style="max-height:300px;overflow-y:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Action</th>
-              <th>Outcome</th>
-              <th>Strategy</th>
-              <th>Contract</th>
-              <th>Market Closes</th>
-              <th>Shares</th>
-              <th>Price</th>
-              <th>Total Outlay</th>
-              <th>Trigger &amp; Rationale</th>
-            </tr>
-          </thead>
-          <tbody id="polyTradesTb">
-            <tr><td colspan="10" class="empty">No simulated trades recorded yet.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
-  <!-- RIGHT SIDEBAR (AI Gateway Status & Activity Stream) -->
+  <!-- RIGHT SIDEBAR (Live Scalper Order & Settlement Stream) -->
   <div class="right-sidebar">
-    <!-- AI Gateway Health Card -->
     <div class="radar-card">
-      <div class="radar-header">
-        <div class="radar-title"><span>🧠</span> AI GATEWAY STATUS</div>
+      <div class="radar-header" style="background:transparent">
+        <div class="radar-title"><span>📡</span> LIVE SCALPER ORDER &amp; EVENT STREAM</div>
         <span class="stream-pill" style="padding:2px 7px;font-size:9.5px;" id="polyGatewayPill">ACTIVE</span>
       </div>
-      <div class="micro-box">
-        <div class="micro-lbl">Primary Inference Node</div>
-        <div class="micro-text">
-          <span style="color:var(--gr)">●</span>
-          <span id="polyAiProvider">Ollama (Local) / Heuristic Standby</span>
-        </div>
-      </div>
-      <div class="clock-box">
-        <div class="clock-grid">
-          <div class="clock-item">
-            <span class="clock-lbl">AI CALLS COMPLETED</span>
-            <span class="clock-val" id="polyAiCalls">0</span>
-          </div>
-          <div class="clock-item">
-            <span class="clock-lbl">AVG LATENCY</span>
-            <span class="clock-val" id="polyAiLatency">0 ms</span>
-          </div>
-        </div>
-        <div class="clock-status-bar active" style="font-size:10.5px">
-          <span>🛡️</span>
-          <span>Zero Paid API Dependence · Local Inference</span>
-        </div>
-      </div>
-
-      <!-- Real-Time Activity Stream -->
-      <div class="radar-header" style="border-top:1px solid var(--bdr);background:transparent">
-        <div class="radar-title"><span>📡</span> RESEARCH &amp; ORDER STREAM</div>
-      </div>
-      <div class="activity-stream" id="polyActivityList" style="max-height:420px">
-        <div class="empty">Listening for Polymarket research events...</div>
+      <div class="activity-stream" id="polyActivityList" style="max-height:680px">
+        <div class="empty">Listening for BTC 5M live scalper orders and settlements...</div>
       </div>
     </div>
   </div>
@@ -3199,7 +3001,7 @@ function renderPolymarket(d) {
         toggleBtn.innerText = '⏹ Pause 5M Scalper';
         toggleBtn.className = 'btn btn-stop';
         if (statusBadge) {
-          statusBadge.innerText = '🟢 4-COIN PARALLEL SCALPER ACTIVE (SWEET SPOT 20¢ - 82¢)';
+          statusBadge.innerText = '🟢 BTC QUANTITATIVE SCALPER ACTIVE (SWEET SPOT 20¢ - 82¢)';
           statusBadge.style.background = 'rgba(16,185,129,.15)';
           statusBadge.style.color = 'var(--gr)';
         }
@@ -3260,11 +3062,11 @@ function renderPolymarket(d) {
       if ($('poly5mReason')) $('poly5mReason').innerText = r.signal_reason || '';
     }
 
-    // Render Next 5M Session Predictions
+    // Render Next 5M Session Predictions (BTC Only)
     const predGrid = $('poly5mPredictionsGrid');
     const predCountdown = $('polyPredCountdown');
     if (predGrid && s.predictions) {
-      const predCoins = ['BTC', 'ETH', 'SOL', 'XRP'];
+      const predCoins = ['BTC'];
       let cdSec = 0;
       predGrid.innerHTML = predCoins.map(sym => {
         const p = s.predictions[sym] || {};
@@ -3352,14 +3154,14 @@ function renderPolymarket(d) {
       }).join('');
     }
 
-    // Render 4-Coin Live Matrix Grid (BTC, ETH, SOL, XRP)
+    // Render BTC Live Terminal Card
     const coinsGrid = $('poly5mCoinsGrid');
     if (coinsGrid && s.coins) {
       const coinIcons = {'BTC':'🟠','ETH':'🔷','SOL':'🟣','XRP':'⚪'};
-      const bestSym = (r && r.symbol) ? r.symbol : 'BTC';
+      const bestSym = 'BTC';
       const cStats = s.coin_stats || {};
 
-      coinsGrid.innerHTML = Object.keys(s.coins).map(sym => {
+      coinsGrid.innerHTML = Object.keys(s.coins).filter(sym => sym === 'BTC').map(sym => {
         const c = s.coins[sym];
         const isBest = (sym === bestSym);
         const decDigits = sym === 'XRP' ? 4 : 2;
@@ -4310,7 +4112,7 @@ class Handler(BaseHTTPRequestHandler):
             open_pos = CRYPTO_BOT.storage.get_open_positions()
             target = next((p for p in open_pos if p.position_id == pos_id), None)
             if target:
-                p = CRYPTO_BOT.data_feed.get_current_price(target.symbol)
+                p = CRYPTO_BOT.data_feed.get_current_price(target.symbol) or target.current_price or target.entry_price
                 CRYPTO_BOT.order_mgr.close_position_manually(pos_id, p, account)
             self._json({"ok": True})
         elif self.path == "/api/crypto/reset":
