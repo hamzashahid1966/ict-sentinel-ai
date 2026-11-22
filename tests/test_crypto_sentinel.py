@@ -4,6 +4,7 @@ Tests: Screener, 3-Engines, Arbitration, Risk Engine, Double Tap OMS, and Storag
 """
 
 import unittest
+from unittest.mock import patch
 import time
 from crypto_sentinel.config import TOP_50_UNIVERSE, TOP_PRIME_SYMBOLS
 from crypto_sentinel.models import CryptoCandle, AnalysisOpportunity
@@ -21,6 +22,9 @@ class TestCryptoSentinel(unittest.TestCase):
     def setUp(self):
         # Use an in-memory or dedicated test database
         self.storage = CryptoStorageEngine(db_path=":memory:")
+        # Paper-mode unit tests: never let the in-memory account default to BINANCE_TESTNET,
+        # which would send real orders to the testnet whenever API keys are in the environment.
+        self.storage.set_mode("SIMULATED_PAPER")
         self.data_feed = CryptoDataFeed()
         self.engine_a = ICTLiquidityEngine()
         self.engine_b = MomentumEngine()
@@ -29,8 +33,13 @@ class TestCryptoSentinel(unittest.TestCase):
         self.risk_engine = CryptoRiskEngine()
         self.order_mgr = CryptoOrderManager(self.storage)
 
+    def _fake_24h(self):
+        return {s: {"lastPrice": "10", "priceChangePercent": "2.5", "quoteVolume": "50000000", "highPrice": "10.4", "lowPrice": "9.8"}
+                for s in TOP_PRIME_SYMBOLS}
+
     def test_screener_top_50(self):
-        candidates = self.data_feed.scan_top_50(prime_only=True)
+        with patch.object(self.data_feed, "_fetch_24h_tickers", return_value=self._fake_24h()):
+            candidates = self.data_feed.scan_top_50(prime_only=True)
         self.assertEqual(len(candidates), len(TOP_PRIME_SYMBOLS))
         # Verify active focus count
         focus = [c for c in candidates if c.is_active_focus]
@@ -146,6 +155,11 @@ class TestCryptoSentinel(unittest.TestCase):
 
     def test_bot_controller_execution(self):
         bot = CryptoBotController()
+        # Isolated from the real database and the live testnet account: no real orders from a unit test.
+        bot.storage = self.storage
+        bot.order_mgr = CryptoOrderManager(self.storage)
+        bot.data_feed._fetch_24h_tickers = lambda: self._fake_24h()
+        bot.data_feed.fetch_candles = lambda *a, **k: []
         # Force a scan and cycle
         bot.force_scan()
         state = bot.get_dashboard_state()
@@ -169,8 +183,10 @@ class TestCryptoSentinel(unittest.TestCase):
         self.assertGreaterEqual(pos.current_stop, 100.11) # Stop moved to cover 100% of round-trip fees
 
     def test_api_state_schema(self):
-        from crypto_sentinel.controller import CRYPTO_BOT
-        state = CRYPTO_BOT.get_dashboard_state()
+        bot = CryptoBotController()
+        bot.storage = self.storage                      # isolated: never sync/adopt against the live testnet account
+        bot.order_mgr = CryptoOrderManager(self.storage)
+        state = bot.get_dashboard_state()
         self.assertIn("running", state)
         self.assertIn("status", state)
         self.assertIn("regime", state)

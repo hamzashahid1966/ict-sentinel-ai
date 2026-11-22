@@ -23,7 +23,10 @@ class CryptoDataFeed:
             "Accept": "application/json"
         }
         # In-memory baseline prices for top 50
-        self._price_cache: Dict[str, float] = self._seed_initial_prices()
+        # Only real exchange prices live here; nothing is seeded or simulated.
+        self._price_cache: Dict[str, float] = {}
+        self._tickers_24h: Optional[Dict[str, Dict[str, Any]]] = None
+        self._tickers_24h_at: float = 0.0
         self._candle_cache: Dict[str, Dict[str, List[CryptoCandle]]] = {}
         self.last_sync_time = 0.0
         self.sync_testnet_prices()
@@ -70,13 +73,26 @@ class CryptoDataFeed:
         }
         return seeds
 
-    def get_current_price(self, symbol: str) -> float:
-        # Check cache or simulate realistic tick drift
-        current = self._price_cache.get(symbol, 100.0)
-        drift = current * random.uniform(-0.0012, 0.0015)
-        new_price = max(0.0000001, current + drift)
-        self._price_cache[symbol] = new_price
-        return round(new_price, 6 if new_price < 1 else 2)
+    def get_current_price(self, symbol: str) -> Optional[float]:
+        """Latest real Binance Testnet price, or None if no real price has been seen. Never simulated."""
+        self.sync_testnet_prices()
+        px = self._price_cache.get(symbol)
+        return px if px else None  # full exchange precision; rounding to 2dp distorted sub-dollar-tick coins
+
+    def _fetch_24h_tickers(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        """Real 24h statistics for every USDT-M perpetual (Binance public API), cached 30s; None if unreachable."""
+        now = time.time()
+        if self._tickers_24h is not None and now - self._tickers_24h_at < 30.0:
+            return self._tickers_24h
+        try:
+            req = urllib.request.Request("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=self.headers)
+            with direct_urlopen(req, timeout=5.0) as resp:
+                rows = json.loads(resp.read().decode("utf-8"))
+            self._tickers_24h = {r["symbol"]: r for r in rows if isinstance(r, dict) and r.get("symbol")}
+            self._tickers_24h_at = now
+            return self._tickers_24h
+        except Exception:
+            return None
 
     def scan_top_50(self, prime_only: bool = True) -> List[ScreenerCandidate]:
         """
@@ -87,6 +103,9 @@ class CryptoDataFeed:
         """
         self.sync_testnet_prices()
         candidates: List[ScreenerCandidate] = []
+        stats = self._fetch_24h_tickers()
+        if not stats:
+            return []  # no real market statistics: score nothing rather than invent them
 
         scan_items = [item for item in TOP_50_UNIVERSE if item["symbol"] in TOP_PRIME_SYMBOLS] if prime_only else TOP_50_UNIVERSE
         if not scan_items:
@@ -96,18 +115,22 @@ class CryptoDataFeed:
             symbol = item["symbol"]
             name = item["name"]
             sector = item["sector"]
-            price = self.get_current_price(symbol)
-
-            # Calculate realistic simulated 24h metrics or fetch from live
-            change_24h = round(random.uniform(-4.5, 8.5), 2)
-            base_vol = 85_000_000 if sector == "MAJOR" else (45_000_000 if sector == "MEME" else 28_000_000)
-            volume_24h = round(base_vol * random.uniform(0.7, 1.8), 0)
-            volatility_pct = round(abs(change_24h) * random.uniform(1.2, 1.8) + 1.5, 2)
+            t = stats.get(symbol)
+            if not t:
+                continue
+            try:
+                price = float(t["lastPrice"])
+                change_24h = round(float(t["priceChangePercent"]), 2)
+                volume_24h = round(float(t["quoteVolume"]), 0)
+                high, low = float(t["highPrice"]), float(t["lowPrice"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            volatility_pct = round(((high - low) / low) * 100.0, 2) if low > 0 else 0.0
 
             h1_trend = "BULLISH" if change_24h > 1.0 else ("BEARISH" if change_24h < -1.0 else "NEUTRAL")
 
-            # Score formula: Volatility + Volume factor + Trend clarity
-            score = round(min(98.0, abs(change_24h) * 4.5 + (volume_24h / 10_000_000) + random.uniform(10, 30)), 1)
+            # Deterministic score from real data: move size, intraday range and liquidity
+            score = round(min(98.0, abs(change_24h) * 4.5 + volatility_pct * 2.0 + min(20.0, volume_24h / 100_000_000)), 1)
 
             # Plain English "Why Picked"
             why_picked = self._generate_why_picked(symbol, sector, change_24h, volume_24h, h1_trend)
@@ -187,12 +210,13 @@ class CryptoDataFeed:
                     self._candle_cache[cache_key] = (now_ts, candles)
                     return candles
         except Exception as e:
-            # If rate-limited or offline, return stale cached candles if available
-            if cached:
+            # If rate-limited or offline, reuse recent real candles only; never synthesize.
+            if cached and now_ts - cached[0] < ttl * 6:
                 return cached[1]
+        return []
 
-        # 3. Graceful fallback only if initial network fetch is unreachable
-        current_price = self.get_current_price(symbol)
+        # (unreachable) legacy synthetic generator retained below only for reference
+        current_price = self.get_current_price(symbol) or 0.0
         step_seconds = 300 if timeframe == "5m" else (900 if timeframe == "15m" else 3600)
         candles: List[CryptoCandle] = []
         base_p = current_price * (1.0 - (limit * 0.0008))

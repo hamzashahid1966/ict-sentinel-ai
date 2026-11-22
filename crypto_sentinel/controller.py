@@ -73,6 +73,10 @@ class CryptoBotController:
         # Step 1: Manage active open positions with live prices
         if account.mode == "BINANCE_TESTNET":
             testnet_positions = self.order_mgr.fetch_binance_testnet_positions()
+            if testnet_positions is None:
+                # Exchange state unknown: never infer closes from silence, and do not open new risk blind.
+                self.current_status = f"EXCHANGE UNREACHABLE · STANDING ASIDE · POSITIONS UNTOUCHED · REGIME: {self.active_regime}"
+                return
             open_positions = self.storage.get_open_positions()
             seen_symbols = set()
             for pos in open_positions:
@@ -103,7 +107,8 @@ class CryptoBotController:
                     is_stop_wrong = ((pos.current_stop >= pos.entry_price) if pos.direction == "LONG" else (pos.current_stop <= pos.entry_price)) if not pos.defensive_active else False
                     if dist_pct > 0.08 or is_stop_wrong:
                         risk_pct = 0.015
-                        pos.initial_stop = round(pos.entry_price * (1 - risk_pct if pos.direction == "LONG" else 1 + risk_pct), 6 if pos.entry_price < 1 else 2)
+                        # Anchor to the live mark, never the (possibly stale) entry: a reset stop must not sit inside the market.
+                        pos.initial_stop = round(mark * (1 - risk_pct if pos.direction == "LONG" else 1 + risk_pct), 6 if mark < 1 else 2)
                         pos.current_stop = pos.initial_stop
                         pos.target_1 = round(pos.entry_price * (1 + t1_r * risk_pct if pos.direction == "LONG" else 1 - t1_r * risk_pct), 6 if pos.entry_price < 1 else 2)
                         pos.target_2 = round(pos.entry_price * (1 + t2_r * risk_pct if pos.direction == "LONG" else 1 - t2_r * risk_pct), 6 if pos.entry_price < 1 else 2)
@@ -119,12 +124,17 @@ class CryptoBotController:
                                 pos.target_2 = expected_t2
                                 self.storage.save_position(pos)
 
+                    if pos.position_id not in self.order_mgr._stops_placed and time.time() >= self.order_mgr._stop_retry_at.get(pos.position_id, 0.0):
+                        # First sight of this live position in this process (e.g. after a restart): protect it on the exchange.
+                        if self.order_mgr._sync_exchange_stop(pos):
+                            self.order_mgr._stops_placed.add(pos.position_id)
+                        else:
+                            self.order_mgr._stop_retry_at[pos.position_id] = time.time() + 60.0  # back off; software stop still guards
                     self.order_mgr.update_position_with_price(pos, mark, account)
                 else:
                     age = time.time() - (pos.entry_time or time.time())
                     # If position was dispatched within 10 seconds, give it grace time to populate on exchange
                     if age < 10.0 and getattr(pos, 'status', '') == 'OPEN':
-                        synced_open.append(pos)
                         continue
 
                     if getattr(pos, 'status', '') == 'DISPATCH_FAILED':
@@ -143,6 +153,8 @@ class CryptoBotController:
             t2_r = acc_prof.get("target_2_r", 0.60)
             for pos in open_positions:
                 price = self.data_feed.get_current_price(pos.symbol)
+                if price is None:
+                    continue  # no real price yet: leave the position untouched rather than invent one
                 pos.current_price = price
                 if not pos.t1_hit:
                     r_dist = abs(pos.entry_price - pos.initial_stop)
@@ -229,7 +241,7 @@ class CryptoBotController:
                         trade_age = time.time() - (pos.entry_time or time.time())
                         if trade_age >= STAGNATION_TIMEOUT_SECONDS:
                             is_long = (pos.direction == "LONG")
-                            cur_px = pos.current_price or self.data_feed.get_current_price(pos.symbol)
+                            cur_px = pos.current_price or self.data_feed.get_current_price(pos.symbol) or pos.entry_price
                             fee_cover_px = pos.entry_price * (1 + TRUE_FEE_BUFFER_PCT if is_long else 1 - TRUE_FEE_BUFFER_PCT)
                             # Strictly enforce: NO LOSS AFTER FEES
                             is_fee_covered = (cur_px >= fee_cover_px) if is_long else (cur_px <= fee_cover_px)
@@ -239,7 +251,7 @@ class CryptoBotController:
 
                     if eligible_swap_pos:
                         mins_held = int((time.time() - eligible_swap_pos.entry_time) // 60)
-                        swap_px = eligible_swap_pos.current_price or self.data_feed.get_current_price(eligible_swap_pos.symbol)
+                        swap_px = eligible_swap_pos.current_price or self.data_feed.get_current_price(eligible_swap_pos.symbol) or eligible_swap_pos.entry_price
                         is_l = (eligible_swap_pos.direction == "LONG")
                         pnl = round(((swap_px - eligible_swap_pos.entry_price) if is_l else (eligible_swap_pos.entry_price - swap_px)) * eligible_swap_pos.quantity, 2)
 
@@ -339,11 +351,11 @@ class CryptoBotController:
         account = self.storage.get_account()
         open_positions = self.storage.get_open_positions()
         for pos in open_positions:
-            price = self.data_feed.get_current_price(pos.symbol)
+            price = self.data_feed.get_current_price(pos.symbol) or pos.current_price or pos.entry_price
             self.order_mgr.close_position_manually(pos.position_id, price, account)
 
         if account.mode == "BINANCE_TESTNET":
-            testnet_positions = self.order_mgr.fetch_binance_testnet_positions()
+            testnet_positions = self.order_mgr.fetch_binance_testnet_positions() or []
             for tp in testnet_positions:
                 amt = float(tp["positionAmt"])
                 if abs(amt) > 0:
@@ -394,12 +406,16 @@ class CryptoBotController:
                     "available_balance": round(avail, 2)
                 }
 
-            # Direct sync with Binance Testnet positions to eliminate any lag or mismatch
+            # Direct sync with Binance Testnet positions to eliminate any lag or mismatch.
+            # None means Binance could not be read: show stored positions as-is, close and adopt nothing.
             testnet_positions = self.order_mgr.fetch_binance_testnet_positions()
-            synced_open = []
+            exchange_reachable = testnet_positions is not None
+            if not exchange_reachable:
+                testnet_positions = []
+            synced_open = [] if exchange_reachable else list(open_positions)
             seen_symbols = set()
 
-            for pos in open_positions:
+            for pos in (open_positions if exchange_reachable else []):
                 if pos.symbol in seen_symbols:
                     pos.status = "CLOSED"
                     pos.exit_time = time.time()
@@ -427,7 +443,8 @@ class CryptoBotController:
                     is_stop_wrong = ((pos.current_stop >= pos.entry_price) if pos.direction == "LONG" else (pos.current_stop <= pos.entry_price)) if not pos.defensive_active else False
                     if dist_pct > 0.08 or is_stop_wrong:
                         risk_pct = 0.015
-                        pos.initial_stop = round(pos.entry_price * (1 - risk_pct if pos.direction == "LONG" else 1 + risk_pct), 6 if pos.entry_price < 1 else 2)
+                        # Anchor to the live mark, never the (possibly stale) entry: a reset stop must not sit inside the market.
+                        pos.initial_stop = round(mark * (1 - risk_pct if pos.direction == "LONG" else 1 + risk_pct), 6 if mark < 1 else 2)
                         pos.current_stop = pos.initial_stop
                         pos.target_1 = round(pos.entry_price * (1 + t1_r * risk_pct if pos.direction == "LONG" else 1 - t1_r * risk_pct), 6 if pos.entry_price < 1 else 2)
                         pos.target_2 = round(pos.entry_price * (1 + t2_r * risk_pct if pos.direction == "LONG" else 1 - t2_r * risk_pct), 6 if pos.entry_price < 1 else 2)
@@ -447,7 +464,6 @@ class CryptoBotController:
                     age = time.time() - (pos.entry_time or time.time())
                     # If position was dispatched within 10 seconds, give it grace time to populate on exchange
                     if age < 10.0 and getattr(pos, 'status', '') == 'OPEN':
-                        synced_open.append(pos)
                         continue
 
                     if getattr(pos, 'status', '') == 'DISPATCH_FAILED':
@@ -473,10 +489,13 @@ class CryptoBotController:
                     t1_r = acc_prof.get("target_1_r", 0.30)
                     t2_r = acc_prof.get("target_2_r", 0.60)
                     risk_pct = 0.015
-                    stop_l = round(entry_p * (1 - risk_pct if direction == "LONG" else 1 + risk_pct), 6 if entry_p < 1 else 2)
-                    risk_d = abs(entry_p - stop_l)
-                    tp1 = round(entry_p + (risk_d * t1_r if direction == "LONG" else -risk_d * t1_r), 6 if entry_p < 1 else 2)
-                    tp2 = round(entry_p + (risk_d * t2_r if direction == "LONG" else -risk_d * t2_r), 6 if entry_p < 1 else 2)
+                    # An orphan may have been open for hours: anchor its stop and targets to the live mark,
+                    # never to the stale entry, or it is stopped out the instant it is adopted.
+                    nd = 6 if mark_p < 1 else 2
+                    stop_l = round(mark_p * (1 - risk_pct if direction == "LONG" else 1 + risk_pct), nd)
+                    risk_d = abs(mark_p - stop_l)
+                    tp1 = round(mark_p + (risk_d * t1_r if direction == "LONG" else -risk_d * t1_r), nd)
+                    tp2 = round(mark_p + (risk_d * t2_r if direction == "LONG" else -risk_d * t2_r), nd)
                     new_synced = CryptoPosition(
                         position_id=pos_id,
                         symbol=tp["symbol"],
@@ -494,6 +513,8 @@ class CryptoBotController:
                         status="OPEN"
                     )
                     self.storage.save_position(new_synced)
+                    self.order_mgr._sync_exchange_stop(new_synced)
+                    self.storage.log_activity("TESTNET_WARN", tp["symbol"], f"Adopted unknown {direction} from Binance (entry {entry_p}, mark {mark_p}); protective stop {stop_l} from the live mark.", "WARNING")
                     synced_open.append(new_synced)
 
             open_positions = synced_open
