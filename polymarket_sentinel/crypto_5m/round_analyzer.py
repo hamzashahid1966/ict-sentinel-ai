@@ -184,6 +184,28 @@ class MultiCryptoRoundAnalyzer:
                 pass
 
         # 3. Strike Price P0 (Prefer Polymarket's official priceToBeat when deployed)
+        # Polymarket only publishes priceToBeat after the round closes, so during live
+        # trading the strike is our own TWAP at first sight of the round. That value
+        # must come from a real print: a cold feed still holds the hard-coded fallback
+        # price, and locking it produced four-figure phantom deltas in production.
+        feed_warm = True
+        try:
+            feed_warm = bool(self.feed.is_warm(coin))
+        except Exception:
+            pass
+        if not poly_data.get("price_to_beat") and not feed_warm and f"{coin.upper()}_{round_ts}" not in self._strike_prices:
+            return Btc5mRound(
+                round_id=round_id, slug=poly_data["slug"], title=poly_data["title"],
+                strike_price=0.0, current_btc_price=twap_px, price_delta=0.0,
+                start_time=round_ts, end_time=end_ts, seconds_remaining=seconds_rem,
+                market_price_up=mkt_up, market_price_down=mkt_down,
+                calculated_prob_up=0.5, calculated_prob_down=0.5, z_score=0.0,
+                ict_fvg_status="NEUTRAL_SWEEP", signal="ABSTAIN",
+                signal_reason=f"Oracle feed warming for {coin}: no real Chainlink or exchange print yet. Strike not locked.",
+                symbol=coin, spot_price=spot_px, twap_price=twap_px, oracle_lag_delta=lag_delta,
+                projected_twap=projected_twap, clob_token_ids=poly_data.get("clob_token_ids"),
+                oracle_source=str(oracle.get("source", "binance")),
+            )
         initial_strike = poly_data.get("price_to_beat") if poly_data.get("price_to_beat") else twap_px
         strike_px = self.get_or_set_strike(coin, round_ts, initial_strike)
 
@@ -248,7 +270,7 @@ class MultiCryptoRoundAnalyzer:
         else:
             edge_up = round(prob_up - mkt_up, 3)
             edge_down = round(prob_down - mkt_down, 3)
-            lag_indicator = f"Oracle Lag: {'+' if lag_delta >= 0 else ''}${lag_delta:.4f}"
+            lag_indicator = f"{oracle.get('source', 'binance').title()} Spot-TWAP Lag: {'+' if lag_delta >= 0 else ''}${lag_delta:.4f}"
             max_counter_lag = clean_delta * 0.35
             dominant_lead = DOMINANT_LEAD_THRESHOLD.get(coin, 50.0)
 
@@ -363,7 +385,8 @@ class MultiCryptoRoundAnalyzer:
             twap_price=twap_px,
             oracle_lag_delta=lag_delta,
             projected_twap=projected_twap,
-            clob_token_ids=poly_data.get("clob_token_ids")
+            clob_token_ids=poly_data.get("clob_token_ids"),
+            oracle_source=str(oracle.get("source", "binance"))
         )
 
     def get_upcoming_rounds(self, count: int = 3, now_ts: Optional[int] = None) -> List[Dict[str, Any]]:

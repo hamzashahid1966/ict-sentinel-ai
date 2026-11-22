@@ -7,7 +7,6 @@ Calculates Instantaneous Spot Price, Chainlink 60s TWAP Oracle Price, Oracle Lag
 import time
 import ssl
 import json
-import random
 import socket
 import urllib.request
 import urllib.parse
@@ -42,28 +41,42 @@ DEFAULT_FALLBACK_PRICES = {
 }
 
 
+# A Chainlink point older than this is treated as stale and the exchange tape is used instead.
+CHAINLINK_MAX_AGE_SECONDS = 5.0
+
+
 class MultiCryptoPriceFeed:
-    def __init__(self):
+    def __init__(self, start_background: bool = True, use_chainlink: bool = True):
         self.lock = threading.RLock()
+        # DEFAULT_FALLBACK_PRICES are display placeholders only. They never enter the
+        # tick history and a coin is not "warm" until a real exchange print replaces them.
         self._prices: Dict[str, float] = dict(DEFAULT_FALLBACK_PRICES)
         self._anchor_prices: Dict[str, float] = dict(DEFAULT_FALLBACK_PRICES)
+        self._warm: Dict[str, bool] = {c: False for c in SUPPORTED_COINS}
         self._last_update_ts: float = 0.0
         self._tick_history: Dict[str, List[Tuple[float, float]]] = {c: [] for c in SUPPORTED_COINS}
         self._ssl_ctx = ssl._create_unverified_context()
         self._headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}
 
-        # Seed initial tick history so TWAP starts immediately with realistic rolling samples
-        now = time.time()
-        for coin in SUPPORTED_COINS:
-            base_px = self._prices[coin]
-            for i in range(60, 0, -2):
-                t = now - i
-                jitter = (random.random() - 0.5) * DEFAULT_VOLATILITY[coin] * 0.3
-                self._tick_history[coin].append((t, round(base_px + jitter, 4 if coin == "XRP" else 2)))
+        # Chainlink <coin>/USD spot + 60s TWAP: the series Polymarket actually resolves on.
+        self.chainlink = None
+        if use_chainlink:
+            try:
+                from .chainlink_feed import ChainlinkOracleFeed
+                self.chainlink = ChainlinkOracleFeed(coins=SUPPORTED_COINS, start=start_background)
+            except Exception:
+                self.chainlink = None
 
-        # Start dedicated background poller thread (non-blocking in-memory cache)
-        self._bg_thread = threading.Thread(target=self._background_poller, daemon=True)
-        self._bg_thread.start()
+        # Dedicated background poller thread for the exchange tape (Binance, Coinbase fallback)
+        self._bg_thread = None
+        if start_background:
+            self._bg_thread = threading.Thread(target=self._background_poller, daemon=True)
+            self._bg_thread.start()
+
+    def is_warm(self, symbol: str = "BTC") -> bool:
+        """True once at least one real exchange print has been received for the coin."""
+        with self.lock:
+            return bool(self._warm.get(symbol.upper(), False))
 
     def _background_poller(self):
         """Continuously streams live ticks from Binance / Coinbase in background."""
@@ -104,33 +117,36 @@ class MultiCryptoPriceFeed:
                         if k not in fresh:
                             fresh[k] = v
 
-        with self.lock:
-            if fresh:
-                self._anchor_prices.update(fresh)
-                self._prices.update(fresh)
-            else:
-                # Natural microstructure ticks when offline or between polls
-                for coin in SUPPORTED_COINS:
-                    anchor = self._anchor_prices[coin]
-                    vol = DEFAULT_VOLATILITY[coin]
-                    current = self._prices[coin]
-                    drift = random.gauss(0, vol * 0.10)
-                    mean_reversion = (anchor - current) * 0.05
-                    new_px = current + drift + mean_reversion
-                    self._prices[coin] = round(new_px, 4 if coin == "XRP" else 2)
+        if not fresh:
+            # Offline or rate-limited: leave the tape untouched. Fabricating ticks here
+            # would pollute the TWAP and could lock a round strike on an invented price.
+            return
 
+        with self.lock:
+            self._anchor_prices.update(fresh)
+            self._prices.update(fresh)
             self._last_update_ts = now
-            for coin in SUPPORTED_COINS:
-                px = self._prices[coin]
+            for coin, px in fresh.items():
+                if coin not in self._tick_history:
+                    continue
+                self._warm[coin] = True
                 self._tick_history[coin].append((now, px))
                 cutoff = now - 300.0
                 self._tick_history[coin] = [t for t in self._tick_history[coin] if t[0] >= cutoff]
 
+    def _binance_batch_url(self) -> str:
+        """
+        Builds the multi-symbol ticker URL. Binance validates the `symbols` array
+        against a strict pattern and returns HTTP 400 on any whitespace, so the
+        JSON must be serialised without the default ", " separator.
+        """
+        symbols_json = json.dumps([BINANCE_SYMBOL_MAP[c] for c in SUPPORTED_COINS], separators=(",", ":"))
+        return f"https://api.binance.com/api/v3/ticker/price?symbols={urllib.parse.quote(symbols_json, safe=',')}"
+
     def _fetch_binance_batch(self) -> Dict[str, float]:
         """Fetches all 4 coins in a single HTTP request from Binance."""
         try:
-            symbols_json = json.dumps([BINANCE_SYMBOL_MAP[c] for c in SUPPORTED_COINS])
-            url = f"https://api.binance.com/api/v3/ticker/price?symbols={urllib.parse.quote(symbols_json)}"
+            url = self._binance_batch_url()
             req = urllib.request.Request(url, headers=self._headers)
             with urllib.request.urlopen(req, context=self._ssl_ctx, timeout=2.0) as res:
                 items = json.loads(res.read())
@@ -174,25 +190,46 @@ class MultiCryptoPriceFeed:
             # Fallback to current spot
             return self._prices.get(sym, DEFAULT_FALLBACK_PRICES.get(sym, 1.0))
 
-    def get_oracle_analysis(self, symbol: str = "BTC") -> Dict[str, float]:
+    def get_oracle_analysis(self, symbol: str = "BTC") -> Dict[str, Any]:
         """
-        Computes the Oracle Basis Discrepancy:
-        - spot: Instantaneous exchange price
-        - twap: 60-second Chainlink resolution index
-        - lag_delta: spot - twap (Predictive indicator: spot leads TWAP!)
-        - projected_twap: Where TWAP will settle in next 60 seconds
+        Computes the Oracle Basis Discrepancy on the series Polymarket resolves on:
+        - spot / twap: Chainlink <coin>/USD spot and 60s TWAP when fresh, else the
+          exchange tape and a 60s average of it (source = "chainlink" | "binance")
+        - exchange_spot: the Binance/Coinbase print, kept separately as a leading
+          indicator (it runs ~2s ahead of Chainlink and ~0.15% above it in USDT terms)
+        - lag_delta: spot - twap (spot leads TWAP)
+        - projected_twap: where the TWAP is heading as spot is absorbed
         """
         sym = symbol.upper()
-        spot = self.get_price(sym)
+        exchange_spot = self.get_price(sym)
+        source = "binance"
+        spot = exchange_spot
         twap = self.get_twap_price(sym, window_sec=60.0)
-        lag_delta = round(spot - twap, 4 if sym == "XRP" else 2)
-        # 60s projected TWAP as spot is absorbed
-        projected = round((spot * 0.65) + (twap * 0.35), 4 if sym == "XRP" else 2)
+
+        cl = self.chainlink
+        if cl is not None:
+            try:
+                cl_spot, spot_age = cl.get_spot(sym)
+                cl_twap, twap_age = cl.get_twap(sym)
+            except Exception:
+                cl_spot = cl_twap = None
+                spot_age = twap_age = float("inf")
+            if (cl_spot is not None and cl_twap is not None
+                    and spot_age <= CHAINLINK_MAX_AGE_SECONDS and twap_age <= CHAINLINK_MAX_AGE_SECONDS):
+                source = "chainlink"
+                spot = float(cl_spot)
+                twap = float(cl_twap)
+
+        nd = 4 if sym == "XRP" else 2
+        lag_delta = round(spot - twap, nd)
+        projected = round((spot * 0.65) + (twap * 0.35), nd)
         return {
             "spot": spot,
             "twap": twap,
             "lag_delta": lag_delta,
-            "projected_twap": projected
+            "projected_twap": projected,
+            "source": source,
+            "exchange_spot": exchange_spot,
         }
 
     def get_volatility(self, symbol: str = "BTC") -> float:

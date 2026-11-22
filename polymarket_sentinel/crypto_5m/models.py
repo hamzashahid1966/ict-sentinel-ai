@@ -33,6 +33,7 @@ class Btc5mRound:
     projected_twap: float = 0.0     # Expected TWAP over the next 60s
     resolved_outcome: Optional[str] = None  # "UP", "DOWN"
     clob_token_ids: Optional[Any] = None    # [token_id_up, token_id_down]
+    oracle_source: str = "binance"          # "chainlink" (resolution series) or "binance" (exchange fallback)
 
 
 @dataclass
