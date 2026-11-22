@@ -29,3 +29,6 @@ deploy_*.py
 /test_*.py
 !tests/
 
+polymarket_sentinel/round_recorder.db
+real_data/gold/gold_5m_24m.json
+real_data/gold/archive/

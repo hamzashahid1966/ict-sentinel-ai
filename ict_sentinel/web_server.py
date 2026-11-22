@@ -13,7 +13,7 @@ import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import Dict, Any, List, Optional, Set
 
-from .config import ASSET_SPECS, INITIAL_CAPITAL, NY_TZ, LON_TZ
+from .config import ASSET_SPECS, INITIAL_CAPITAL, NY_TZ, LON_TZ, MAX_BAR_AGE_MINUTES, AUTO_TRADING_ENABLED
 from .storage import StorageEngine
 from .data_feed import DataFeedEngine
 from .ipda_engine import IPDAEngine
@@ -43,6 +43,9 @@ class BotController:
         self.last_cycle_time: Optional[str] = None
         self.current_prices: Dict[str, float] = {a: 0.0 for a in ASSET_SPECS}
         self.last_checked_session: Optional[str] = None
+        self._stale_assets: Set[str] = set()
+        self.auto_trading_enabled: bool = AUTO_TRADING_ENABLED
+        self._disabled_notice_sent: bool = False
         self.lock = threading.Lock()
 
         # Real-time Activity Event Buffer (stores latest 50 live micro-events)
@@ -168,8 +171,22 @@ class BotController:
                     lvl = "success" if tr.dollar_pnl > 0 else "danger"
                     self._add_activity("TRADE", f"Position Closed [{tr.outcome}]", f"{tr.asset} {tr.direction} exit @ {tr.exit_price:.2f} (Net: ${tr.dollar_pnl:+.2f})", lvl)
 
-            # 2. Check for new signals
-            signal = self.ipda.evaluate_market(asset, candles, memory_engine=self.memory_engine)
+            # 2. Check for new signals (never on a stale tape, never while the kill switch is off)
+            if not self.auto_trading_enabled:
+                if not self._disabled_notice_sent:
+                    self._disabled_notice_sent = True
+                    self._add_activity("RISK", "Auto-Trading DISABLED", "ICT live entries are switched off (ICT_AUTO_TRADING_ENABLED is not true). Open positions are still managed; diagnostics and demo replay still run. See docs/GOLD_LONDON_MODEL_VALIDATION.md.", "warning")
+                    state_changed = True
+                continue
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            if not self.ipda.bars_are_fresh(candles, now_utc):
+                if asset not in self._stale_assets:
+                    self._stale_assets.add(asset)
+                    age_min = int((now_utc - current_bar.timestamp.astimezone(datetime.timezone.utc)).total_seconds() // 60)
+                    self._add_activity("DATA", f"Stale Tape: {asset}", f"Latest bar is {age_min} min old (limit {MAX_BAR_AGE_MINUTES}). Entries suspended until the feed catches up.", "warning")
+                continue
+            self._stale_assets.discard(asset)
+            signal = self.ipda.evaluate_market(asset, candles, memory_engine=self.memory_engine, now_utc=now_utc)
             if signal:
                 opened = self.order_mgr.open_position_from_signal(signal, current_bar.timestamp_et)
                 if opened:
@@ -191,6 +208,9 @@ class BotController:
 
     def _exec_demo(self):
         self.is_demo_running = True
+        # A replay must not append to the permanent learning ledger.
+        prev_persist = self.memory_engine.persist_knowledge
+        self.memory_engine.persist_knowledge = False
         self._add_activity("SIMULATION", "Accelerated Simulation Started", "Replaying 1,500 historical bars across CME & Forex feeds...", "accent")
         self.broadcast_state()
         try:
@@ -224,6 +244,7 @@ class BotController:
                                 self._add_activity("ORDER", f"Signal Executed: {sig.asset}", f"{sig.direction} @ {sig.entry_price:.2f} | 50% CE: {sig.pd_array.consequent_encroachment:.2f}", "accent")
             self._add_activity("SIMULATION", "Live Simulation Completed", f"Processed live market stream. Strategy tested on real bars.", "success")
         finally:
+            self.memory_engine.persist_knowledge = prev_persist
             self.is_demo_running = False
             self.broadcast_state()
 
@@ -409,7 +430,7 @@ class BotController:
             diagnostics.append(diag)
 
         # Micro-state string
-        current_dd = max(0.0, acct.peak_balance - acct.balance)
+        current_dd = self.storage.get_daily_drawdown(datetime.datetime.now(NY_TZ).date().isoformat())
         locked_for_day = current_dd >= 50.0
         if locked_for_day:
             micro_state = f"Daily Risk Budget Exceeded (${current_dd:.2f} / $50.00) — Circuit Breaker Locked (Capital Protected)"
@@ -431,6 +452,7 @@ class BotController:
 
         return {
             "running": self.is_running,
+            "auto_trading_enabled": self.auto_trading_enabled,
             "demo": self.is_demo_running,
             "session": session,
             "session_info": session_info,
