@@ -220,6 +220,13 @@ class MultiCryptoRoundAnalyzer:
         round_id = f"{coin.lower()}-updown-5m-{round_ts}"
 
         # 1. Spot Price & Oracle TWAP Analysis
+        # Warm state is sampled BEFORE the oracle snapshot: the book fetch below takes ~1s,
+        # and a first real print landing in that gap must not bless a snapshot taken cold.
+        feed_warm = True
+        try:
+            feed_warm = bool(self.feed.is_warm(coin))
+        except Exception:
+            pass
         oracle = self.feed.get_oracle_analysis(coin)
         spot_px = oracle["spot"]
         twap_px = oracle["twap"]
@@ -246,11 +253,6 @@ class MultiCryptoRoundAnalyzer:
         # trading the strike is our own TWAP at first sight of the round. That value
         # must come from a real print: a cold feed still holds the hard-coded fallback
         # price, and locking it produced four-figure phantom deltas in production.
-        feed_warm = True
-        try:
-            feed_warm = bool(self.feed.is_warm(coin))
-        except Exception:
-            pass
         if not poly_data.get("price_to_beat") and not feed_warm and f"{coin.upper()}_{round_ts}" not in self._strike_prices:
             return Btc5mRound(
                 round_id=round_id, slug=poly_data["slug"], title=poly_data["title"],

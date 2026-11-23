@@ -32,3 +32,7 @@ deploy_*.py
 polymarket_sentinel/round_recorder.db
 real_data/gold/gold_5m_24m.json
 real_data/gold/archive/
+
+# Local market-history store (rebuild with: python3 -m market_data.history all)
+real_data/market_history.db
+crypto_sentinel/crypto_real_paper.db

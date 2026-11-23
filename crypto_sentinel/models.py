@@ -89,6 +89,8 @@ class CryptoPosition:
     fees_paid: float = 0.0
     is_stagnant: bool = False
     stagnant_at: Optional[float] = None
+    funding_paid: float = 0.0              # net funding paid (+) / received (-), REAL_DATA_PAPER
+    last_funding_ts: Optional[float] = None  # latest funding settlement already booked (unix s)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -18,7 +18,8 @@ from crypto_sentinel.engines.momentum_engine import MomentumEngine
 from crypto_sentinel.engines.liquidation_engine import LiquidationEngine
 from crypto_sentinel.arbitration import SignalArbitrationEngine
 from crypto_sentinel.risk_engine import CryptoRiskEngine
-from crypto_sentinel.order_manager import CryptoOrderManager
+from crypto_sentinel.order_manager import CryptoOrderManager, paper_entry_fill
+from crypto_sentinel.config import REAL_PAPER_MODE
 
 class CryptoBotController:
     def __init__(self):
@@ -151,7 +152,10 @@ class CryptoBotController:
             acc_prof = STRATEGY_PROFILES.get(account.strategy_profile, STRATEGY_PROFILES.get("FAST_SCALPER", {}))
             t1_r = acc_prof.get("target_1_r", 0.30)
             t2_r = acc_prof.get("target_2_r", 0.60)
+            real = (account.mode == REAL_PAPER_MODE)
             for pos in open_positions:
+                # Fresh account per position: each booking must build on the previous one, not a stale snapshot.
+                account = self.storage.get_account()
                 price = self.data_feed.get_current_price(pos.symbol)
                 if price is None:
                     continue  # no real price yet: leave the position untouched rather than invent one
@@ -162,7 +166,13 @@ class CryptoBotController:
                         pos.target_1 = round(pos.entry_price + (r_dist * t1_r if pos.direction == "LONG" else -r_dist * t1_r), 6 if pos.entry_price < 1 else 2)
                         pos.target_2 = round(pos.entry_price + (r_dist * t2_r if pos.direction == "LONG" else -r_dist * t2_r), 6 if pos.entry_price < 1 else 2)
                         self.storage.save_position(pos)
-                self.order_mgr.update_position_with_price(pos, price, account)
+                if real:
+                    self.order_mgr.settle_funding(pos, account)
+                    account = self.storage.get_account()
+                    self.order_mgr.update_position_with_price(pos, price, account, quote=self.data_feed.get_quote(pos.symbol))
+                else:
+                    self.order_mgr.update_position_with_price(pos, price, account)
+            account = self.storage.get_account()
 
         # Step 2: Run Curated Top 12 Prime Screener every 30 seconds or if empty
         now = time.time()
@@ -249,7 +259,20 @@ class CryptoBotController:
                                 eligible_swap_pos = pos
                                 break
 
-                    if eligible_swap_pos:
+                    if eligible_swap_pos and account.mode == REAL_PAPER_MODE:
+                        mins_held = int((time.time() - eligible_swap_pos.entry_time) // 60)
+                        swap_px = self.data_feed.get_current_price(eligible_swap_pos.symbol) or eligible_swap_pos.current_price or eligible_swap_pos.entry_price
+                        self.order_mgr.close_position_manually(eligible_swap_pos.position_id, swap_px, self.storage.get_account(),
+                                                               quote=self.data_feed.get_quote(eligible_swap_pos.symbol))
+                        self.storage.log_activity(
+                            action="OPPORTUNITY_SWAP",
+                            coin=eligible_swap_pos.symbol,
+                            detail=f"⚡ Swapped stagnant {eligible_swap_pos.symbol} (held {mins_held}m) for A+ setup {opp.symbol} ({int(opp.confidence_score*100)}% conviction) at the real Binance price.",
+                            level="SUCCESS"
+                        )
+                        account = self.storage.get_account()
+                        current_open = [p for p in current_open if p.position_id != eligible_swap_pos.position_id]
+                    elif eligible_swap_pos:
                         mins_held = int((time.time() - eligible_swap_pos.entry_time) // 60)
                         swap_px = eligible_swap_pos.current_price or self.data_feed.get_current_price(eligible_swap_pos.symbol) or eligible_swap_pos.entry_price
                         is_l = (eligible_swap_pos.direction == "LONG")
@@ -310,8 +333,14 @@ class CryptoBotController:
                     opp.target_1 = round(opp.current_price + (r_dist * t1_r if opp.direction == "LONG" else -r_dist * t1_r), 6 if opp.current_price < 1 else 2)
                     opp.target_2 = round(opp.current_price + (r_dist * t2_r if opp.direction == "LONG" else -r_dist * t2_r), 6 if opp.current_price < 1 else 2)
 
+                fill_px = None
+                if account.mode == REAL_PAPER_MODE:
+                    fill_px = paper_entry_fill(opp.direction, self.data_feed.get_quote(opp.symbol), opp.stop_loss)
+                    if fill_px is None:
+                        self.storage.log_activity("RISK_GATE", opp.symbol, "No real Binance quote, or the real fill would already be through the stop. Trade skipped.", "WARNING")
+                        continue
                 self.current_status = f"TAKING TRADE: {opp.direction} {opp.symbol} ({opp.engine})"
-                new_pos = self.order_mgr.open_position(opp, qty, account.mode)
+                new_pos = self.order_mgr.open_position(opp, qty, account.mode, fill_price=fill_px)
                 self.last_trade_opened_at = time.time()
                 current_open.append(new_pos)
                 trades_opened += 1
@@ -352,7 +381,8 @@ class CryptoBotController:
         open_positions = self.storage.get_open_positions()
         for pos in open_positions:
             price = self.data_feed.get_current_price(pos.symbol) or pos.current_price or pos.entry_price
-            self.order_mgr.close_position_manually(pos.position_id, price, account)
+            account = self.storage.get_account()
+            self.order_mgr.close_position_manually(pos.position_id, price, account, quote=self.data_feed.get_quote(pos.symbol))
 
         if account.mode == "BINANCE_TESTNET":
             testnet_positions = self.order_mgr.fetch_binance_testnet_positions() or []

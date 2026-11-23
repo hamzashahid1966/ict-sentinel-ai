@@ -1373,6 +1373,7 @@ svg.es{width:100%;height:100%;overflow:visible}
 
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="cryptoModeSelect" onchange="cryptoChangeMode(this.value)" style="background:#0F172A;border:1px solid var(--bdr);color:#F8FAFC;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;outline:none">
+          <option value="REAL_DATA_PAPER">Real Binance Paper (live prices)</option>
           <option value="SIMULATED_PAPER">Simulated Paper Mode</option>
           <option value="BINANCE_TESTNET">Binance Testnet API</option>
         </select>
@@ -2468,11 +2469,15 @@ async function cryptoReset() {
   }
 }
 async function cryptoChangeMode(mode) {
-  await fetch('/api/crypto/mode', {
+  const r = await fetch('/api/crypto/mode', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mode })
   });
+  try {
+    const j = await r.json();
+    if (j && j.ok === false && j.error) alert(j.error);
+  } catch (e) {}
   setTimeout(loadCryptoState, 200);
 }
 
@@ -4113,15 +4118,20 @@ class Handler(BaseHTTPRequestHandler):
             target = next((p for p in open_pos if p.position_id == pos_id), None)
             if target:
                 p = CRYPTO_BOT.data_feed.get_current_price(target.symbol) or target.current_price or target.entry_price
-                CRYPTO_BOT.order_mgr.close_position_manually(pos_id, p, account)
+                CRYPTO_BOT.order_mgr.close_position_manually(pos_id, p, account, quote=CRYPTO_BOT.data_feed.get_quote(target.symbol))
             self._json({"ok": True})
         elif self.path == "/api/crypto/reset":
             CRYPTO_BOT.reset(); self._json({"ok": True})
         elif self.path == "/api/crypto/mode":
             body = self._read_body()
             mode = body.get("mode", "SIMULATED_PAPER")
-            CRYPTO_BOT.storage.set_mode(mode)
-            self._json({"ok": True})
+            current = CRYPTO_BOT.storage.get_account().mode
+            if "REAL_DATA_PAPER" in (mode, current) and mode != current:
+                # The real-data paper account lives in its own database; switching needs a restart.
+                self._json({"ok": False, "error": "Real Binance paper mode uses its own account. Set CRYPTO_EXECUTION_MODE in .env and restart."})
+            else:
+                CRYPTO_BOT.storage.set_mode(mode)
+                self._json({"ok": True})
         elif self.path == "/api/crypto/profile":
             body = self._read_body()
             prof = body.get("profile", "MODERATE_GROWTH")

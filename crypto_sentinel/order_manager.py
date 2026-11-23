@@ -19,11 +19,33 @@ from crypto_sentinel.config import (
     TAKER_FEE_PCT, DEFAULT_SLIPPAGE_PCT, STRATEGY_PROFILES,
     TARGET_1_R, TARGET_2_R, DEFAULT_STRATEGY_PROFILE, SSL_CONTEXT,
     DIRECT_OPENER, direct_urlopen,
-    STAGNATION_TIMEOUT_SECONDS, TRUE_FEE_BUFFER_PCT, OPPORTUNITY_SWAP_MIN_SCORE
+    STAGNATION_TIMEOUT_SECONDS, TRUE_FEE_BUFFER_PCT, OPPORTUNITY_SWAP_MIN_SCORE,
+    BINANCE_PUBLIC_REST, REAL_PAPER_MODE
 )
 from crypto_sentinel.models import CryptoPosition, AnalysisOpportunity, CryptoAccount
 from crypto_sentinel.storage import CryptoStorageEngine
 from crypto_sentinel.ai_analyzer import CryptoAIAnalyzer
+
+def paper_entry_fill(direction: str, quote: Optional[tuple], stop: float) -> Optional[float]:
+    """
+    REAL_DATA_PAPER entry: a market order crosses the real book, so a long buys the best ask
+    and a short sells the best bid. None (no trade) without a real quote, or when the fill
+    would already be through the stop.
+    """
+    if not quote:
+        return None
+    bid, ask = quote
+    if direction == "LONG":
+        return ask if ask > stop else None
+    return bid if bid < stop else None
+
+
+def _exit_fill(pos: CryptoPosition, current_price: float, quote: Optional[tuple]) -> float:
+    """Closing a long sells the real bid; closing a short buys the real ask. Falls back to the price seen."""
+    if not quote:
+        return current_price
+    return quote[0] if pos.direction == "LONG" else quote[1]
+
 
 class CryptoOrderManager:
     def __init__(self, storage: CryptoStorageEngine):
@@ -35,6 +57,7 @@ class CryptoOrderManager:
         self._last_fetch_warn: float = 0.0
         self._stops_placed: set = set()   # position_ids protected by a resting exchange stop this process
         self._stop_retry_at: Dict[str, float] = {}   # position_id -> earliest next attempt after a failure
+        self._funding_checked_at: Dict[str, float] = {}  # position_id -> last funding lookup (REAL_DATA_PAPER)
 
     # ── Exchange transport ─────────────────────────────────────────────
     def _testnet_keys(self) -> bool:
@@ -146,14 +169,17 @@ class CryptoOrderManager:
             return pos.quantity
         return (pos.quantity / 2.0) if pos.t1_hit else pos.quantity
 
-    def open_position(self, opp: AnalysisOpportunity, qty: float, mode: str) -> CryptoPosition:
+    def open_position(self, opp: AnalysisOpportunity, qty: float, mode: str, fill_price: Optional[float] = None) -> CryptoPosition:
         """
         Executes a new position under Double Tap protocol.
+        fill_price (REAL_DATA_PAPER): the real Binance price the market order fills at; targets
+        are measured from it and the entry fee is taken out of the balance.
         """
         pos_id = f"POS_{opp.symbol}_{int(time.time())}_{uuid.uuid4().hex[:4].upper()}"
+        entry_px = fill_price if fill_price is not None else opp.current_price
 
         # Calculate fees
-        notional = qty * opp.current_price
+        notional = qty * entry_px
         entry_fee = notional * (TAKER_FEE_PCT / 100.0)
 
         # Dynamic Target 1 and Target 2 calculation from active strategy profile
@@ -161,16 +187,17 @@ class CryptoOrderManager:
         prof = STRATEGY_PROFILES.get(acc.strategy_profile, STRATEGY_PROFILES.get(DEFAULT_STRATEGY_PROFILE, {}))
         t1_r = prof.get("target_1_r", TARGET_1_R)
         t2_r = prof.get("target_2_r", TARGET_2_R)
-        r_dist = abs(opp.current_price - opp.stop_loss)
-        target_1 = round(opp.current_price + (r_dist * t1_r if opp.direction == "LONG" else -r_dist * t1_r), 6 if opp.current_price < 1 else 2)
-        target_2 = round(opp.current_price + (r_dist * t2_r if opp.direction == "LONG" else -r_dist * t2_r), 6 if opp.current_price < 1 else 2)
+        r_dist = abs(entry_px - opp.stop_loss)
+        nd = 6 if entry_px < 1 else 2
+        target_1 = round(entry_px + (r_dist * t1_r if opp.direction == "LONG" else -r_dist * t1_r), nd)
+        target_2 = round(entry_px + (r_dist * t2_r if opp.direction == "LONG" else -r_dist * t2_r), nd)
 
         pos = CryptoPosition(
             position_id=pos_id,
             symbol=opp.symbol,
             engine=opp.engine,
             direction=opp.direction,
-            entry_price=opp.current_price,
+            entry_price=entry_px,
             quantity=qty,
             initial_stop=opp.stop_loss,
             current_stop=opp.stop_loss,
@@ -186,10 +213,13 @@ class CryptoOrderManager:
         )
 
         self.storage.save_position(pos)
+        if mode == REAL_PAPER_MODE:
+            acc_now = self.storage.get_account()
+            self.storage.update_account(balance=acc_now.balance - entry_fee, realized_pnl_delta=-entry_fee)
         self.storage.log_activity(
             action="ORDER_OPEN",
             coin=opp.symbol,
-            detail=f"Opened {opp.direction} {qty} @ {opp.current_price:.4f} | Engine: {opp.engine} | SL: {opp.stop_loss:.4f} | TP1: {target_1:.4f} ({t1_r}R) | TP2: {target_2:.4f} ({t2_r}R)",
+            detail=f"Opened {opp.direction} {qty} @ {entry_px:.4f}{' (real Binance fill)' if mode == REAL_PAPER_MODE else ''} | Engine: {opp.engine} | SL: {opp.stop_loss:.4f} | TP1: {target_1:.4f} ({t1_r}R) | TP2: {target_2:.4f} ({t2_r}R)",
             level="SUCCESS"
         )
 
@@ -199,7 +229,8 @@ class CryptoOrderManager:
 
         return pos
 
-    def update_position_with_price(self, pos: CryptoPosition, current_price: float, account: CryptoAccount):
+    def update_position_with_price(self, pos: CryptoPosition, current_price: float, account: CryptoAccount,
+                                   quote: Optional[tuple] = None):
         """
         Double Tap lifecycle management on price updates:
         1. Check Target 1 (1.5R): close 50% and move stop to entry defensive buffer.
@@ -210,7 +241,11 @@ class CryptoOrderManager:
             return
 
         testnet = (account.mode == "BINANCE_TESTNET")
+        real = (account.mode == REAL_PAPER_MODE)
         is_long = (pos.direction == "LONG")
+        # REAL_DATA_PAPER: triggers on the real mark (current_price), fills at the real bid/ask.
+        fill = _exit_fill(pos, current_price, quote) if real else current_price
+        fill_move = (fill - pos.entry_price) if is_long else (pos.entry_price - fill)
         risk_dist = abs(pos.entry_price - pos.initial_stop)
         current_move = (current_price - pos.entry_price) if is_long else (pos.entry_price - current_price)
         r_multiple = (current_move / risk_dist) if risk_dist > 0 else 0.0
@@ -229,8 +264,12 @@ class CryptoOrderManager:
                     return
                 pos.t1_hit = True
                 # Partial exit of 50%
-                half_pnl = round(current_move * half_qty, 2)
-                t1_fee = round(half_qty * current_price * (TAKER_FEE_PCT / 100.0), 4)
+                if real:
+                    half_pnl = fill_move * half_qty
+                    t1_fee = half_qty * fill * (TAKER_FEE_PCT / 100.0)
+                else:
+                    half_pnl = round(current_move * half_qty, 2)
+                    t1_fee = round(half_qty * current_price * (TAKER_FEE_PCT / 100.0), 4)
                 pos.fees_paid += t1_fee
                 
                 # Move Stop to Defensive: Entry + slight cushion in trade direction to guarantee zero-risk
@@ -239,8 +278,10 @@ class CryptoOrderManager:
                 pos.defensive_active = True
                 pos.status = "T1_HIT"
 
-                # Credit realized account balance
-                self.storage.update_account(balance=account.balance + half_pnl, realized_pnl_delta=half_pnl)
+                # Credit realized account balance (net of the exit fee in REAL_DATA_PAPER)
+                booked = half_pnl - t1_fee if real else half_pnl
+                self.storage.update_account(balance=account.balance + booked, realized_pnl_delta=booked)
+                account = self.storage.get_account()
 
                 # Partial close already confirmed above; mirror the exchange size and move the exchange stop
                 if testnet:
@@ -292,18 +333,23 @@ class CryptoOrderManager:
                 self.storage.log_activity("CLOSE_RETRY", pos.symbol, "Target 2 close not confirmed by Binance. Position kept open; retrying next tick.", "WARNING")
                 self.storage.save_position(pos)
                 return
-            remaining_pnl = round(current_move * remaining_qty, 2)
+            if real:
+                remaining_pnl = fill_move * remaining_qty
+                t2_fee = remaining_qty * fill * (TAKER_FEE_PCT / 100.0)
+            else:
+                remaining_pnl = round(current_move * remaining_qty, 2)
+                t2_fee = round(remaining_qty * current_price * (TAKER_FEE_PCT / 100.0), 4)
             total_realized = (pos.unrealized_pnl if not pos.t1_hit else remaining_pnl)
-            t2_fee = round(remaining_qty * current_price * (TAKER_FEE_PCT / 100.0), 4)
             pos.fees_paid += t2_fee
 
             pos.status = "CLOSED"
-            pos.exit_price = current_price
+            pos.exit_price = fill
             pos.exit_reason = "TARGET_2_FULL_FILL (0.8R)"
             pos.exit_time = time.time()
             self._record_closed_trade_learning(pos, remaining_is_half=testnet)
 
-            self.storage.update_account(balance=account.balance + remaining_pnl, realized_pnl_delta=remaining_pnl)
+            booked = remaining_pnl - t2_fee if real else remaining_pnl
+            self.storage.update_account(balance=account.balance + booked, realized_pnl_delta=booked)
 
             self.storage.log_activity(
                 action="DOUBLE_TAP_T2",
@@ -321,18 +367,24 @@ class CryptoOrderManager:
                 self.storage.log_activity("CLOSE_RETRY", pos.symbol, f"{stop_reason} close not confirmed by Binance. Position kept open; retrying next tick.", "DANGER")
                 self.storage.save_position(pos)
                 return
-            loss_move = (pos.current_stop - pos.entry_price) if is_long else (pos.entry_price - pos.current_stop)
-            stop_pnl = round(loss_move * remaining_qty, 2)
-            sl_fee = round(remaining_qty * current_price * (TAKER_FEE_PCT / 100.0), 4)
+            if real:
+                # Real market: the stop is a market order at the real bid/ask, so a gap costs money.
+                stop_pnl = fill_move * remaining_qty
+                sl_fee = remaining_qty * fill * (TAKER_FEE_PCT / 100.0)
+            else:
+                loss_move = (pos.current_stop - pos.entry_price) if is_long else (pos.entry_price - pos.current_stop)
+                stop_pnl = round(loss_move * remaining_qty, 2)
+                sl_fee = round(remaining_qty * current_price * (TAKER_FEE_PCT / 100.0), 4)
             pos.fees_paid += sl_fee
 
             pos.status = "CLOSED"
-            pos.exit_price = current_price
+            pos.exit_price = fill
             pos.exit_reason = stop_reason
             pos.exit_time = time.time()
             self._record_closed_trade_learning(pos, remaining_is_half=testnet)
 
-            self.storage.update_account(balance=account.balance + stop_pnl, realized_pnl_delta=stop_pnl)
+            booked = stop_pnl - sl_fee if real else stop_pnl
+            self.storage.update_account(balance=account.balance + booked, realized_pnl_delta=booked)
 
             log_level = "INFO" if pos.defensive_active else "DANGER"
             self.storage.log_activity(
@@ -378,7 +430,8 @@ class CryptoOrderManager:
         except Exception as e:
             pass
 
-    def close_position_manually(self, pos_id: str, current_price: float, account: CryptoAccount) -> bool:
+    def close_position_manually(self, pos_id: str, current_price: float, account: CryptoAccount,
+                                quote: Optional[tuple] = None) -> bool:
         """
         Operator manual flatten / panic close.
         """
@@ -393,11 +446,18 @@ class CryptoOrderManager:
         if testnet and not self._dispatch_binance_testnet_close(target_pos.symbol, target_pos.direction, remaining_qty, "MANUAL_CLOSE", full=True):
             self.storage.log_activity("CLOSE_RETRY", target_pos.symbol, "Manual close not confirmed by Binance. Position left open.", "DANGER")
             return False
-        move = (current_price - target_pos.entry_price) if is_long else (target_pos.entry_price - current_price)
-        pnl = round(move * remaining_qty, 2)
+        real = (account.mode == REAL_PAPER_MODE)
+        px = _exit_fill(target_pos, current_price, quote) if real else current_price
+        move = (px - target_pos.entry_price) if is_long else (target_pos.entry_price - px)
+        if real:
+            fee = remaining_qty * px * (TAKER_FEE_PCT / 100.0)
+            target_pos.fees_paid += fee
+            pnl = move * remaining_qty - fee
+        else:
+            pnl = round(move * remaining_qty, 2)
 
         target_pos.status = "CLOSED"
-        target_pos.exit_price = current_price
+        target_pos.exit_price = px
         target_pos.exit_reason = "MANUAL_CLOSE"
         target_pos.exit_time = time.time()
         self._record_closed_trade_learning(target_pos, remaining_is_half=testnet)
@@ -412,6 +472,58 @@ class CryptoOrderManager:
             level="WARNING"
         )
         return True
+
+    def _real_get(self, path: str) -> Any:
+        req = urllib.request.Request(f"{BINANCE_PUBLIC_REST}{path}", headers={"User-Agent": "Mozilla/5.0"})
+        with direct_urlopen(req, timeout=5.0) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def settle_funding(self, pos: CryptoPosition, account: CryptoAccount, now: Optional[float] = None,
+                       force: bool = False, min_interval: float = 600.0) -> float:
+        """
+        REAL_DATA_PAPER: book Binance's real funding settlements for an open paper position.
+        A long pays when the rate is positive and receives when negative (shorts the reverse),
+        on notional = open quantity x settlement mark price. Each settlement is booked once
+        (tracked by last_funding_ts) and only if the position was open at that moment.
+        Returns the amount paid (+) / received (-) by this call.
+        """
+        if account.mode != REAL_PAPER_MODE or pos.status == "CLOSED":
+            return 0.0
+        now = time.time() if now is None else now
+        if not force and now - self._funding_checked_at.get(pos.position_id, 0.0) < min_interval:
+            return 0.0
+        self._funding_checked_at[pos.position_id] = now
+        since = max(pos.entry_time or 0.0, pos.last_funding_ts or 0.0)
+        try:
+            rows = self._real_get(f"/fapi/v1/fundingRate?symbol={pos.symbol}&startTime={int(since * 1000) + 1}&limit=100") or []
+        except Exception:
+            return 0.0
+        open_qty = self._remaining_qty(pos, testnet=False)
+        sign = 1.0 if pos.direction == "LONG" else -1.0
+        paid = 0.0
+        latest = pos.last_funding_ts
+        for r in sorted(rows, key=lambda x: int(x.get("fundingTime", 0))):
+            ft = int(r.get("fundingTime", 0)) / 1000.0
+            if ft <= since or ft > now:
+                continue
+            try:
+                rate = float(r["fundingRate"])
+                mark = float(r.get("markPrice") or 0) or (pos.current_price or pos.entry_price)
+            except (KeyError, TypeError, ValueError):
+                continue
+            paid += sign * open_qty * mark * rate
+            latest = ft
+        if latest is not None and latest != pos.last_funding_ts:
+            pos.last_funding_ts = latest
+            pos.funding_paid = (pos.funding_paid or 0.0) + paid
+            pos.fees_paid += paid
+            acc = self.storage.get_account()
+            self.storage.update_account(balance=acc.balance - paid, realized_pnl_delta=-paid)
+            self.storage.save_position(pos)
+            self.storage.log_activity("FUNDING", pos.symbol,
+                                      f"Funding settlement booked: {'paid' if paid >= 0 else 'received'} ${abs(paid):.4f} "
+                                      f"({pos.direction} {open_qty} @ real Binance rate).", "INFO")
+        return paid
 
     def _format_qty_for_symbol(self, symbol: str, qty: float) -> str:
         """Format quantity to the exchange's LOT_SIZE step (floored), falling back to the config table."""

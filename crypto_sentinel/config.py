@@ -58,9 +58,8 @@ if os.path.exists(ENV_PATH):
     except Exception:
         pass
 
-# Base Directory & Database
+# Base Directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CRYPTO_DB_PATH = os.environ.get("CRYPTO_DB_PATH", os.path.join(BASE_DIR, "crypto_sentinel.db"))
 
 # Binance Futures Endpoints
 BINANCE_PUBLIC_REST = "https://fapi.binance.com"
@@ -68,8 +67,21 @@ BINANCE_TESTNET_REST = "https://testnet.binancefuture.com"
 BINANCE_TESTNET_API_KEY = os.environ.get("BINANCE_TESTNET_API_KEY", "")
 BINANCE_TESTNET_API_SECRET = os.environ.get("BINANCE_TESTNET_API_SECRET", "")
 
-# Execution Modes: "SIMULATED_PAPER" or "BINANCE_TESTNET"
+# Execution Modes:
+#   "REAL_DATA_PAPER"  paper trading on REAL Binance USDT-M data: mark price for triggers, real best
+#                      bid/ask for fills, taker fees and real funding settlements. No orders are sent.
+#   "BINANCE_TESTNET"  orders on the Binance Futures testnet (its prices print phantom wicks).
+#   "SIMULATED_PAPER"  legacy paper mode on testnet prices.
+REAL_PAPER_MODE = "REAL_DATA_PAPER"
 DEFAULT_EXECUTION_MODE = os.environ.get("CRYPTO_EXECUTION_MODE", "BINANCE_TESTNET" if BINANCE_TESTNET_API_KEY else "SIMULATED_PAPER")
+IS_REAL_PAPER = DEFAULT_EXECUTION_MODE == REAL_PAPER_MODE
+
+# Database: the real-data paper account keeps its own file so testnet history and any
+# positions still open on the testnet are never mixed into it.
+CRYPTO_DB_PATH = os.environ.get(
+    "CRYPTO_DB_PATH",
+    os.path.join(BASE_DIR, "crypto_real_paper.db" if IS_REAL_PAPER else "crypto_sentinel.db"),
+)
 
 # Account & Risk Parameters
 INITIAL_CAPITAL = 1000.0          # Starting paper equity ($)
@@ -180,10 +192,17 @@ STRATEGY_PROFILES = {
 DEFAULT_STRATEGY_PROFILE = "FAST_SCALPER"
 
 # Universe Configuration - Curated Top 12 Prime Institutional Universe
-TOP_PRIME_SYMBOLS = [
+TESTNET_PRIME_SYMBOLS = [
     "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "LINKUSDT",
     "XRPUSDT", "AVAXUSDT", "SUIUSDT", "INJUSDT", "NEARUSDT", "TIAUSDT"
 ]
+# Real-data paper trades the 12 most liquid established USDT-M perpetuals on real Binance
+# (24h volume, Nov 2026). Thin coins (TIA ~$22M/day, AVAX, INJ) are left out.
+REAL_PRIME_SYMBOLS = [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "BNBUSDT", "DOGEUSDT",
+    "ZECUSDT", "HYPEUSDT", "NEARUSDT", "SUIUSDT", "ADAUSDT", "LINKUSDT"
+]
+TOP_PRIME_SYMBOLS = REAL_PRIME_SYMBOLS if IS_REAL_PAPER else TESTNET_PRIME_SYMBOLS
 
 # AI Behavioral Learning & Auto-Quarantine Circuit Breaker
 AUTO_QUARANTINE_CONSECUTIVE_LOSSES = 2       # Quarantined after 2 consecutive losses
@@ -246,7 +265,9 @@ TOP_50_UNIVERSE = [
     {"symbol": "ATOMUSDT", "name": "Cosmos", "sector": "L1", "tick_size": 0.001, "min_qty": 0.1},
     {"symbol": "XLMUSDT", "name": "Stellar", "sector": "PAYMENTS", "tick_size": 0.00001, "min_qty": 1.0},
     {"symbol": "HBARUSDT", "name": "Hedera", "sector": "L1", "tick_size": 0.00001, "min_qty": 1.0},
-    {"symbol": "ALGOUSDT", "name": "Algorand", "sector": "L1", "tick_size": 0.0001, "min_qty": 1.0}
+    {"symbol": "ALGOUSDT", "name": "Algorand", "sector": "L1", "tick_size": 0.0001, "min_qty": 1.0},
+    {"symbol": "ZECUSDT", "name": "Zcash", "sector": "POW", "tick_size": 0.01, "min_qty": 0.001},
+    {"symbol": "HYPEUSDT", "name": "Hyperliquid", "sector": "DEFI", "tick_size": 0.001, "min_qty": 0.01}
 ]
 
 # Screener Configuration

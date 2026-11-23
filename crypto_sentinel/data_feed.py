@@ -12,9 +12,58 @@ import random
 from typing import List, Dict, Any, Optional
 from crypto_sentinel.config import (
     TOP_50_UNIVERSE, TOP_PRIME_SYMBOLS, BINANCE_PUBLIC_REST, SCREENER_MAX_CANDIDATES, BINANCE_TESTNET_REST, SSL_CONTEXT,
-    DIRECT_OPENER, direct_urlopen
+    DIRECT_OPENER, direct_urlopen, IS_REAL_PAPER
 )
 from crypto_sentinel.models import CryptoCandle, ScreenerCandidate
+
+
+class RealBinanceQuotes:
+    """
+    Real Binance USDT-M prices for paper trading: mark price (what Binance triggers stops on)
+    and the best bid/ask (what a market order would actually fill at). One request each
+    covers every symbol; cached for `ttl` seconds. Nothing is invented: unknown -> None.
+    """
+
+    def __init__(self, ttl: float = 2.0):
+        self.ttl = ttl
+        self._mark: Dict[str, float] = {}
+        self._book: Dict[str, tuple] = {}
+        self._at = 0.0
+
+    def _get(self, url: str):
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
+        with direct_urlopen(req, timeout=5.0) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def refresh(self, force: bool = False):
+        if not force and time.time() - self._at < self.ttl:
+            return
+        try:
+            premium = self._get(f"{BINANCE_PUBLIC_REST}/fapi/v1/premiumIndex") or []
+            book = self._get(f"{BINANCE_PUBLIC_REST}/fapi/v1/ticker/bookTicker") or []
+        except Exception:
+            return  # keep the last real snapshot; never fabricate
+        mark = {r["symbol"]: float(r["markPrice"]) for r in premium if isinstance(r, dict) and float(r.get("markPrice") or 0) > 0}
+        quotes = {}
+        for r in book:
+            try:
+                bid, ask = float(r["bidPrice"]), float(r["askPrice"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if 0 < bid <= ask:
+                quotes[r["symbol"]] = (bid, ask)
+        if mark:
+            self._mark = mark
+        if quotes:
+            self._book = quotes
+        self._at = time.time()
+
+    def mark(self, symbol: str) -> Optional[float]:
+        return self._mark.get(symbol)
+
+    def quote(self, symbol: str) -> Optional[tuple]:
+        return self._book.get(symbol)
+
 
 class CryptoDataFeed:
     def __init__(self):
@@ -29,7 +78,11 @@ class CryptoDataFeed:
         self._tickers_24h_at: float = 0.0
         self._candle_cache: Dict[str, Dict[str, List[CryptoCandle]]] = {}
         self.last_sync_time = 0.0
-        self.sync_testnet_prices()
+        # REAL_DATA_PAPER: every price comes from real Binance (mark for triggers, book for fills).
+        self.price_source = "real" if IS_REAL_PAPER else "testnet"
+        self.real_quotes = RealBinanceQuotes()
+        if self.price_source == "testnet":
+            self.sync_testnet_prices()
 
     def sync_testnet_prices(self):
         """Fetches live ticker prices directly from Binance Futures Testnet REST API."""
@@ -73,8 +126,19 @@ class CryptoDataFeed:
         }
         return seeds
 
+    def get_quote(self, symbol: str) -> Optional[tuple]:
+        """Real Binance best (bid, ask) in REAL_DATA_PAPER mode; None otherwise or when unknown."""
+        if getattr(self, "price_source", "testnet") != "real":
+            return None
+        self.real_quotes.refresh()
+        return self.real_quotes.quote(symbol)
+
     def get_current_price(self, symbol: str) -> Optional[float]:
-        """Latest real Binance Testnet price, or None if no real price has been seen. Never simulated."""
+        """Latest real price, or None if no real price has been seen. Never simulated.
+        REAL_DATA_PAPER: real Binance mark price. Otherwise: Binance Testnet last price."""
+        if getattr(self, "price_source", "testnet") == "real":
+            self.real_quotes.refresh()
+            return self.real_quotes.mark(symbol)
         self.sync_testnet_prices()
         px = self._price_cache.get(symbol)
         return px if px else None  # full exchange precision; rounding to 2dp distorted sub-dollar-tick coins
@@ -101,7 +165,8 @@ class CryptoDataFeed:
         computes 24h change, volume, H1 trend, and scores them.
         Generates clear plain-English reasons for why top candidates are picked.
         """
-        self.sync_testnet_prices()
+        if getattr(self, "price_source", "testnet") == "testnet":
+            self.sync_testnet_prices()
         candidates: List[ScreenerCandidate] = []
         stats = self._fetch_24h_tickers()
         if not stats:

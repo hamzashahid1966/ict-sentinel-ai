@@ -98,6 +98,12 @@ class CryptoStorageEngine:
                 conn.execute("ALTER TABLE crypto_positions ADD COLUMN stagnant_at REAL;")
             except sqlite3.OperationalError:
                 pass
+            for col_sql in ("ALTER TABLE crypto_positions ADD COLUMN funding_paid REAL NOT NULL DEFAULT 0.0;",
+                            "ALTER TABLE crypto_positions ADD COLUMN last_funding_ts REAL;"):
+                try:
+                    conn.execute(col_sql)
+                except sqlite3.OperationalError:
+                    pass
 
             # 3. Screener Candidates
             conn.execute("""
@@ -331,13 +337,13 @@ class CryptoStorageEngine:
                     position_id, symbol, engine, direction, entry_price, quantity,
                     initial_stop, current_stop, target_1, target_2, t1_hit, defensive_active,
                     unrealized_pnl, unrealized_r, entry_time, status, exit_price, exit_reason, exit_time, fees_paid,
-                    is_stagnant, stagnant_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    is_stagnant, stagnant_at, funding_paid, last_funding_ts
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """, (
                 pos.position_id, pos.symbol, pos.engine, pos.direction, pos.entry_price, pos.quantity,
                 pos.initial_stop, pos.current_stop, pos.target_1, pos.target_2, int(pos.t1_hit), int(pos.defensive_active),
                 pos.unrealized_pnl, pos.unrealized_r, pos.entry_time, pos.status, pos.exit_price, pos.exit_reason, pos.exit_time, pos.fees_paid,
-                is_stagnant, stagnant_at
+                is_stagnant, stagnant_at, getattr(pos, "funding_paid", 0.0) or 0.0, getattr(pos, "last_funding_ts", None)
             ))
             conn.commit()
 
@@ -384,7 +390,9 @@ class CryptoStorageEngine:
             exit_time=r['exit_time'],
             fees_paid=r['fees_paid'],
             is_stagnant=is_stagnant,
-            stagnant_at=stagnant_at
+            stagnant_at=stagnant_at,
+            funding_paid=(r['funding_paid'] if 'funding_paid' in r.keys() and r['funding_paid'] is not None else 0.0),
+            last_funding_ts=(r['last_funding_ts'] if 'last_funding_ts' in r.keys() else None),
         )
 
     # --- Screener Methods ---

@@ -52,11 +52,24 @@ class NextSessionPredictor:
         # Construct recent 5-minute bars from tick history
         candles = self._build_recent_candles(history, spot_px, cur_round_ts)
 
-        # 2. Analyze Candle Anatomy & ICT Price Action
-        metrics = self._analyze_candles(candles, spot_px, coin)
+        if candles is None:
+            # Not enough tape to see the prior candle: stand aside rather than guess.
+            metrics = {
+                "prev_close": spot_px, "prev_is_green": False, "prev_body_ratio": 0.0,
+                "prev_move": 0.0, "cur_move": 0.0,
+                "swept_high_rejection": False, "swept_low_rejection": False,
+                "bullish_expansion": False, "bearish_expansion": False,
+                "history_ok": False,
+            }
+            prediction, confidence = "NEUTRAL", 50.0
+            catalyst = "Insufficient price history for the prior 5m candle (feed warming up or gap). No call."
+        else:
+            # 2. Analyze Candle Anatomy & ICT Price Action
+            metrics = self._analyze_candles(candles, spot_px, coin)
+            metrics["history_ok"] = True
 
-        # 3. Predict Next Session Direction & Confidence
-        prediction, confidence, catalyst = self._synthesize_forecast(metrics, coin)
+            # 3. Predict Next Session Direction & Confidence
+            prediction, confidence, catalyst = self._synthesize_forecast(metrics, coin)
 
         result = {
             "symbol": coin,
@@ -91,55 +104,33 @@ class NextSessionPredictor:
                 }
         return results
 
-    def _build_recent_candles(self, ticks: List[tuple], current_px: float, cur_round_ts: int) -> List[Dict[str, float]]:
-        """
-        Slices the rolling tick history into the prior completed 5m candle and current forming candle.
-        """
-        if not ticks or len(ticks) < 4:
-            # Fallback simulated candles based on current spot price
-            return [
-                {"open": current_px * 0.9992, "high": current_px * 1.0005, "low": current_px * 0.9990, "close": current_px * 1.0002},
-                {"open": current_px * 1.0002, "high": current_px * 1.0006, "low": current_px * 0.9998, "close": current_px}
-            ]
+    # A prior candle is only read when the tape covers it end to end: a first tick within
+    # this many seconds of its open and a last tick within this many seconds of its close.
+    PRIOR_CANDLE_EDGE_TOLERANCE_SEC = 30
+    PRIOR_CANDLE_MIN_TICKS = 3
 
-        # Prior 5m candle window: [cur_round_ts - 300, cur_round_ts]
+    def _build_recent_candles(self, ticks: List[tuple], current_px: float, cur_round_ts: int) -> Optional[List[Dict[str, float]]]:
+        """
+        Slices the rolling tick history into the prior completed 5m candle and the current
+        forming candle. Returns None when the tape does not cover the prior candle (cold
+        feed, gap, or history trimmed), so no call is made from a handful of leftover ticks
+        or from invented candles.
+        """
         prev_start = cur_round_ts - 300
-        prev_ticks = [t[1] for t in ticks if prev_start <= t[0] < cur_round_ts]
+        prev = [(t, px) for t, px in (ticks or []) if prev_start <= t < cur_round_ts]
+        tol = self.PRIOR_CANDLE_EDGE_TOLERANCE_SEC
+        if (len(prev) < self.PRIOR_CANDLE_MIN_TICKS
+                or prev[0][0] > prev_start + tol
+                or prev[-1][0] < cur_round_ts - tol):
+            return None
+        prev_px = [px for _, px in prev]
+        candles = [{"open": prev_px[0], "high": max(prev_px), "low": min(prev_px), "close": prev_px[-1]}]
 
-        # Current 5m candle ticks: [cur_round_ts, now]
-        cur_ticks = [t[1] for t in ticks if t[0] >= cur_round_ts]
-
-        candles = []
-        if prev_ticks:
-            candles.append({
-                "open": prev_ticks[0],
-                "high": max(prev_ticks),
-                "low": min(prev_ticks),
-                "close": prev_ticks[-1]
-            })
+        cur_px = [px for t, px in ticks if t >= cur_round_ts]
+        if cur_px:
+            candles.append({"open": cur_px[0], "high": max(cur_px), "low": min(cur_px), "close": cur_px[-1]})
         else:
-            candles.append({
-                "open": current_px,
-                "high": current_px,
-                "low": current_px,
-                "close": current_px
-            })
-
-        if cur_ticks:
-            candles.append({
-                "open": cur_ticks[0],
-                "high": max(cur_ticks),
-                "low": min(cur_ticks),
-                "close": cur_ticks[-1]
-            })
-        else:
-            candles.append({
-                "open": current_px,
-                "high": current_px,
-                "low": current_px,
-                "close": current_px
-            })
-
+            candles.append({"open": current_px, "high": current_px, "low": current_px, "close": current_px})
         return candles
 
     def _analyze_candles(self, candles: List[Dict[str, float]], current_px: float, coin: str) -> Dict[str, Any]:

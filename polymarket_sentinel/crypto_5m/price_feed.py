@@ -44,6 +44,12 @@ DEFAULT_FALLBACK_PRICES = {
 # A Chainlink point older than this is treated as stale and the exchange tape is used instead.
 CHAINLINK_MAX_AGE_SECONDS = 5.0
 
+# Seconds of exchange ticks kept per coin. The session predictor reads the last completed
+# 5m candle; called ~5s before a round opens, that candle ended ~5 minutes earlier, so the
+# tape must cover two full candles plus the forming one (900s). TWAP and volatility read
+# their own sub-windows, so a longer tape does not change them.
+TICK_HISTORY_SECONDS = 900.0
+
 
 class MultiCryptoPriceFeed:
     def __init__(self, start_background: bool = True, use_chainlink: bool = True):
@@ -131,7 +137,7 @@ class MultiCryptoPriceFeed:
                     continue
                 self._warm[coin] = True
                 self._tick_history[coin].append((now, px))
-                cutoff = now - 300.0
+                cutoff = now - TICK_HISTORY_SECONDS
                 self._tick_history[coin] = [t for t in self._tick_history[coin] if t[0] >= cutoff]
 
     def _binance_batch_url(self) -> str:

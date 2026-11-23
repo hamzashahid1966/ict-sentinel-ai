@@ -141,5 +141,38 @@ class TestAnalyzerStrikeGuard(unittest.TestCase):
         self.assertEqual(analyzer._strike_prices, {})
 
 
+    def test_feed_warming_during_the_book_fetch_does_not_lock_the_fallback_strike(self):
+        # Production 2026-11-23 05:42Z: right after a dashboard restart the oracle was read
+        # cold (fallback 59,080), the first real print landed while the CLOB book was being
+        # fetched, the warm check then passed, and the round strike locked at 59,080:
+        # a phantom "+$2,452 dominant lead" and a $5 paper entry on it.
+        feed = MagicMock(spec=MultiCryptoPriceFeed)
+        fb = DEFAULT_FALLBACK_PRICES["BTC"]
+        feed.get_oracle_analysis.return_value = {
+            "spot": fb, "twap": fb, "lag_delta": 0.0, "projected_twap": fb,
+            "source": "binance", "exchange_spot": fb,
+        }
+        feed.get_volatility.return_value = 15.0
+        warm = {"v": False}
+        feed.is_warm.side_effect = lambda coin="BTC": warm["v"]
+        analyzer = MultiCryptoRoundAnalyzer(feed)
+        round_ts = (int(time.time()) // 300) * 300
+
+        def book_fetch(coin, rts):
+            warm["v"] = True  # first real exchange print arrives mid-fetch
+            return {
+                "found": True, "slug": f"btc-updown-5m-{rts}", "title": "t", "price_up": 0.5, "price_down": 0.5,
+                "accepting_orders": True, "closed": False, "resolution_status": "", "winning_outcome": None,
+                "price_to_beat": None, "end_date_iso": None, "clob_token_ids": None, "price_source": "clob",
+            }
+
+        with patch.object(analyzer, "fetch_polymarket_market", side_effect=book_fetch):
+            r = analyzer.analyze_single_coin("BTC", round_ts + 120, round_ts)
+
+        self.assertEqual(r.signal, "ABSTAIN")
+        self.assertIn("warming", r.signal_reason.lower())
+        self.assertEqual(analyzer._strike_prices, {})
+
+
 if __name__ == "__main__":
     unittest.main()
