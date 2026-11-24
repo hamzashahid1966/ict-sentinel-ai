@@ -1,7 +1,8 @@
 """
 Boot Safety Tests for the Web Command Center.
 Verifies that starting the web server never forces the Polymarket 5M scalper
-into LIVE real-money mode or arms it without an explicit operator action.
+into LIVE real-money mode or arms it without an explicit operator action, and that the
+Crypto Sentinel paper bot starts on boot only when CRYPTO_AUTOSTART=1.
 """
 
 import os
@@ -33,7 +34,21 @@ class TestWebBootSafety(unittest.TestCase):
 
             self.assertEqual(poly_bot.btc_scalper.trading_mode, "PAPER")
             self.assertFalse(poly_bot.btc_scalper.is_enabled)
+            crypto_bot.start.assert_not_called()
+
+    def test_crypto_bot_starts_on_boot_only_when_asked(self):
+        from ict_sentinel.web_server import arm_engines_on_boot
+
+        with patch.dict(os.environ, {"CRYPTO_AUTOSTART": "1"}):
+            os.environ.pop("POLYMARKET_LIVE_ENABLED", None)
+            crypto_bot = MagicMock()
+            arm_engines_on_boot(poly_bot=self._make_poly_bot(), crypto_bot=crypto_bot)
             crypto_bot.start.assert_called_once()
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CRYPTO_AUTOSTART", None)
+            crypto_bot = MagicMock()
+            arm_engines_on_boot(poly_bot=self._make_poly_bot(), crypto_bot=crypto_bot)
+            crypto_bot.start.assert_not_called()
 
 
 if __name__ == "__main__":

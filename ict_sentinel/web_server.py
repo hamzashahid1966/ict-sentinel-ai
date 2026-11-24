@@ -778,6 +778,10 @@ svg.es{width:100%;height:100%;overflow:visible}
     <span style="font-size:14px">🪙</span> Crypto Sentinel AI
     <span class="tab-badge" style="background:rgba(245,158,11,.2);color:#FBBF24">BINANCE &amp; 3-ENGINE</span>
   </button>
+  <button id="tabBtnTrend" class="nav-tab" onclick="switchMainTab('trend')">
+    <span style="font-size:14px">📈</span> Trend Paper Test
+    <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr)">DAILY · FORWARD TEST</span>
+  </button>
 </nav>
 
 <div id="view-ict">
@@ -1559,6 +1563,34 @@ svg.es{width:100%;height:100%;overflow:visible}
 </main>
 </div>
 
+<div id="view-trend" style="display:none">
+<main style="max-width:1200px;display:block">
+  <div class="pn" style="margin-bottom:14px">
+    <div class="ph">
+      <div class="pt">📈 Daily Trend Strategy · Forward Paper Test</div>
+      <span class="b b-p" style="font-size:9px">PAPER ONLY · NO ORDERS</span>
+    </div>
+    <div style="padding:14px 16px;font-size:12.5px;color:var(--tx2);line-height:1.6">
+      Once a day, each of 12 coins is held <b style="color:var(--tx)">long above its 50-day average and short below it</b>
+      (account T2, the one being judged). Fake money, real Binance prices, fees and funding included.
+      <span id="trendDates" style="font-family:'JetBrains Mono',monospace;color:var(--tx3)"></span>
+      <div style="margin-top:6px;color:var(--tx3);font-size:11.5px">Pass marks at the end (all on T2): net return &gt; 0 ·
+        max drawdown ≤ 35% · paper result within 3 points of the backtest replay. Expect boring and losing months;
+        judge it only at the end.</div>
+    </div>
+  </div>
+  <div id="trendCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
+    <div class="empty">Loading…</div>
+  </div>
+  <div class="pn">
+    <div class="ph"><div class="pt">Equity at each daily close</div>
+      <span style="font-size:10.5px;color:var(--tx3)">starts at $1,000 each</span></div>
+    <div style="padding:12px 16px"><svg id="trendChart" viewBox="0 0 800 220" style="width:100%;height:220px" role="img" aria-label="Equity of each paper account by day"></svg>
+      <div id="trendLegend" style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--tx2);margin-top:6px"></div></div>
+  </div>
+</main>
+</div>
+
 <script>
 let R=false,AT=[],currentSessionInfo=null;
 let polyCurrentCoin = 'BTC';
@@ -2003,6 +2035,11 @@ function switchMainTab(tab) {
   const viewIct = $('view-ict');
   const viewPoly = $('view-poly');
   const viewCrypto = $('view-crypto');
+  const tabTrend = $('tabBtnTrend');
+  const viewTrend = $('view-trend');
+  if (tabTrend) tabTrend.classList.remove('active');
+  if (viewTrend) viewTrend.style.display = 'none';
+  if (trendInterval) { clearInterval(trendInterval); trendInterval = null; }
 
   tabIct.classList.remove('active');
   tabPoly.classList.remove('active');
@@ -2028,7 +2065,81 @@ function switchMainTab(tab) {
     if (viewCrypto) viewCrypto.style.display = 'block';
     loadCryptoState();
     if (!cryptoInterval) { cryptoInterval = setInterval(loadCryptoState, 2500); }
+   } else if (tab === 'trend') {
+    if (tabTrend) tabTrend.classList.add('active');
+    if (viewTrend) viewTrend.style.display = 'block';
+    loadTrendState();
+    trendInterval = setInterval(loadTrendState, 60000);
   }
+}
+
+// ── Trend paper test (read-only) ───────────────────────────────────────
+let trendInterval = null;
+const TREND_NAMES = {
+  T2_SMA50_LS: ['T2 · long/short (judged)', '#10B981'],
+  T4_SMA50_LONG: ['T4 · long or cash', '#38BDF8'],
+  BUY_HOLD: ['Buy & hold (benchmark)', '#94A3B8'],
+};
+
+function trendEsc(x) { return String(x).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadTrendState() {
+  let d;
+  try { d = await (await fetch('/api/trend/state')).json(); } catch (e) { return; }
+  const cards = $('trendCards');
+  if (d.error) { cards.innerHTML = `<div class="empty">${trendEsc(d.error)}</div>`; return; }
+  $('trendDates').textContent = ` Started ${d.start_day} · day ${d.days_elapsed} · judged ${d.judge_day} (${d.days_left} days left).`;
+  cards.innerHTML = Object.keys(TREND_NAMES).map(k => {
+    const a = d.accounts[k];
+    const [name, col] = TREND_NAMES[k];
+    if (!a) return `<div class="pn" style="padding:14px 16px"><b>${name}</b><div class="empty">not started</div></div>`;
+    const r = a.return_pct, rc = r > 0 ? 'var(--gr)' : (r < 0 ? 'var(--rd)' : 'var(--tx2)');
+    const side = a.longs.length || a.shorts.length ? `long ${a.longs.length} · short ${a.shorts.length}` : 'all cash';
+    return `<div class="pn" style="padding:14px 16px;border-top:3px solid ${col}">
+      <div style="font-size:12px;color:var(--tx2);font-weight:600">${name}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:24px;color:var(--tx);margin-top:6px">$${a.equity.toFixed(2)}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${rc}">${r >= 0 ? '+' : ''}${r.toFixed(2)}%</div>
+      <div style="font-size:11.5px;color:var(--tx3);margin-top:8px;line-height:1.7">
+        Max drawdown ${a.max_dd_pct.toFixed(1)}% · ${side}<br>
+        Days booked ${a.days_booked} · fills ${a.fills} · fees $${a.fees.toFixed(2)} · funding ${a.funding >= 0 ? '+' : '-'}$${Math.abs(a.funding).toFixed(2)}
+        ${a.live_prices ? '' : '<br><span style="color:#FBBF24">valued at last fill (live prices unavailable)</span>'}
+      </div>
+      ${a.shorts.length ? `<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Short: ${a.shorts.map(trendEsc).join(', ')}</div>` : ''}
+      ${a.longs.length ? `<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Long: ${a.longs.map(trendEsc).join(', ')}</div>` : ''}
+    </div>`;
+  }).join('');
+  drawTrendChart(d);
+}
+
+function drawTrendChart(d) {
+  const svg = $('trendChart'), W = 800, H = 220, P = {l: 52, r: 10, t: 10, b: 24};
+  const series = Object.keys(TREND_NAMES).filter(k => d.accounts[k]).map(k => ({
+    k, pts: [{day: d.start_day, equity: d.capital}].concat(d.accounts[k].curve)
+  }));
+  if (!series.length) { svg.innerHTML = ''; return; }
+  const all = series.flatMap(s => s.pts.map(p => p.equity));
+  const n = Math.max(...series.map(s => s.pts.length), 2);
+  let lo = Math.min(...all, d.capital), hi = Math.max(...all, d.capital);
+  const pad = Math.max((hi - lo) * 0.15, 5); lo -= pad; hi += pad;
+  const x = i => P.l + (W - P.l - P.r) * i / (n - 1), y = v => P.t + (H - P.t - P.b) * (hi - v) / (hi - lo);
+  let g = '';
+  for (let j = 0; j <= 4; j++) {
+    const v = lo + (hi - lo) * j / 4;
+    g += `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v)}" y2="${y(v)}" stroke="#1A2234"/>` +
+         `<text x="${P.l - 6}" y="${y(v) + 3}" fill="#64748B" font-size="10" text-anchor="end">$${v.toFixed(0)}</text>`;
+  }
+  g += `<line x1="${P.l}" x2="${W - P.r}" y1="${y(d.capital)}" y2="${y(d.capital)}" stroke="#64748B" stroke-dasharray="4 4"/>`;
+  const ref = series[0].pts;
+  g += `<text x="${x(0)}" y="${H - 6}" fill="#64748B" font-size="10">${trendEsc(ref[0].day)}</text>`;
+  g += `<text x="${x(ref.length - 1)}" y="${H - 6}" fill="#64748B" font-size="10" text-anchor="end">${trendEsc(ref[ref.length - 1].day)}</text>`;
+  for (const s of series) {
+    const col = TREND_NAMES[s.k][1];
+    g += `<polyline fill="none" stroke="${col}" stroke-width="2" points="${s.pts.map((p, i) => `${x(i)},${y(p.equity)}`).join(' ')}"/>`;
+    const i = s.pts.length - 1;
+    g += `<circle cx="${x(i)}" cy="${y(s.pts[i].equity)}" r="3" fill="${col}"><title>${trendEsc(TREND_NAMES[s.k][0])}: $${s.pts[i].equity.toFixed(2)}</title></circle>`;
+  }
+  svg.innerHTML = g;
+  $('trendLegend').innerHTML = series.map(s => `<span><span style="display:inline-block;width:10px;height:3px;background:${TREND_NAMES[s.k][1]};vertical-align:middle;margin-right:5px"></span>${TREND_NAMES[s.k][0]}</span>`).join('');
 }
 
 // ── Crypto Sentinel Client Intelligence & Rendering ────────────────────
@@ -3981,6 +4092,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(BOT.get_full_state())
         elif self.path == "/api/crypto/state":
             self._json(CRYPTO_BOT.get_dashboard_state())
+        elif self.path == "/api/trend/state":
+            self._json(trend_paper_state())
         elif self.path == "/api/crypto/export-dataset":
             self._json(CRYPTO_BOT.storage.export_dataset_json())
         elif self.path == "/api/polymarket/state":
@@ -4170,14 +4283,44 @@ class SilentThreadingHTTPServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
+_TREND_MIDS = {"t": 0.0, "mids": None}
+
+
+def trend_paper_state():
+    """Read-only view of the daily trend forward paper test (research/trend_paper.py).
+    Prices are fetched at most once a minute; if Binance is unreachable, positions are valued
+    at their last fill price."""
+    import os as _os
+    import time as _t
+    from research import trend_paper as tp
+    if _t.time() - _TREND_MIDS["t"] > 60:
+        try:
+            _TREND_MIDS["mids"] = tp.BinanceMarket().mids()
+        except Exception:
+            _TREND_MIDS["mids"] = None
+        _TREND_MIDS["t"] = _t.time()
+    if not _os.path.exists(tp.DB_PATH):
+        return {"error": "trend paper test has not started (no real_data/trend_paper.db)"}
+    book = tp.PaperBook(tp.DB_PATH)
+    try:
+        return tp.dashboard_state(book, _TREND_MIDS["mids"])
+    finally:
+        book.db.close()
+
+
 def arm_engines_on_boot(poly_bot, crypto_bot):
     """
-    Starts the autonomous engines that are safe to run unattended on server boot.
+    Starts the autonomous engines that are allowed to run unattended on server boot.
     The Polymarket 5M scalper is deliberately left untouched: its trading mode is
     decided once at construction from POLYMARKET_LIVE_ENABLED, and arming it
     requires an explicit operator action (Start Auto-Pilot / scalper toggle).
+    The Crypto Sentinel paper bot starts only when CRYPTO_AUTOSTART=1: its fast strategy
+    lost 56% in the 6-month backtest (docs/CRYPTO_BACKTEST_RESULTS.md), so it stays off
+    unless the operator starts it from the dashboard.
     """
-    crypto_bot.start()
+    import os
+    if os.environ.get("CRYPTO_AUTOSTART", "0") == "1":
+        crypto_bot.start()
 
 
 def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):

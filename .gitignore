@@ -36,3 +36,6 @@ real_data/gold/archive/
 # Local market-history store (rebuild with: python3 -m market_data.history all)
 real_data/market_history.db
 crypto_sentinel/crypto_real_paper.db
+real_data/slow/
+real_data/trend_paper.db
+real_data/trend_paper.log

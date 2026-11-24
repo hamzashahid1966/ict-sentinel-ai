@@ -190,7 +190,7 @@ def download_binance(store: HistoryStore, coins=COINS, days: int = 183):
     end = _now_minute() - 60
     start = end - days * 86400
     for coin in coins:
-        sym = BINANCE[coin]
+        sym = BINANCE.get(coin, f"{coin}USDT")
         first, last = store.first_binance_t(sym), store.last_binance_t(sym)
         spans = []
         if first is None:
@@ -219,7 +219,7 @@ def download_coinbase(store: HistoryStore, coins=COINS, days: int = 183):
     end = _now_minute() - 60
     start = end - days * 86400
     for coin in coins:
-        prod = COINBASE[coin]
+        prod = COINBASE.get(coin, f"{coin}-USD")
         have = store.coinbase_ts(prod)
         got = 0
         cur = start
