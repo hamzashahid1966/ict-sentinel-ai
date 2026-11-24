@@ -1583,6 +1583,18 @@ svg.es{width:100%;height:100%;overflow:visible}
   <div id="trendCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:14px;margin-bottom:14px">
     <div class="empty">Loading…</div>
   </div>
+  <div class="pn" style="margin-bottom:14px">
+    <div class="ph"><div class="pt">🧭 Market watch · what would make the bots trade</div>
+      <span style="font-size:10.5px;color:var(--tx3)">daily candles · refreshes every few minutes</span></div>
+    <div style="padding:10px 16px 14px">
+      <div style="font-size:11.5px;color:var(--tx3);line-height:1.6;margin-bottom:8px">
+        <b style="color:var(--tx2)">T2 flip close</b> = the daily close (00:00 UTC) that would flip T2, T4 and Top5 for that coin:
+        a close above it turns the trend up, below it turns it down. <b style="color:var(--tx2)">EMA50</b> and
+        <b style="color:var(--tx2)">structure</b> drive the EMA + structure accounts (ES): they go long only when both are up,
+        short (ES-LS) only when both are down. Prices are live; decisions use the daily close only.</div>
+      <div style="overflow-x:auto"><table id="trendWatch" class="trend-trades" style="width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:10.5px;white-space:nowrap"></table></div>
+    </div>
+  </div>
   <div class="pn">
     <div class="ph"><div class="pt">Equity at each daily close</div>
       <span style="font-size:10.5px;color:var(--tx3)">starts at $1,000 each</span></div>
@@ -2131,6 +2143,28 @@ async function loadTrendState() {
     </div>`;
   }).join('');
   drawTrendChart(d);
+  drawTrendWatch(d.market || []);
+}
+
+function drawTrendWatch(rows) {
+  const el = $('trendWatch');
+  if (!rows.length) { el.innerHTML = '<tr><td class="empty">Market data loading…</td></tr>'; return; }
+  const arrow = s => s === 'UP' ? '<span style="color:var(--gr)">▲ up</span>' : s === 'DOWN' ? '<span style="color:var(--rd)">▼ down</span>' : '<span style="color:#FBBF24">◆ mixed</span>';
+  const pct = (v, good) => `<span style="color:${v >= 0 ? 'var(--gr)' : 'var(--rd)'}">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+  const away = v => `<span style="color:var(--tx3)">(${v >= 0 ? '+' : ''}${v.toFixed(1)}%)</span>`;
+  el.innerHTML = `<tr style="color:var(--tx3);text-align:right">
+      <th style="text-align:left;font-weight:500">coin</th><th style="font-weight:500">price</th><th style="font-weight:500">7d</th><th style="font-weight:500">30d</th>
+      <th style="font-weight:500">T2 trend</th><th style="font-weight:500">T2 flip close</th>
+      <th style="font-weight:500">EMA50</th><th style="font-weight:500">structure</th><th style="text-align:left;font-weight:500">held by</th></tr>` +
+    rows.map(r => `<tr style="text-align:right;border-top:1px solid var(--bdr)">
+      <td style="text-align:left;color:var(--tx)">${trendEsc(r.coin)}</td>
+      <td style="color:var(--tx)">${trendPx(r.price)}</td><td>${pct(r.chg_7d)}</td><td>${pct(r.chg_30d)}</td>
+      <td>${arrow(r.sma_side)}</td>
+      <td title="SMA50 now ${trendPx(r.sma50)}">${trendPx(r.sma_flip)} ${away(r.sma_flip_pct)}</td>
+      <td title="EMA50 ${trendPx(r.ema50)}">${arrow(r.ema_side)} ${away(r.ema_flip_pct)}</td>
+      <td>${arrow(r.structure)}</td>
+      <td style="text-align:left">${r.held.length ? r.held.map(h => `<span style="color:${h[1] === 'L' ? 'var(--gr)' : 'var(--rd)'}">${trendEsc(h[0])} ${h[1]}</span>`).join(' ') : '<span style="color:var(--tx3)">-</span>'}</td>
+    </tr>`).join('');
 }
 
 function drawTrendChart(d) {
@@ -4306,6 +4340,9 @@ class SilentThreadingHTTPServer(ThreadingHTTPServer):
 
 
 _TREND_MIDS = {"t": 0.0, "mids": None, "quotes": None}
+_TREND_OHLC = {"t": 0.0, "ohlc": None}
+_TREND_SHORT = {"T2_SMA50_LS": "T2", "T4_SMA50_LONG": "T4", "T2_TOP5": "Top5", "ES_LONG": "ES-L", "ES_LS": "ES-LS",
+                "BUY_HOLD": "B&H"}
 
 
 def trend_paper_state():
@@ -4327,7 +4364,22 @@ def trend_paper_state():
         return {"error": "trend paper test has not started (no real_data/trend_paper.db)"}
     book = tp.PaperBook(tp.DB_PATH)
     try:
-        return tp.dashboard_state(book, _TREND_MIDS["mids"], quotes=_TREND_MIDS["quotes"])
+        state = tp.dashboard_state(book, _TREND_MIDS["mids"], quotes=_TREND_MIDS["quotes"])
+        if _t.time() - _TREND_OHLC["t"] > 300:              # daily candles: refresh every 5 minutes
+            try:
+                m, now = tp.BinanceMarket(), _t.time()
+                _TREND_OHLC["ohlc"] = {c: [r for r in m.daily_ohlc(c, tp.OHLC_DAYS) if r[0] + tp.DAY <= now] for c in tp.COINS}
+            except Exception:
+                pass
+            _TREND_OHLC["t"] = _t.time()
+        held = {}
+        for v in tp.VARIANTS:
+            if v == "BUY_HOLD":
+                continue
+            for c, q in book.positions(v).items():
+                held.setdefault(c, []).append([_TREND_SHORT.get(v, v), "L" if q > 0 else "S"])
+        state["market"] = tp.market_watch(_TREND_OHLC["ohlc"], _TREND_MIDS["mids"], held) if _TREND_OHLC["ohlc"] else []
+        return state
     finally:
         book.db.close()
 

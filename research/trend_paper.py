@@ -421,6 +421,42 @@ def last_run(log_path=None):
         return None
 
 
+def market_watch(ohlc, mids=None, holdings=None, n=50):
+    """Per coin, from complete daily candles (t, o, h, l, c): where the price stands against the
+    rules and the daily close that would flip them.
+      SMA50 (T2, T4, T2_TOP5): tomorrow's signal uses SMA50 including tonight's close x, so it flips
+        to bullish when x > mean(last 49 closes) (and to bearish when x is below it).
+      EMA50 (ES accounts): flips when tonight's close is above / below the current EMA50.
+      structure: higher high + higher low / lower high + lower low (5-candle swings, confirmed).
+    `holdings` = {coin: [(account, "L"/"S"), ...]}."""
+    from research.strategies.ema_structure import structure
+    rows = []
+    for coin, cand in ohlc.items():
+        if len(cand) < n + 30:
+            continue
+        a = np.array(cand, dtype=float)
+        c = a[:, 4]
+        last = c[-1]
+        price = (mids or {}).get(coin) or last
+        sma = c[-n:].mean()
+        flip_sma = c[-(n - 1):].mean()
+        alpha = 2 / (n + 1)
+        ema = c[0]
+        for x in c[1:]:
+            ema = alpha * x + (1 - alpha) * ema
+        st = structure(a[:, 2], a[:, 3], 5)[-1]
+        rows.append({
+            "coin": coin, "price": price, "last_close": last, "last_day": time.strftime("%Y-%m-%d", time.gmtime(a[-1, 0])),
+            "chg_7d": 100 * (price / c[-8] - 1), "chg_30d": 100 * (price / c[-31] - 1),
+            "sma50": sma, "sma_side": "UP" if last > sma else "DOWN", "sma_flip": flip_sma,
+            "sma_flip_pct": 100 * (flip_sma / price - 1),
+            "ema50": ema, "ema_side": "UP" if last > ema else "DOWN", "ema_flip_pct": 100 * (ema / price - 1),
+            "structure": "UP" if st > 0 else ("DOWN" if st < 0 else "MIXED"),
+            "held": (holdings or {}).get(coin, []),
+        })
+    return rows
+
+
 def dashboard_state(book, mids=None, variants=None, quotes=None):
     """Read-only snapshot for the web dashboard. `mids` = {coin: mid price}; when it is missing or
     lacks a coin, that position is valued at its last fill price instead. `quotes` = {coin: (bid,

@@ -215,6 +215,20 @@ class TestRun(unittest.TestCase):
             self.assertGreaterEqual(abs(f["qty"]) * f["price"], tp.MIN_NOTIONAL)
 
 
+class TestMarketWatch(unittest.TestCase):
+    def test_flip_close_is_exactly_where_the_sma_signal_turns(self):
+        from research.slow_strategies import trend_signal
+        k = np.arange(120)
+        c = 100 + 10 * np.sin(k / 7) - 0.3 * k
+        ohlc = {"A": [(T0 + DAY * i, x, x * 1.01, x * 0.99, x) for i, x in enumerate(c)]}
+        r = tp.market_watch(ohlc, {"A": c[-1]}, {"A": [["T2", "S"]]})[0]
+        self.assertAlmostEqual(r["sma_flip"], c[-49:].mean())
+        self.assertEqual(trend_signal(np.r_[c, r["sma_flip"] * 1.0001], 50, False)[-1], 1.0)
+        self.assertEqual(trend_signal(np.r_[c, r["sma_flip"] * 0.9999], 50, False)[-1], -1.0)
+        self.assertEqual(r["held"], [["T2", "S"]])
+        self.assertAlmostEqual(r["chg_7d"], 100 * (c[-1] / c[-8] - 1))
+
+
 class TestPositionBook(unittest.TestCase):
     def test_open_close_flip_and_locked_in_profit(self):
         f = lambda coin, qty, price, ts: {"coin": coin, "qty": qty, "price": price, "ts": ts, "fee": abs(qty)}
