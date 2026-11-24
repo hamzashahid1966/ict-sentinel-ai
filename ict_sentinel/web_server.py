@@ -1563,6 +1563,7 @@ svg.es{width:100%;height:100%;overflow:visible}
 </main>
 </div>
 
+<style>.trend-trades th,.trend-trades td{padding:2px 3px}.trend-trades th:first-child,.trend-trades td:first-child{padding-left:0}</style>
 <div id="view-trend" style="display:none">
 <main style="max-width:1200px;display:block">
   <div class="pn" style="margin-bottom:14px">
@@ -1579,7 +1580,7 @@ svg.es{width:100%;height:100%;overflow:visible}
         judge it only at the end.</div>
     </div>
   </div>
-  <div id="trendCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:14px;margin-bottom:14px">
+  <div id="trendCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:14px;margin-bottom:14px">
     <div class="empty">Loading…</div>
   </div>
   <div class="pn">
@@ -2117,13 +2118,15 @@ async function loadTrendState() {
       <div style="font-size:11.5px;color:var(--tx2);margin-top:6px">Closed trades: <b style="color:var(--tx)">${a.closed_trades}</b> ·
         locked-in profit <b style="font-family:'JetBrains Mono',monospace;color:${a.locked_in > 0 ? 'var(--gr)' : (a.locked_in < 0 ? 'var(--rd)' : 'var(--tx)')}">${a.locked_in >= 0 ? '+' : '-'}$${Math.abs(a.locked_in).toFixed(2)}</b>
         <span style="color:var(--tx3)">(before fees)</span></div>
-      ${a.open_trades.length ? `<div style="margin-top:8px;font-size:10.5px;color:var(--tx3)">Open trades (not closed yet; profit moves with the price)</div>
-      <div style="overflow-x:auto"><table style="width:100%;min-width:260px;border-collapse:collapse;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10.5px">
-        <tr style="color:var(--tx3);text-align:right"><th style="text-align:left;font-weight:500">coin</th><th style="font-weight:500">size</th><th style="font-weight:500">entry</th><th style="font-weight:500">now</th><th style="font-weight:500">P&amp;L</th></tr>
+      ${a.open_trades.length ? `<div style="margin-top:8px;font-size:10.5px;color:var(--tx3)">Open trades (not closed yet; profit moves with the price). net = P&amp;L − fee in − fee out − spread, if closed now.</div>
+      <div style="overflow-x:auto"><table class="trend-trades" style="width:100%;border-collapse:collapse;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap">
+        <tr style="color:var(--tx3);text-align:right"><th style="text-align:left;font-weight:500">coin</th><th style="font-weight:500">size</th><th style="font-weight:500">entry</th><th style="font-weight:500">now</th><th style="font-weight:500">P&amp;L</th><th style="font-weight:500" title="Binance taker fee already paid to open this trade">fee in</th><th style="font-weight:500" title="Binance taker fee to close it now (0.05% at the bid/ask)">fee out</th><th style="font-weight:500" title="P&amp;L minus both fees and the spread, if closed now">net</th></tr>
         ${a.open_trades.map(t => `<tr style="text-align:right;border-top:1px solid var(--bdr)" title="opened ${trendEsc(t.opened || '')} UTC">
           <td style="text-align:left;padding:2px 0;color:var(--tx)">${trendEsc(t.coin)} <span style="color:${t.side === 'LONG' ? 'var(--gr)' : 'var(--rd)'}">${t.side === 'LONG' ? 'L' : 'S'}</span></td>
           <td>$${t.size_usd.toFixed(0)}</td><td>${trendPx(t.entry)}</td><td>${trendPx(t.now)}</td>
-          <td style="color:${t.pnl >= 0 ? 'var(--gr)' : 'var(--rd)'}">${t.pnl >= 0 ? '+' : '-'}$${Math.abs(t.pnl).toFixed(2)}</td></tr>`).join('')}
+          <td style="color:${t.pnl >= 0 ? 'var(--gr)' : 'var(--rd)'}">${t.pnl >= 0 ? '+' : '-'}$${Math.abs(t.pnl).toFixed(2)}</td>
+          <td style="color:var(--tx3)">$${t.fee_in.toFixed(2)}</td><td style="color:var(--tx3)">$${t.fee_out.toFixed(2)}</td>
+          <td style="color:${t.net >= 0 ? 'var(--gr)' : 'var(--rd)'};font-weight:600">${t.net >= 0 ? '+' : '-'}$${Math.abs(t.net).toFixed(2)}</td></tr>`).join('')}
       </table></div>` : `<div style="margin-top:8px;font-size:10.5px;color:var(--tx3)">No open trades: all cash.</div>`}
     </div>`;
   }).join('');

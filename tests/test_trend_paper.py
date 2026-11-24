@@ -217,7 +217,7 @@ class TestRun(unittest.TestCase):
 
 class TestPositionBook(unittest.TestCase):
     def test_open_close_flip_and_locked_in_profit(self):
-        f = lambda coin, qty, price, ts: {"coin": coin, "qty": qty, "price": price, "ts": ts}
+        f = lambda coin, qty, price, ts: {"coin": coin, "qty": qty, "price": price, "ts": ts, "fee": abs(qty)}
         pb = tp.position_book([f("A", 2, 100, 1), f("A", 1, 130, 2),       # long 3 at avg 110
                                f("A", -1, 120, 3),                          # trim 1: +10
                                f("A", -4, 90, 4),                           # close 2 (-40) and flip short 2 at 90
@@ -231,6 +231,13 @@ class TestPositionBook(unittest.TestCase):
         self.assertEqual(b["qty"], 0)
         self.assertAlmostEqual(b["realized"], 10)
         self.assertEqual(b["closed"], 1)
+        self.assertAlmostEqual(a["fees_open"], 4 * 2 / 4)      # the flip fill's share for the new 2-unit short
+        self.assertEqual(b["fees_open"], 0.0)                  # closed trade: nothing open
+
+    def test_fees_of_the_open_trade_add_up(self):
+        f = lambda qty, ts: {"coin": "A", "qty": qty, "price": 100, "ts": ts, "fee": 0.5}
+        pb = tp.position_book([f(1, 1), f(1, 2), f(-0.5, 3)])
+        self.assertAlmostEqual(pb["A"]["fees_open"], 1.5)       # open + add + trim
 
 
 class TestExecutionCheck(unittest.TestCase):

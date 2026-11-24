@@ -384,25 +384,29 @@ def position_book(fills):
     Fees are not included here (they are reported separately)."""
     out = {}
     for f in fills:
-        c = out.setdefault(f["coin"], {"qty": 0.0, "entry": 0.0, "opened_ts": None, "realized": 0.0, "closed": 0})
-        q, d, px = c["qty"], f["qty"], f["price"]
+        c = out.setdefault(f["coin"], {"qty": 0.0, "entry": 0.0, "opened_ts": None, "realized": 0.0, "closed": 0,
+                                       "fees_open": 0.0})
+        q, d, px, fee = c["qty"], f["qty"], f["price"], f.get("fee", 0.0) or 0.0
         if q == 0 or (q > 0) == (d > 0):                         # open or add on the same side
             c["entry"] = (c["entry"] * abs(q) + px * abs(d)) / (abs(q) + abs(d))
             if q == 0:
-                c["opened_ts"] = f["ts"]
+                c["opened_ts"], c["fees_open"] = f["ts"], 0.0
             c["qty"] = q + d
+            c["fees_open"] += fee                                # fees paid by the trade still open
             continue
         shut = min(abs(d), abs(q))                               # reduce, close or flip
         c["realized"] += shut * (px - c["entry"]) * (1 if q > 0 else -1)
         new = q + d
         if abs(new) < 1e-12:
-            c["qty"], c["entry"], c["opened_ts"] = 0.0, 0.0, None
+            c["qty"], c["entry"], c["opened_ts"], c["fees_open"] = 0.0, 0.0, None, 0.0
             c["closed"] += 1
         elif (new > 0) != (q > 0):                               # flipped: a new trade at this price
             c["qty"], c["entry"], c["opened_ts"] = new, px, f["ts"]
+            c["fees_open"] = fee * abs(new) / abs(d)             # the new trade's share of this fill's fee
             c["closed"] += 1
         else:
             c["qty"] = new
+            c["fees_open"] += fee                                # trimming the open trade
     return out
 
 
@@ -452,8 +456,14 @@ def dashboard_state(book, mids=None, variants=None, quotes=None):
             e = pb.get(c, {}).get("entry") or ref.get(c)
             now_px = priced[c]
             pnl = q * (now_px - e) if (now_px and e) else 0.0
+            bid, ask = (quotes or {}).get(c, (now_px, now_px)) if now_px else (0.0, 0.0)
+            exit_px = (bid if q > 0 else ask) if now_px else 0.0
+            fee_in = pb.get(c, {}).get("fees_open", 0.0)
+            fee_out = abs(q) * exit_px * FEE
+            spread_out = abs(q * (now_px - exit_px)) if now_px else 0.0
             open_trades.append({"coin": c, "side": "LONG" if q > 0 else "SHORT", "size_usd": abs(q * e) if e else 0.0,
-                                "entry": e, "now": now_px, "pnl": pnl,
+                                "entry": e, "now": now_px, "pnl": pnl, "fee_in": fee_in, "fee_out": fee_out,
+                                "spread_out": spread_out, "net": pnl - fee_in - fee_out - spread_out,
                                 "pnl_pct": 100 * (now_px / e - 1) * (1 if q > 0 else -1) if (now_px and e) else 0.0,
                                 "opened": time.strftime("%Y-%m-%d %H:%M", time.gmtime(pb[c]["opened_ts"]))
                                 if pb.get(c, {}).get("opened_ts") else None})
