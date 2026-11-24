@@ -101,6 +101,14 @@ class TestRun(unittest.TestCase):
         eq = self.b.cash("LS") + sum(q * self.m.daily(c)[-1][1] for c, q in pos.items())
         self.assertAlmostEqual(eq, 1000 - 1000 * 0.0005 - 1000 * 0.0005, places=6)
 
+    def test_coin_subset_account_trades_only_its_coins_with_full_weight(self):
+        self.variants = {"LS": (50, False), "SUB": (50, False, ("UP",))}
+        self.run_at(self.m.last_open() + DAY + 3600)
+        self.assertEqual({f["coin"] for f in self.b.fills("SUB")}, {"UP"})
+        self.assertEqual({f["coin"] for f in self.b.fills("LS")}, {"UP", "DOWN"})
+        notional = sum(abs(f["qty"]) * f["price"] for f in self.b.fills("SUB"))
+        self.assertAlmostEqual(notional, 1000 * (1 - 0.0005), delta=1.0)     # all the equity in its one coin
+
     def test_dashboard_values_positions_at_live_mids_or_last_fill(self):
         self.run_at(self.m.last_open() + DAY + 3600)
         pos = self.b.positions("LS")

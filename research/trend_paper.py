@@ -8,6 +8,8 @@ Accounts (each starts with 1,000 paper dollars):
     T2_SMA50_LS    50-day average, long above / short below   PRIMARY
     T4_SMA50_LONG  50-day average, long above / flat below    secondary
     BUY_HOLD       equal-weight long every coin               benchmark
+    T2_TOP5        T2's rule on BTC ETH SOL XRP BNB only       added 2026-11-24 at the user's request;
+                   informational, not judged (backtest 2020..2026: +1245% vs T2's +2182%)
 Rules are the backtest's (research/slow_strategies.py): the signal uses daily closes up to the
 latest complete UTC day, equal weight across the coins with at least 60 daily bars, gross
 leverage 1, rebalanced daily.
@@ -47,7 +49,15 @@ FEE = 0.0005
 CATCHUP_SLIP = 0.0002
 MIN_NOTIONAL = 5.0
 CAPITAL = 1000.0
-VARIANTS = {"T2_SMA50_LS": (50, False), "T4_SMA50_LONG": (50, True), "BUY_HOLD": (None, True)}
+TOP5 = ("BTC", "ETH", "SOL", "XRP", "BNB")
+# rule = (SMA days or None for buy-and-hold, long_only[, coin subset])
+VARIANTS = {"T2_SMA50_LS": (50, False), "T4_SMA50_LONG": (50, True), "BUY_HOLD": (None, True),
+            "T2_TOP5": (50, False, TOP5)}
+
+
+def _rule_coins(rule, closes):
+    """The closes this rule trades: its coin subset if it has one, else every coin."""
+    return {c: closes[c] for c in rule[2] if c in closes} if len(rule) > 2 else closes
 START_DAY = "2026-11-23"
 JUDGE_DAY = "2027-05-22"
 
@@ -173,7 +183,7 @@ def _apply_funding(book, market_funding, variant, cutoff, closes):
 
 
 def _process_day(book, market, variant, rule, day, live, now, closes, fund):
-    n, long_only = rule
+    n, long_only = rule[0], rule[1]
     cutoff = now if live else day + DAY
     _apply_funding(book, fund, variant, cutoff, closes)
     close_of = {c: dict(rows).get(day) for c, rows in closes.items()}
@@ -185,7 +195,7 @@ def _process_day(book, market, variant, rule, day, live, now, closes, fund):
     book.db.execute("INSERT OR REPLACE INTO days VALUES (?,?,?,?,?,?,?)",
                     (variant, day, eq_close, cash, gross, "live" if live else "catchup", lateness))
 
-    tgt = target_weights(closes, day, n, long_only)
+    tgt = target_weights(_rule_coins(rule, closes), day, n, long_only)
     quotes = {}
     if live:
         for c in set(tgt) | set(pos):
@@ -255,7 +265,8 @@ def run_once(book, market, now=None, variants=VARIANTS, coins=COINS, capital=CAP
 
 def replay_return(closes, fund, rule, days, cost=0.0007):
     """Backtest of the same rule over the same days, filled at the closes (the execution check)."""
-    n, long_only = rule
+    n, long_only = rule[0], rule[1]
+    closes = _rule_coins(rule, closes)
     eq, drift = 1.0, {}
     for d, d1 in zip(days[:-1], days[1:]):
         w = target_weights(closes, d, n, long_only)

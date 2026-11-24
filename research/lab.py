@@ -13,7 +13,7 @@ TWO KINDS OF STRATEGY (copy research/strategies/TEMPLATE_position.py or TEMPLATE
   position    signal(df) -> target position per bar in [-1, +1] for one coin
               (+1 fully long, -1 fully short, 0 flat). Runs on every coin in COINS, equal weight
               1/N per coin, no leverage. TIMEFRAME 1m 5m 15m 1h 4h 1d; HISTORY = "long" with
-              1d uses the daily closes back to 2019 instead of the 6 months of 1m data.
+              1d or 1h uses Binance perp candles back to 2019 instead of the 6 months of 1m data.
   polymarket  decide(ctx) -> "UP" / "DOWN" / None for each 5-minute round, CHECKPOINT seconds
               before the close. Bets $1 at the market price + 1c spread + the taker fee.
 
@@ -149,18 +149,79 @@ def _slow(kind: str, coin: str) -> np.ndarray:
         return np.array(json.load(f), dtype=float).reshape(-1, 2)
 
 
+def _perp_klines(coin: str, interval: str, refresh: bool = False) -> np.ndarray:
+    """Perp candles since 2019 as rows (t, o, h, l, c, volume, taker_buy_volume), cached in
+    real_data/slow/<name>_<COIN>USDT.json. Public endpoint, no key. A cached file is extended
+    with the candles since its last row; a missing file is downloaded in full."""
+    import urllib.request
+    name = "ohlc" if interval == "1d" else f"ohlc{interval}"
+    path = os.path.join(SLOW_DIR, f"{name}_{coin}USDT.json")
+    rows = []
+    if os.path.exists(path):
+        with open(path) as f:
+            rows = json.load(f)
+        if not refresh:
+            return np.array(rows, dtype=float).reshape(-1, 7)
+    start = (int(rows[-1][0]) + 1) * 1000 if rows else 1546300800 * 1000        # 2019-01-01
+    while True:
+        url = (f"https://fapi.binance.com/fapi/v1/klines?symbol={coin}USDT&interval={interval}"
+               f"&startTime={start}&limit=1500")
+        req = urllib.request.Request(url, headers={"User-Agent": "research-lab"})
+        for attempt in range(4):
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    page = json.loads(r.read())
+                break
+            except Exception:
+                if attempt == 3:
+                    raise
+                time.sleep(2 * (attempt + 1))
+        if not page:
+            break
+        rows += [[int(k[0]) // 1000, float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5]), float(k[9])]
+                 for k in page]
+        if len(page) < 1500:
+            break
+        start = int(page[-1][0]) + 1
+        time.sleep(0.25)
+    os.makedirs(SLOW_DIR, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(rows, f)
+    return np.array(rows, dtype=float).reshape(-1, 7)
+
+
+def _daily_ohlc(coin: str, refresh: bool = False) -> np.ndarray:
+    return _perp_klines(coin, "1d", refresh)
+
+
 @lru_cache(maxsize=64)
 def _bars_cached(coin: str, timeframe: str, long: bool) -> pd.DataFrame:
     tf = TF_SECONDS[timeframe]
     fund = _slow("funding", coin)
     if long:
-        if timeframe != "1d":
-            raise ValueError('HISTORY = "long" exists only for TIMEFRAME = "1d"')
+        if timeframe not in ("1d", "1h"):
+            raise ValueError('HISTORY = "long" exists only for TIMEFRAME = "1d" or "1h"')
+    if long and timeframe == "1h":
+        k = _perp_klines(coin, "1h")
+        keep = k[:, 0] + 3600 <= time.time()                 # complete candles only
+        k = k[keep]
+        df = pd.DataFrame({"o": k[:, 1], "h": k[:, 2], "l": k[:, 3], "c": k[:, 4], "volume": k[:, 5],
+                           "buy_volume": k[:, 6]}, index=pd.Index(k[:, 0].astype(np.int64), name="t"))
+    elif long:
         perp = _slow("perp", coin)
         t, c = perp[:, 0].astype(np.int64), perp[:, 1]
         keep = t + DAY <= time.time()
         df = pd.DataFrame({"o": np.nan, "h": np.nan, "l": np.nan, "c": c[keep], "volume": np.nan, "buy_volume": np.nan},
                           index=pd.Index(t[keep], name="t"))
+        try:                                           # real daily o/h/l/volume where available
+            k = pd.DataFrame(_daily_ohlc(coin), columns=["t", "o", "h", "l", "c", "volume", "buy_volume"]).astype(
+                {"t": np.int64}).set_index("t")
+            k = k.reindex(df.index)
+            ok = (k.c - df.c).abs() <= 1e-9 * df.c.abs() + 1e-12       # same candle, same close
+            for col in ("o", "h", "l", "volume", "buy_volume"):
+                df.loc[ok.values, col] = k.loc[ok.values, col].values
+        except Exception as e:                         # offline: closes only, as before
+            print(f"daily OHLC unavailable for {coin}: {e}", file=sys.stderr)
     else:
         with sqlite3.connect(HISTORY_DB) as conn:
             rows = conn.execute("SELECT t, o, h, l, c, volume, taker_buy_base FROM binance_1m WHERE symbol=? ORDER BY t",
@@ -475,7 +536,7 @@ def run_position_strategy(st: Strategy, coins: Sequence[str], part: str, n_contr
         (f">= {MIN_ENTRIES} entries", res.entries >= MIN_ENTRIES, str(res.entries)),
     ]
     L = rep.lines
-    L += [f"Kind: position | timeframe {timeframe}{' (long daily history)' if long else ''} | coins {', '.join(names)} | "
+    L += [f"Kind: position | timeframe {timeframe}{' (long history since 2019)' if long else ''} | coins {', '.join(names)} | "
           f"{span} ({full['days']} days)",
           f"Params: {json.dumps(st.params)} | file {os.path.relpath(st.path, ROOT)} @ {st.sha1}",
           f"Costs: {COST:.2%} per side on every change, funding charged | weight 1/{N} per coin, no leverage", ""]
@@ -616,6 +677,8 @@ def write_outputs(st: Strategy, rep: Report, part: str, coins: Sequence[str]) ->
     os.makedirs(REPORT_DIR, exist_ok=True)
     prior = ledger_rows()
     tf_label = getattr(st.module, "TIMEFRAME", "1h") if st.kind == "position" else f"cp{getattr(st.module, 'CHECKPOINT', 120)}"
+    if st.kind == "position" and getattr(st.module, "HISTORY", "") == "long" and tf_label != "1d":
+        tf_label += "-long"
     entry = dict(time=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()), name=st.name, kind=st.kind, timeframe=tf_label,
                  file=os.path.relpath(st.path, ROOT), sha1=st.sha1, params=st.params, coins=list(coins), part=part,
                  passed=rep.passed, **{k: (round(v, 6) if isinstance(v, float) else v) for k, v in rep.summary.items()})
@@ -690,6 +753,8 @@ def main(argv=None):
     r.add_argument("--set", nargs="*", metavar="NAME=VALUE", help="override PARAMS")
     r.add_argument("--controls", type=int, default=N_CONTROLS)
     r.add_argument("--timeframe", choices=sorted(TF_SECONDS, key=TF_SECONDS.get), help="position strategies: override TIMEFRAME")
+    r.add_argument("--history", choices=("long", "recent"), help='position strategies: "long" = Binance perp '
+                   'candles since 2019 (1d, 1h); "recent" = the ~6 months of saved 1-minute data')
     sub.add_parser("data", help="show the saved data")
     sub.add_parser("ledger", help="list every full run so far")
     sub.add_parser("update", help="top up the saved data from the public APIs")
@@ -714,6 +779,7 @@ def main(argv=None):
         history.main(["all", "--days", "183"])
         for coin in ALL_COINS:
             ss.load(coin, refresh=True)
+            _daily_ohlc(coin, refresh=True)
             print(f"daily + funding refreshed: {coin}")
         _bars_cached.cache_clear()
         return 0
@@ -728,8 +794,12 @@ def main(argv=None):
         if st.kind != "position":
             raise SystemExit("--timeframe applies to position strategies only")
         st.module.TIMEFRAME = args.timeframe
-        if args.timeframe != "1d":
-            st.module.HISTORY = ""          # the long history exists only for daily candles
+        if args.timeframe not in ("1d", "1h"):
+            st.module.HISTORY = ""          # the long history exists only for daily and hourly candles
+    if args.history:
+        if st.kind != "position":
+            raise SystemExit("--history applies to position strategies only")
+        st.module.HISTORY = "long" if args.history == "long" else ""
     rep = (run_position_strategy if st.kind == "position" else run_polymarket_strategy)(st, coins, args.part, args.controls)
     text, path = write_outputs(st, rep, args.part, coins)
     print(text)

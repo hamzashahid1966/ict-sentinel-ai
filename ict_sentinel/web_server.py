@@ -2078,6 +2078,7 @@ let trendInterval = null;
 const TREND_NAMES = {
   T2_SMA50_LS: ['T2 · long/short (judged)', '#10B981'],
   T4_SMA50_LONG: ['T4 · long or cash', '#38BDF8'],
+  T2_TOP5: ['T2 top 5 · BTC ETH SOL XRP BNB', '#F59E0B'],
   BUY_HOLD: ['Buy & hold (benchmark)', '#94A3B8'],
 };
 
