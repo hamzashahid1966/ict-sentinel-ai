@@ -156,6 +156,14 @@ class TestRun(unittest.TestCase):
         self.assertEqual(d["longs"], ["UP"])
         self.assertEqual(d["shorts"], ["DOWN"])
         self.assertEqual(d["fills"], 2)
+        q = {c: (mids[c] * 0.999, mids[c] * 1.001) for c in pos}
+        cv = tp.dashboard_state(self.b, mids, variants=self.variants, quotes=q)["accounts"]["LS"]
+        exp = self.b.cash("LS")
+        for c, qty in pos.items():
+            px = q[c][0] if qty > 0 else q[c][1]
+            exp += qty * px - abs(qty) * px * 0.0005
+        self.assertAlmostEqual(cv["close_value"], exp)
+        self.assertGreater(cv["close_cost"], 0)
         off = tp.dashboard_state(self.b, None, variants=self.variants)["accounts"]["LS"]
         self.assertFalse(off["live_prices"])
         last = {f["coin"]: f["price"] for f in self.b.fills("LS")}

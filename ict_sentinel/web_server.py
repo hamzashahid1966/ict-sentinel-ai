@@ -2102,6 +2102,10 @@ async function loadTrendState() {
       <div style="font-size:12px;color:var(--tx2);font-weight:600">${name}</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:24px;color:var(--tx);margin-top:6px">$${a.equity.toFixed(2)}</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${rc}">${r >= 0 ? '+' : ''}${r.toFixed(2)}%</div>
+      ${a.longs.length || a.shorts.length ? `<div style="font-size:11.5px;color:var(--tx2);margin-top:6px">If closed now (after fees &amp; spread):
+        <b style="font-family:'JetBrains Mono',monospace;color:var(--tx)">$${a.close_value.toFixed(2)}</b>
+        <span style="font-family:'JetBrains Mono',monospace;color:${a.close_return_pct >= 0 ? 'var(--gr)' : 'var(--rd)'}">(${a.close_return_pct >= 0 ? '+' : ''}${a.close_return_pct.toFixed(2)}%)</span>
+        <span style="color:var(--tx3)">· closing costs $${a.close_cost.toFixed(2)}</span></div>` : ''}
       <div style="font-size:11.5px;color:var(--tx3);margin-top:8px;line-height:1.7">
         Max drawdown ${a.max_dd_pct.toFixed(1)}% · ${side}<br>
         Days booked ${a.days_booked} · fills ${a.fills} · fees $${a.fees.toFixed(2)} · funding ${a.funding >= 0 ? '+' : '-'}$${Math.abs(a.funding).toFixed(2)}
@@ -4286,7 +4290,7 @@ class SilentThreadingHTTPServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-_TREND_MIDS = {"t": 0.0, "mids": None}
+_TREND_MIDS = {"t": 0.0, "mids": None, "quotes": None}
 
 
 def trend_paper_state():
@@ -4298,15 +4302,17 @@ def trend_paper_state():
     from research import trend_paper as tp
     if _t.time() - _TREND_MIDS["t"] > 60:
         try:
-            _TREND_MIDS["mids"] = tp.BinanceMarket().mids()
+            q = tp.BinanceMarket().book_tickers()
+            _TREND_MIDS["quotes"] = q
+            _TREND_MIDS["mids"] = {c: (b + a) / 2 for c, (b, a) in q.items()}
         except Exception:
-            _TREND_MIDS["mids"] = None
+            _TREND_MIDS["mids"] = _TREND_MIDS["quotes"] = None
         _TREND_MIDS["t"] = _t.time()
     if not _os.path.exists(tp.DB_PATH):
         return {"error": "trend paper test has not started (no real_data/trend_paper.db)"}
     book = tp.PaperBook(tp.DB_PATH)
     try:
-        return tp.dashboard_state(book, _TREND_MIDS["mids"])
+        return tp.dashboard_state(book, _TREND_MIDS["mids"], quotes=_TREND_MIDS["quotes"])
     finally:
         book.db.close()
 

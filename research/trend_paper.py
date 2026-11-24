@@ -132,14 +132,18 @@ class BinanceMarket:
         r = self._get(f"https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol={coin}USDT")
         return float(r["bidPrice"]), float(r["askPrice"])
 
-    def mids(self):
-        """Mid price of every USDT-M perp in one request: {coin: mid}."""
+    def book_tickers(self):
+        """Best bid and ask of every USDT-M perp in one request: {coin: (bid, ask)}."""
         out = {}
         for r in self._get("https://fapi.binance.com/fapi/v1/ticker/bookTicker"):
             sym = r.get("symbol", "")
             if sym.endswith("USDT"):
-                out[sym[:-4]] = (float(r["bidPrice"]) + float(r["askPrice"])) / 2
+                out[sym[:-4]] = (float(r["bidPrice"]), float(r["askPrice"]))
         return out
+
+    def mids(self):
+        """Mid price of every USDT-M perp in one request: {coin: mid}."""
+        return {c: (b + a) / 2 for c, (b, a) in self.book_tickers().items()}
 
 
 # ---------------------------------------------------------------- book
@@ -374,9 +378,12 @@ def status(book, market):
     return out
 
 
-def dashboard_state(book, mids=None, variants=None):
+def dashboard_state(book, mids=None, variants=None, quotes=None):
     """Read-only snapshot for the web dashboard. `mids` = {coin: mid price}; when it is missing or
-    lacks a coin, that position is valued at the last booked close instead."""
+    lacks a coin, that position is valued at its last fill price instead. `quotes` = {coin: (bid,
+    ask)} adds "close_value": the account if every position were closed now with market orders
+    (longs sold at the bid, shorts bought back at the ask) paying the taker fee.
+    Without quotes, the close value uses the mid (no spread) plus the fee."""
     accounts = {}
     for v in (variants or VARIANTS):
         acct = book.account(v)
@@ -400,7 +407,16 @@ def dashboard_state(book, mids=None, variants=None):
             peak = max(peak, x)
             dd = max(dd, 1 - x / peak)
         fills = book.fills(v)
+        close_value = acct["cash"]
+        for c, q in pos.items():
+            if not priced[c]:
+                continue
+            bid, ask = (quotes or {}).get(c, (priced[c], priced[c]))
+            px = bid if q > 0 else ask
+            close_value += q * px - abs(q) * px * FEE
         accounts[v] = {
+            "close_value": close_value, "close_cost": eq - close_value,
+            "close_return_pct": 100 * (close_value / CAPITAL - 1),
             "equity": eq, "return_pct": 100 * (eq / CAPITAL - 1), "max_dd_pct": 100 * dd, "live_prices": live,
             "last_close_equity": last_eq, "days_booked": len(days), "fills": len(fills),
             "fees": sum(f["fee"] for f in fills), "funding": sum(r["amount"] for r in book.funding_rows(v)),
