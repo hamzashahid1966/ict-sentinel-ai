@@ -215,6 +215,24 @@ class TestRun(unittest.TestCase):
             self.assertGreaterEqual(abs(f["qty"]) * f["price"], tp.MIN_NOTIONAL)
 
 
+class TestPositionBook(unittest.TestCase):
+    def test_open_close_flip_and_locked_in_profit(self):
+        f = lambda coin, qty, price, ts: {"coin": coin, "qty": qty, "price": price, "ts": ts}
+        pb = tp.position_book([f("A", 2, 100, 1), f("A", 1, 130, 2),       # long 3 at avg 110
+                               f("A", -1, 120, 3),                          # trim 1: +10
+                               f("A", -4, 90, 4),                           # close 2 (-40) and flip short 2 at 90
+                               f("B", -1, 50, 5), f("B", 1, 40, 6)])        # short closed: +10
+        a, b = pb["A"], pb["B"]
+        self.assertAlmostEqual(a["qty"], -2)
+        self.assertAlmostEqual(a["entry"], 90)
+        self.assertEqual(a["opened_ts"], 4)
+        self.assertAlmostEqual(a["realized"], 10 - 40)
+        self.assertEqual(a["closed"], 1)
+        self.assertEqual(b["qty"], 0)
+        self.assertAlmostEqual(b["realized"], 10)
+        self.assertEqual(b["closed"], 1)
+
+
 class TestExecutionCheck(unittest.TestCase):
     def test_paper_tracks_the_close_replay_when_spread_is_zero(self):
         m = FakeMarket(n_days=100, spread=0.0)

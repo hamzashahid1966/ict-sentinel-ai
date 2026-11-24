@@ -378,6 +378,45 @@ def status(book, market):
     return out
 
 
+def position_book(fills):
+    """Replay fills (oldest first) per coin: open qty, average entry price, when the current trade
+    opened, profit locked in by closed (or reduced) trades, and how many trades were closed.
+    Fees are not included here (they are reported separately)."""
+    out = {}
+    for f in fills:
+        c = out.setdefault(f["coin"], {"qty": 0.0, "entry": 0.0, "opened_ts": None, "realized": 0.0, "closed": 0})
+        q, d, px = c["qty"], f["qty"], f["price"]
+        if q == 0 or (q > 0) == (d > 0):                         # open or add on the same side
+            c["entry"] = (c["entry"] * abs(q) + px * abs(d)) / (abs(q) + abs(d))
+            if q == 0:
+                c["opened_ts"] = f["ts"]
+            c["qty"] = q + d
+            continue
+        shut = min(abs(d), abs(q))                               # reduce, close or flip
+        c["realized"] += shut * (px - c["entry"]) * (1 if q > 0 else -1)
+        new = q + d
+        if abs(new) < 1e-12:
+            c["qty"], c["entry"], c["opened_ts"] = 0.0, 0.0, None
+            c["closed"] += 1
+        elif (new > 0) != (q > 0):                               # flipped: a new trade at this price
+            c["qty"], c["entry"], c["opened_ts"] = new, px, f["ts"]
+            c["closed"] += 1
+        else:
+            c["qty"] = new
+    return out
+
+
+def last_run(log_path=None):
+    """Time of the last hourly check, from the job's log (UTC string) or None."""
+    path = log_path or os.path.join(os.path.dirname(DB_PATH), "trend_paper.log")
+    try:
+        with open(path) as f:
+            lines = [ln for ln in f.read().splitlines() if ln.startswith("[20")]
+        return lines[-1][1:20] if lines else None
+    except OSError:
+        return None
+
+
 def dashboard_state(book, mids=None, variants=None, quotes=None):
     """Read-only snapshot for the web dashboard. `mids` = {coin: mid price}; when it is missing or
     lacks a coin, that position is valued at its last fill price instead. `quotes` = {coin: (bid,
@@ -407,6 +446,19 @@ def dashboard_state(book, mids=None, variants=None, quotes=None):
             peak = max(peak, x)
             dd = max(dd, 1 - x / peak)
         fills = book.fills(v)
+        pb = position_book(fills)
+        open_trades = []
+        for c, q in sorted(pos.items()):
+            e = pb.get(c, {}).get("entry") or ref.get(c)
+            now_px = priced[c]
+            pnl = q * (now_px - e) if (now_px and e) else 0.0
+            open_trades.append({"coin": c, "side": "LONG" if q > 0 else "SHORT", "size_usd": abs(q * e) if e else 0.0,
+                                "entry": e, "now": now_px, "pnl": pnl,
+                                "pnl_pct": 100 * (now_px / e - 1) * (1 if q > 0 else -1) if (now_px and e) else 0.0,
+                                "opened": time.strftime("%Y-%m-%d %H:%M", time.gmtime(pb[c]["opened_ts"]))
+                                if pb.get(c, {}).get("opened_ts") else None})
+        closed_n = sum(x["closed"] for x in pb.values())
+        locked_in = sum(x["realized"] for x in pb.values())
         close_value = acct["cash"]
         for c, q in pos.items():
             if not priced[c]:
@@ -422,11 +474,12 @@ def dashboard_state(book, mids=None, variants=None, quotes=None):
             "fees": sum(f["fee"] for f in fills), "funding": sum(r["amount"] for r in book.funding_rows(v)),
             "longs": sorted(c for c, q in pos.items() if q > 0), "shorts": sorted(c for c, q in pos.items() if q < 0),
             "curve": [{"day": time.strftime("%Y-%m-%d", time.gmtime(d["day"])), "equity": d["equity_close"]} for d in days],
+            "open_trades": open_trades, "closed_trades": closed_n, "locked_in": locked_in,
         }
     now = time.time()
     start = time.mktime(time.strptime(START_DAY, "%Y-%m-%d")) - time.timezone
     judge = time.mktime(time.strptime(JUDGE_DAY, "%Y-%m-%d")) - time.timezone
-    return {"start_day": START_DAY, "judge_day": JUDGE_DAY, "capital": CAPITAL,
+    return {"start_day": START_DAY, "judge_day": JUDGE_DAY, "capital": CAPITAL, "last_run": last_run(),
             "days_elapsed": max(0, int((now - start) // DAY)), "days_left": max(0, int((judge - now) // DAY) + 1),
             "primary": "T2_SMA50_LS", "accounts": accounts,
             "pass_marks": ["net return > 0", "max drawdown of daily equity <= 35%",

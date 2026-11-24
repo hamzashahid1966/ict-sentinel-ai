@@ -1579,7 +1579,7 @@ svg.es{width:100%;height:100%;overflow:visible}
         judge it only at the end.</div>
     </div>
   </div>
-  <div id="trendCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
+  <div id="trendCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:14px;margin-bottom:14px">
     <div class="empty">Loading…</div>
   </div>
   <div class="pn">
@@ -2084,6 +2084,8 @@ const TREND_NAMES = {
   BUY_HOLD: ['Buy & hold (benchmark)', '#94A3B8'],
 };
 
+function trendPx(p) { if (!p) return '-'; return p >= 1000 ? p.toFixed(0) : p >= 1 ? p.toFixed(2) : p.toPrecision(4); }
+
 function trendEsc(x) { return String(x).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 async function loadTrendState() {
@@ -2091,7 +2093,8 @@ async function loadTrendState() {
   try { d = await (await fetch('/api/trend/state')).json(); } catch (e) { return; }
   const cards = $('trendCards');
   if (d.error) { cards.innerHTML = `<div class="empty">${trendEsc(d.error)}</div>`; return; }
-  $('trendDates').textContent = ` Started ${d.start_day} · day ${d.days_elapsed} · judged ${d.judge_day} (${d.days_left} days left).`;
+  $('trendDates').textContent = ` Started ${d.start_day} · day ${d.days_elapsed} · judged ${d.judge_day} (${d.days_left} days left).` +
+    ` Last check ${d.last_run || 'unknown'} UTC (it checks every hour; trades only after each daily close at 00:00 UTC).`;
   cards.innerHTML = Object.keys(TREND_NAMES).map(k => {
     const a = d.accounts[k];
     const [name, col] = TREND_NAMES[k];
@@ -2111,8 +2114,17 @@ async function loadTrendState() {
         Days booked ${a.days_booked} · fills ${a.fills} · fees $${a.fees.toFixed(2)} · funding ${a.funding >= 0 ? '+' : '-'}$${Math.abs(a.funding).toFixed(2)}
         ${a.live_prices ? '' : '<br><span style="color:#FBBF24">valued at last fill (live prices unavailable)</span>'}
       </div>
-      ${a.shorts.length ? `<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Short: ${a.shorts.map(trendEsc).join(', ')}</div>` : ''}
-      ${a.longs.length ? `<div style="font-size:10.5px;color:var(--tx3);margin-top:4px">Long: ${a.longs.map(trendEsc).join(', ')}</div>` : ''}
+      <div style="font-size:11.5px;color:var(--tx2);margin-top:6px">Closed trades: <b style="color:var(--tx)">${a.closed_trades}</b> ·
+        locked-in profit <b style="font-family:'JetBrains Mono',monospace;color:${a.locked_in > 0 ? 'var(--gr)' : (a.locked_in < 0 ? 'var(--rd)' : 'var(--tx)')}">${a.locked_in >= 0 ? '+' : '-'}$${Math.abs(a.locked_in).toFixed(2)}</b>
+        <span style="color:var(--tx3)">(before fees)</span></div>
+      ${a.open_trades.length ? `<div style="margin-top:8px;font-size:10.5px;color:var(--tx3)">Open trades (not closed yet; profit moves with the price)</div>
+      <div style="overflow-x:auto"><table style="width:100%;min-width:260px;border-collapse:collapse;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:10.5px">
+        <tr style="color:var(--tx3);text-align:right"><th style="text-align:left;font-weight:500">coin</th><th style="font-weight:500">size</th><th style="font-weight:500">entry</th><th style="font-weight:500">now</th><th style="font-weight:500">P&amp;L</th></tr>
+        ${a.open_trades.map(t => `<tr style="text-align:right;border-top:1px solid var(--bdr)" title="opened ${trendEsc(t.opened || '')} UTC">
+          <td style="text-align:left;padding:2px 0;color:var(--tx)">${trendEsc(t.coin)} <span style="color:${t.side === 'LONG' ? 'var(--gr)' : 'var(--rd)'}">${t.side === 'LONG' ? 'L' : 'S'}</span></td>
+          <td>$${t.size_usd.toFixed(0)}</td><td>${trendPx(t.entry)}</td><td>${trendPx(t.now)}</td>
+          <td style="color:${t.pnl >= 0 ? 'var(--gr)' : 'var(--rd)'}">${t.pnl >= 0 ? '+' : '-'}$${Math.abs(t.pnl).toFixed(2)}</td></tr>`).join('')}
+      </table></div>` : `<div style="margin-top:8px;font-size:10.5px;color:var(--tx3)">No open trades: all cash.</div>`}
     </div>`;
   }).join('');
   drawTrendChart(d);
