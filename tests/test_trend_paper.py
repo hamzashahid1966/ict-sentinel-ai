@@ -43,6 +43,22 @@ class FakeMarket:
         return c * (1 - self.spread / 2), c * (1 + self.spread / 2)
 
 
+class ZigzagMarket(FakeMarket):
+    """UP climbs in a zigzag (higher highs, higher lows), DOWN falls in one; daily OHLC available."""
+
+    def _path(self, coin):
+        k = np.arange(self.n)
+        wave = 6 * np.sin(2 * np.pi * k / 20)
+        trend = 0.5 * k if coin == "UP" else -0.5 * k
+        return 200 + trend + wave
+
+    def daily(self, coin, limit=200):
+        return [(int(T0 + DAY * i), float(p)) for i, p in enumerate(self._path(coin))][-limit:]
+
+    def daily_ohlc(self, coin, limit=400):
+        return [(t, p, p * 1.002, p * 0.998, p) for t, p in self.daily(coin, limit)][-limit:]
+
+
 def book():
     path = os.path.join(tempfile.mkdtemp(), "paper.db")
     return tp.PaperBook(path)
@@ -108,6 +124,20 @@ class TestRun(unittest.TestCase):
         self.assertEqual({f["coin"] for f in self.b.fills("LS")}, {"UP", "DOWN"})
         notional = sum(abs(f["qty"]) * f["price"] for f in self.b.fills("SUB"))
         self.assertAlmostEqual(notional, 1000 * (1 - 0.0005), delta=1.0)     # all the equity in its one coin
+
+    def test_ema_structure_long_only_buys_the_rising_zigzag_only(self):
+        self.m = ZigzagMarket(n_days=160)
+        self.variants = {"ES": (50, True, None, "ema_structure")}
+        self.run_at(self.m.last_open() + DAY + 3600)
+        pos = self.b.positions("ES")
+        self.assertGreater(pos.get("UP", 0), 0)
+        self.assertNotIn("DOWN", pos)
+        ohlc = {c: self.m.daily_ohlc(c) for c in ("UP", "DOWN")}
+        w = tp.es_target_weights(ohlc, self.m.last_open(), 50, True)
+        self.assertAlmostEqual(w["UP"], 0.5)          # equal weight across the 2 eligible coins
+        self.assertEqual(w["DOWN"], 0.0)
+        later = {c: rows + [(rows[-1][0] + DAY, 1e9, 1e9, 1e9, 1e9)] for c, rows in ohlc.items()}
+        self.assertEqual(tp.es_target_weights(later, self.m.last_open(), 50, True), w)   # later candles ignored
 
     def test_dashboard_values_positions_at_live_mids_or_last_fill(self):
         self.run_at(self.m.last_open() + DAY + 3600)

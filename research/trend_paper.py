@@ -10,6 +10,12 @@ Accounts (each starts with 1,000 paper dollars):
     BUY_HOLD       equal-weight long every coin               benchmark
     T2_TOP5        T2's rule on BTC ETH SOL XRP BNB only       added 2026-11-24 at the user's request;
                    informational, not judged (backtest 2020..2026: +1245% vs T2's +2182%)
+    ES_LONG        EMA50 + market structure, long only         added 2026-11-24 at the user's request;
+                   informational, not judged. Long a coin when its close is above EMA50 AND its
+                   daily swing structure is higher-high + higher-low (swings = 5 candles each side,
+                   used once confirmed); otherwise cash. Rules: research/strategies/ema_structure.py
+                   (lab 2019..2026: +793%, worst drop -31%, Sharpe 1.27). Same equal weight,
+                   execution, fees and funding as the others.
 Rules are the backtest's (research/slow_strategies.py): the signal uses daily closes up to the
 latest complete UTC day, equal weight across the coins with at least 60 daily bars, gross
 leverage 1, rebalanced daily.
@@ -50,14 +56,38 @@ CATCHUP_SLIP = 0.0002
 MIN_NOTIONAL = 5.0
 CAPITAL = 1000.0
 TOP5 = ("BTC", "ETH", "SOL", "XRP", "BNB")
-# rule = (SMA days or None for buy-and-hold, long_only[, coin subset])
+# rule = (SMA/EMA days or None for buy-and-hold, long_only[, coin subset or None[, kind]])
+# kind "sma" (default): sign of close - SMA; "ema_structure": EMA + swing structure (needs daily OHLC)
 VARIANTS = {"T2_SMA50_LS": (50, False), "T4_SMA50_LONG": (50, True), "BUY_HOLD": (None, True),
-            "T2_TOP5": (50, False, TOP5)}
+            "T2_TOP5": (50, False, TOP5), "ES_LONG": (50, True, None, "ema_structure")}
+OHLC_DAYS = 400
 
 
 def _rule_coins(rule, closes):
     """The closes this rule trades: its coin subset if it has one, else every coin."""
-    return {c: closes[c] for c in rule[2] if c in closes} if len(rule) > 2 else closes
+    return {c: closes[c] for c in rule[2] if c in closes} if len(rule) > 2 and rule[2] else closes
+
+
+def _rule_kind(rule):
+    return rule[3] if len(rule) > 3 else "sma"
+
+
+def es_target_weights(ohlc, day, ema, long_only, k=5):
+    """Equal-weight targets for the EMA + structure rule from daily candles with open time <= day."""
+    import pandas as pd
+    from research.strategies.ema_structure import signal as es_signal
+    sig, eligible = {}, []
+    for coin, rows in ohlc.items():
+        rr = [r for r in rows if r[0] <= day]
+        if len(rr) >= LISTING_DAYS and rr and rr[-1][0] == day:
+            eligible.append(coin)
+            a = np.array(rr, dtype=float)
+            df = pd.DataFrame({"o": a[:, 1], "h": a[:, 2], "l": a[:, 3], "c": a[:, 4]})
+            sig[coin] = float(es_signal(df, "both", ema, k, int(long_only))[-1])
+        else:
+            sig[coin] = 0.0
+    N = max(len(eligible), 1)
+    return {c: (sig[c] / N if c in eligible else 0.0) for c in ohlc}
 START_DAY = "2026-11-23"
 JUDGE_DAY = "2027-05-22"
 
@@ -79,6 +109,10 @@ class BinanceMarket:
     def daily(self, coin, limit=200):
         rows = self._get(f"https://fapi.binance.com/fapi/v1/klines?symbol={coin}USDT&interval=1d&limit={limit}")
         return [(int(r[0]) // 1000, float(r[4])) for r in rows]
+
+    def daily_ohlc(self, coin, limit=OHLC_DAYS):
+        rows = self._get(f"https://fapi.binance.com/fapi/v1/klines?symbol={coin}USDT&interval=1d&limit={limit}")
+        return [(int(r[0]) // 1000, float(r[1]), float(r[2]), float(r[3]), float(r[4])) for r in rows]
 
     def funding(self, coin, since_ts):
         rows = self._get(f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={coin}USDT"
@@ -182,7 +216,7 @@ def _apply_funding(book, market_funding, variant, cutoff, closes):
                     (paid, int(max(last, cutoff)), variant))
 
 
-def _process_day(book, market, variant, rule, day, live, now, closes, fund):
+def _process_day(book, market, variant, rule, day, live, now, closes, fund, ohlc=None):
     n, long_only = rule[0], rule[1]
     cutoff = now if live else day + DAY
     _apply_funding(book, fund, variant, cutoff, closes)
@@ -195,7 +229,10 @@ def _process_day(book, market, variant, rule, day, live, now, closes, fund):
     book.db.execute("INSERT OR REPLACE INTO days VALUES (?,?,?,?,?,?,?)",
                     (variant, day, eq_close, cash, gross, "live" if live else "catchup", lateness))
 
-    tgt = target_weights(_rule_coins(rule, closes), day, n, long_only)
+    if _rule_kind(rule) == "ema_structure":
+        tgt = es_target_weights(_rule_coins(rule, ohlc), day, n, long_only)
+    else:
+        tgt = target_weights(_rule_coins(rule, closes), day, n, long_only)
     quotes = {}
     if live:
         for c in set(tgt) | set(pos):
@@ -242,6 +279,9 @@ def run_once(book, market, now=None, variants=VARIANTS, coins=COINS, capital=CAP
         rows = market.daily(c, 200)
         closes[c] = [(t, p) for t, p in rows if t + DAY <= now]          # complete days only
     latest = min(rows[-1][0] for rows in closes.values() if rows)
+    ohlc = None
+    if any(_rule_kind(r) == "ema_structure" for r in variants.values()):
+        ohlc = {c: [r for r in market.daily_ohlc(c, OHLC_DAYS) if r[0] + DAY <= now] for c in coins}
     for v in variants:
         if book.account(v) is None:
             book.create(v, capital, now)
@@ -256,7 +296,7 @@ def run_once(book, market, now=None, variants=VARIANTS, coins=COINS, capital=CAP
             pending = list(range(int(last) + DAY, latest + 1, DAY))
         for i, day in enumerate(pending):
             live = i == len(pending) - 1
-            _process_day(book, market, v, rule, day, live, now, closes, fund)
+            _process_day(book, market, v, rule, day, live, now, closes, fund, ohlc)
             log.append(f"{v} {time.strftime('%Y-%m-%d', time.gmtime(day))} {'live' if live else 'catchup'}")
     return log
 
