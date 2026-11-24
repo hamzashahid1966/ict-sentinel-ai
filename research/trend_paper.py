@@ -16,6 +16,10 @@ Accounts (each starts with 1,000 paper dollars):
                    used once confirmed); otherwise cash. Rules: research/strategies/ema_structure.py
                    (lab 2019..2026: +793%, worst drop -31%, Sharpe 1.27). Same equal weight,
                    execution, fees and funding as the others.
+    ES_LS          the same EMA + structure rule, long AND short: short a coin when its close is
+                   below EMA50 AND its structure is lower-high + lower-low; otherwise as ES_LONG.
+                   Added 2026-11-24 at the user's request; informational, not judged
+                   (lab 2019..2026: +679%, worst drop -34%, Sharpe 1.03).
 Rules are the backtest's (research/slow_strategies.py): the signal uses daily closes up to the
 latest complete UTC day, equal weight across the coins with at least 60 daily bars, gross
 leverage 1, rebalanced daily.
@@ -59,7 +63,8 @@ TOP5 = ("BTC", "ETH", "SOL", "XRP", "BNB")
 # rule = (SMA/EMA days or None for buy-and-hold, long_only[, coin subset or None[, kind]])
 # kind "sma" (default): sign of close - SMA; "ema_structure": EMA + swing structure (needs daily OHLC)
 VARIANTS = {"T2_SMA50_LS": (50, False), "T4_SMA50_LONG": (50, True), "BUY_HOLD": (None, True),
-            "T2_TOP5": (50, False, TOP5), "ES_LONG": (50, True, None, "ema_structure")}
+            "T2_TOP5": (50, False, TOP5), "ES_LONG": (50, True, None, "ema_structure"),
+            "ES_LS": (50, False, None, "ema_structure")}
 OHLC_DAYS = 400
 
 

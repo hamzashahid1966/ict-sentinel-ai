@@ -139,6 +139,13 @@ class TestRun(unittest.TestCase):
         later = {c: rows + [(rows[-1][0] + DAY, 1e9, 1e9, 1e9, 1e9)] for c, rows in ohlc.items()}
         self.assertEqual(tp.es_target_weights(later, self.m.last_open(), 50, True), w)   # later candles ignored
 
+    def test_ema_structure_long_short_shorts_the_falling_zigzag(self):
+        m = ZigzagMarket(n_days=160)
+        ohlc = {c: m.daily_ohlc(c) for c in ("UP", "DOWN")}
+        w = tp.es_target_weights(ohlc, m.last_open(), 50, False)
+        self.assertAlmostEqual(w["UP"], 0.5)
+        self.assertAlmostEqual(w["DOWN"], -0.5)
+
     def test_dashboard_values_positions_at_live_mids_or_last_fill(self):
         self.run_at(self.m.last_open() + DAY + 3600)
         pos = self.b.positions("LS")

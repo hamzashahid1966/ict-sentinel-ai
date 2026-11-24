@@ -2080,6 +2080,7 @@ const TREND_NAMES = {
   T4_SMA50_LONG: ['T4 · long or cash', '#38BDF8'],
   T2_TOP5: ['T2 top 5 · BTC ETH SOL XRP BNB', '#F59E0B'],
   ES_LONG: ['EMA + structure · long only', '#A78BFA'],
+  ES_LS: ['EMA + structure · long & short', '#F472B6'],
   BUY_HOLD: ['Buy & hold (benchmark)', '#94A3B8'],
 };
 
