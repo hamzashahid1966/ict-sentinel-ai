@@ -62,6 +62,10 @@ class CryptoStorageEngine:
                 conn.execute("ALTER TABLE crypto_account ADD COLUMN strategy_profile TEXT NOT NULL DEFAULT 'MODERATE_GROWTH';")
             except sqlite3.OperationalError:
                 pass
+            try:   # UTC day the daily drawdown is measured from (0 = never set: rolls on first use)
+                conn.execute("ALTER TABLE crypto_account ADD COLUMN daily_start_day INTEGER NOT NULL DEFAULT 0;")
+            except sqlite3.OperationalError:
+                pass
 
             # 2. Positions Table
             conn.execute("""
@@ -215,9 +219,24 @@ class CryptoStorageEngine:
             conn.commit()
 
     # --- Account Methods ---
+    @staticmethod
+    def _roll_daily(conn, row, now: Optional[float] = None):
+        """Start a new trading day at 00:00 UTC: today's drawdown is measured from the balance at the
+        start of the day, and yesterday's daily-loss lock is lifted. Returns the (possibly updated) row."""
+        today = int((now if now is not None else time.time()) // 86400)
+        if not row or row['daily_start_day'] == today:
+            return row
+        conn.execute("""
+            UPDATE crypto_account SET
+                daily_starting_equity = balance, daily_drawdown_pct = 0.0, is_locked = 0, daily_start_day = ?
+            WHERE id = 1;
+        """, (today,))
+        conn.commit()
+        return conn.execute("SELECT * FROM crypto_account WHERE id = 1;").fetchone()
+
     def get_account(self) -> CryptoAccount:
         with self._lock, self._get_connection() as conn:
-            row = conn.execute("SELECT * FROM crypto_account WHERE id = 1;").fetchone()
+            row = self._roll_daily(conn, conn.execute("SELECT * FROM crypto_account WHERE id = 1;").fetchone())
             # Calculate win rate, gross pnl, fees paid, and net pnl from closed positions
             stats = conn.execute("""
                 SELECT 
@@ -264,7 +283,7 @@ class CryptoStorageEngine:
 
     def update_account(self, balance: float, realized_pnl_delta: float, mode: Optional[str] = None):
         with self._lock, self._get_connection() as conn:
-            row = conn.execute("SELECT * FROM crypto_account WHERE id = 1;").fetchone()
+            row = self._roll_daily(conn, conn.execute("SELECT * FROM crypto_account WHERE id = 1;").fetchone())
             new_balance = balance
             new_peak = max(row['peak_balance'], new_balance)
             new_realized = row['realized_pnl'] + realized_pnl_delta
@@ -293,7 +312,7 @@ class CryptoStorageEngine:
         Ensures daily_starting_equity accurately reflects real testnet capital.
         """
         with self._lock, self._get_connection() as conn:
-            row = conn.execute("SELECT * FROM crypto_account WHERE id = 1;").fetchone()
+            row = self._roll_daily(conn, conn.execute("SELECT * FROM crypto_account WHERE id = 1;").fetchone())
             if not row:
                 return
 
@@ -517,9 +536,10 @@ class CryptoStorageEngine:
             conn.execute("""
                 UPDATE crypto_account SET
                     balance = ?, peak_balance = ?, realized_pnl = 0.0,
-                    daily_starting_equity = ?, daily_drawdown_pct = 0.0, is_locked = 0, updated_at = ?
+                    daily_starting_equity = ?, daily_drawdown_pct = 0.0, is_locked = 0, updated_at = ?,
+                    daily_start_day = ?
                 WHERE id = 1;
-            """, (cur_bal, cur_bal, cur_bal, time.time()))
+            """, (cur_bal, cur_bal, cur_bal, time.time(), int(time.time() // 86400)))
             conn.commit()
 
     # --- AI Asset Intelligence & Behavioral Memory Methods ---
