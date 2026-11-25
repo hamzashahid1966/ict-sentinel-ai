@@ -2109,7 +2109,8 @@ async function loadTrendState() {
   const cards = $('trendCards');
   if (d.error) { cards.innerHTML = `<div class="empty">${trendEsc(d.error)}</div>`; return; }
   $('trendDates').textContent = ` Started ${d.start_day} · day ${d.days_elapsed} · judged ${d.judge_day} (${d.days_left} days left).` +
-    ` Last check ${d.last_run || 'unknown'} UTC (it checks every hour; trades only after each daily close at 00:00 UTC).`;
+    ` Last check ${d.last_run || 'unknown'} UTC (it checks every hour; trades only after each daily close at 00:00 UTC).` +
+    (d.last_problem ? ` Last attempt failed: ${d.last_problem}` : '');
   cards.innerHTML = Object.keys(TREND_NAMES).map(k => {
     const a = d.accounts[k];
     const [name, col] = TREND_NAMES[k];

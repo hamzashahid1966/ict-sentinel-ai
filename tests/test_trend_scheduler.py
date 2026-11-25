@@ -39,6 +39,15 @@ class TestTrendOnServer(unittest.TestCase):
         self.assertTrue(line.startswith("! ["))
         self.assertIsNone(tp.last_run(os.path.join(os.path.dirname(self.db), "trend_paper.log")))
 
+    def test_failed_attempt_is_reported(self):
+        log = os.path.join(os.path.dirname(self.db), "trend_paper.log")
+        with mock.patch.object(tp, "run_once", side_effect=OSError("no route")):
+            tp.scheduled_check(self.db, market=object(), now=1795651500)
+        self.assertIn("no route", tp.last_check_problem(log))
+        with mock.patch.object(tp, "run_once", return_value=[]):
+            tp.scheduled_check(self.db, market=object(), now=1795655100)
+        self.assertIsNone(tp.last_check_problem(log))
+
     def test_scheduler_off_unless_asked(self):
         from ict_sentinel import web_server
         with mock.patch.dict(os.environ, {"TREND_PAPER_SCHEDULER": "0"}):

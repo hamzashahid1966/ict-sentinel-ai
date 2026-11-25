@@ -451,6 +451,17 @@ def scheduled_check(path=None, market=None, now=None):
     return line
 
 
+def last_check_problem(log_path=None):
+    """The latest hourly check's error line if the most recent attempt failed, else None."""
+    path = log_path or os.path.join(os.path.dirname(DB_PATH), "trend_paper.log")
+    try:
+        with open(path) as f:
+            lines = [ln for ln in f.read().splitlines() if ln.startswith(("[20", "! [20"))]
+    except OSError:
+        return None
+    return lines[-1][2:] if lines and lines[-1].startswith("!") else None
+
+
 def market_watch(ohlc, mids=None, holdings=None, n=50):
     """Per coin, from complete daily candles (t, o, h, l, c): where the price stands against the
     rules and the daily close that would flip them.
@@ -555,7 +566,7 @@ def dashboard_state(book, mids=None, variants=None, quotes=None):
     now = time.time()
     start = time.mktime(time.strptime(START_DAY, "%Y-%m-%d")) - time.timezone
     judge = time.mktime(time.strptime(JUDGE_DAY, "%Y-%m-%d")) - time.timezone
-    return {"start_day": START_DAY, "judge_day": JUDGE_DAY, "capital": CAPITAL, "last_run": last_run(),
+    return {"start_day": START_DAY, "judge_day": JUDGE_DAY, "capital": CAPITAL, "last_run": last_run(), "last_problem": last_check_problem(),
             "days_elapsed": max(0, int((now - start) // DAY)), "days_left": max(0, int((judge - now) // DAY) + 1),
             "primary": "T2_SMA50_LS", "accounts": accounts,
             "pass_marks": ["net return > 0", "max drawdown of daily equity <= 35%",
