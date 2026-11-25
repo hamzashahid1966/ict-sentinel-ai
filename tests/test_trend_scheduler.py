@@ -59,6 +59,31 @@ class TestTrendOnServer(unittest.TestCase):
         self.assertEqual(op.call_count, 1)                     # no retry storm on a ban
         sl.assert_not_called()
 
+    def test_ban_time_is_read_and_respected(self):
+        import io
+        import urllib.error
+        until_ms = 1795717854860
+        body = ('{"code":-1003,"msg":"Way too many requests; IP(1.2.3.4) banned until %d. Please use the websocket"}'
+                % until_ms).encode()
+        err = urllib.error.HTTPError("u", 418, "I'm a teapot", {}, io.BytesIO(body))
+        self.addCleanup(setattr, tp, "BAN_UNTIL", 0.0)
+        tp.BAN_UNTIL = 0.0
+        with mock.patch("urllib.request.urlopen", side_effect=err), mock.patch("time.time", return_value=1795610000):
+            with self.assertRaises(RuntimeError):
+                tp.BinanceMarket()._get("https://example.invalid")
+        self.assertAlmostEqual(tp.BAN_UNTIL, until_ms / 1000)
+        with mock.patch("urllib.request.urlopen") as op, mock.patch("time.time", return_value=1795610100):
+            self.assertGreater(tp.retry_wait(), 100000)
+            with self.assertRaises(RuntimeError):
+                tp.BinanceMarket()._get("https://example.invalid")
+            op.assert_not_called()                              # no request while banned
+        with mock.patch("time.time", return_value=until_ms / 1000 + 1):
+            self.assertEqual(tp.retry_wait(), 0.0)
+
+    def test_429_uses_retry_after(self):
+        self.assertEqual(tp.ban_until_from(429, "slow down", "30", now=1000), 1060)    # at least 60 s
+        self.assertEqual(tp.ban_until_from(429, "slow down", "600", now=1000), 1600)
+
     def test_scheduler_off_unless_asked(self):
         from ict_sentinel import web_server
         with mock.patch.dict(os.environ, {"TREND_PAPER_SCHEDULER": "0"}):

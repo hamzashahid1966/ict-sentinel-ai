@@ -2110,7 +2110,8 @@ async function loadTrendState() {
   if (d.error) { cards.innerHTML = `<div class="empty">${trendEsc(d.error)}</div>`; return; }
   $('trendDates').textContent = ` Started ${d.start_day} · day ${d.days_elapsed} · judged ${d.judge_day} (${d.days_left} days left).` +
     ` Last check ${d.last_run || 'unknown'} UTC (it checks every hour; trades only after each daily close at 00:00 UTC).` +
-    (d.last_problem ? ` Last attempt failed: ${d.last_problem}` : '');
+    (d.binance_wait_until ? ` Binance asked this server to pause until ${d.binance_wait_until} UTC; it resumes and catches up by itself then.` :
+     (d.last_problem ? ` Last attempt failed: ${d.last_problem}` : ''));
   cards.innerHTML = Object.keys(TREND_NAMES).map(k => {
     const a = d.accounts[k];
     const [name, col] = TREND_NAMES[k];
@@ -4427,13 +4428,22 @@ def start_trend_scheduler():
         if tp.ensure_db():
             print(f"[trend] started {tp.DB_PATH} from the seed snapshot", flush=True)
         _t.sleep(30)                                        # let the server come up first
+        retries = 0
         while True:
-            for attempt in range(10):                        # a failed check is retried every 5 minutes
-                line = tp.scheduled_check()
-                print("[trend] " + line, flush=True)
-                if not line.startswith("!") or (_t.time() - 300) % 3600 > 3000:
-                    break
+            wait = tp.retry_wait()
+            if wait > 0:                                     # Binance said stop: stay quiet, then catch up
+                print("[trend] Binance ban: quiet until "
+                      + _t.strftime("%Y-%m-%d %H:%M UTC", _t.gmtime(tp.BAN_UNTIL)), flush=True)
+                _t.sleep(min(wait + 30, 3 * 86400))
+                retries = 0
+                continue
+            line = tp.scheduled_check()
+            print("[trend] " + line, flush=True)
+            if line.startswith("!") and tp.retry_wait() == 0 and retries < 9:
+                retries += 1                                 # other failures: retry every 5 minutes
                 _t.sleep(300)
+                continue
+            retries = 0
             now = _t.time()
             _t.sleep(3600 - (now - 300) % 3600 + 1)          # until the next hh:05 UTC
 

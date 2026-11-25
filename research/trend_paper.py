@@ -101,8 +101,35 @@ JUDGE_DAY = "2027-05-22"
 
 # ---------------------------------------------------------------- market
 
+BAN_UNTIL = 0.0          # Binance asked us to stop until this time (unix seconds); shared by every caller
+
+
+def ban_until_from(code, body, retry_after=None, now=None):
+    """When Binance allows requests again after a 418 (IP ban, 'banned until <ms>') or 429 (Retry-After)."""
+    import re
+    now = time.time() if now is None else now
+    m = re.search(r"banned until (\d{12,14})", body or "")
+    if m:
+        return int(m.group(1)) / 1000.0
+    try:
+        wait = float(retry_after) if retry_after else 0.0
+    except ValueError:
+        wait = 0.0
+    return now + max(wait, 120.0 if code == 418 else 60.0)
+
+
+def retry_wait(now=None):
+    """Seconds to stay quiet because of a Binance ban, or 0."""
+    now = time.time() if now is None else now
+    return max(0.0, BAN_UNTIL - now)
+
+
 class BinanceMarket:
     def _get(self, url):
+        global BAN_UNTIL
+        if retry_wait() > 0:                                     # banned: don't knock (it lengthens bans)
+            raise RuntimeError("Binance ban: waiting until "
+                               + time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(BAN_UNTIL)))
         req = urllib.request.Request(url, headers={"User-Agent": "research-paper"})
         for attempt in range(4):
             try:
@@ -111,6 +138,8 @@ class BinanceMarket:
             except urllib.error.HTTPError as e:
                 if e.code in (418, 429):                         # rate limited / banned: say why, back off
                     body = e.read()[:200].decode("utf-8", "replace")
+                    BAN_UNTIL = max(BAN_UNTIL, ban_until_from(e.code, body, e.headers.get("Retry-After")
+                                                              if e.headers else None))
                     raise RuntimeError(f"Binance HTTP {e.code}: {body}") from None
                 if attempt == 3:
                     raise
@@ -575,6 +604,7 @@ def dashboard_state(book, mids=None, variants=None, quotes=None):
     start = time.mktime(time.strptime(START_DAY, "%Y-%m-%d")) - time.timezone
     judge = time.mktime(time.strptime(JUDGE_DAY, "%Y-%m-%d")) - time.timezone
     return {"start_day": START_DAY, "judge_day": JUDGE_DAY, "capital": CAPITAL, "last_run": last_run(), "last_problem": last_check_problem(),
+            "binance_wait_until": time.strftime("%Y-%m-%d %H:%M", time.gmtime(BAN_UNTIL)) if retry_wait() > 0 else None,
             "days_elapsed": max(0, int((now - start) // DAY)), "days_left": max(0, int((judge - now) // DAY) + 1),
             "primary": "T2_SMA50_LS", "accounts": accounts,
             "pass_marks": ["net return > 0", "max drawdown of daily equity <= 35%",
