@@ -4428,7 +4428,12 @@ def start_trend_scheduler():
             print(f"[trend] started {tp.DB_PATH} from the seed snapshot", flush=True)
         _t.sleep(30)                                        # let the server come up first
         while True:
-            print("[trend] " + tp.scheduled_check(), flush=True)
+            for attempt in range(10):                        # a failed check is retried every 5 minutes
+                line = tp.scheduled_check()
+                print("[trend] " + line, flush=True)
+                if not line.startswith("!") or (_t.time() - 300) % 3600 > 3000:
+                    break
+                _t.sleep(300)
             now = _t.time()
             _t.sleep(3600 - (now - 300) % 3600 + 1)          # until the next hh:05 UTC
 

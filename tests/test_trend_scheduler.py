@@ -48,6 +48,17 @@ class TestTrendOnServer(unittest.TestCase):
             tp.scheduled_check(self.db, market=object(), now=1795655100)
         self.assertIsNone(tp.last_check_problem(log))
 
+    def test_rate_limit_reply_is_reported_without_hammering(self):
+        import io
+        import urllib.error
+        err = urllib.error.HTTPError("u", 418, "I'm a teapot", {}, io.BytesIO(b'{"code":-1003,"msg":"IP banned until 1"}'))
+        with mock.patch("urllib.request.urlopen", side_effect=err) as op, mock.patch("time.sleep") as sl:
+            with self.assertRaises(RuntimeError) as cm:
+                tp.BinanceMarket()._get("https://example.invalid")
+        self.assertIn("-1003", str(cm.exception))
+        self.assertEqual(op.call_count, 1)                     # no retry storm on a ban
+        sl.assert_not_called()
+
     def test_scheduler_off_unless_asked(self):
         from ict_sentinel import web_server
         with mock.patch.dict(os.environ, {"TREND_PAPER_SCHEDULER": "0"}):

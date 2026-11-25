@@ -46,6 +46,7 @@ import json
 import os
 import sqlite3
 import time
+import urllib.error
 import urllib.request
 
 import numpy as np
@@ -107,6 +108,13 @@ class BinanceMarket:
             try:
                 with urllib.request.urlopen(req, timeout=20) as r:
                     return json.loads(r.read())
+            except urllib.error.HTTPError as e:
+                if e.code in (418, 429):                         # rate limited / banned: say why, back off
+                    body = e.read()[:200].decode("utf-8", "replace")
+                    raise RuntimeError(f"Binance HTTP {e.code}: {body}") from None
+                if attempt == 3:
+                    raise
+                time.sleep(2 * (attempt + 1))
             except Exception:
                 if attempt == 3:
                     raise
