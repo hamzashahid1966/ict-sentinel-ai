@@ -53,7 +53,8 @@ import numpy as np
 from research.slow_strategies import COINS, LISTING_DAYS, trend_signal
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(ROOT, "real_data", "trend_paper.db")
+DB_PATH = os.environ.get("TREND_PAPER_DB") or os.path.join(ROOT, "real_data", "trend_paper.db")
+SEED_PATH = os.path.join(ROOT, "research", "seed", "trend_paper_seed.db")   # accounts carried over to a new server
 DAY = 86400
 FEE = 0.0005
 CATCHUP_SLIP = 0.0002
@@ -419,6 +420,35 @@ def last_run(log_path=None):
         return lines[-1][1:20] if lines else None
     except OSError:
         return None
+
+
+def ensure_db(path=None, seed=None):
+    """On a new server: start the database from the seed snapshot (the accounts as they were on the
+    machine that ran the test before), so the test continues instead of restarting. True if copied."""
+    import shutil
+    path, seed = path or DB_PATH, seed or SEED_PATH
+    if os.path.exists(path) or not os.path.exists(seed):
+        return False
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    shutil.copyfile(seed, path)
+    return True
+
+
+def scheduled_check(path=None, market=None, now=None):
+    """One hourly check, as the launchd job does: run, then append the result line to the log next to
+    the database (read by last_run). Errors are logged on a line that last_run does not count."""
+    path = path or DB_PATH
+    log_path = os.path.join(os.path.dirname(path), "trend_paper.log")
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now))
+    try:
+        book = PaperBook(path)
+        log = run_once(book, market or BinanceMarket(), now=now)
+        line = f"[{stamp}] " + ("; ".join(log) if log else "nothing to do")
+    except Exception as e:                                   # network trouble: try again next hour
+        line = f"! [{stamp}] error: {type(e).__name__}: {e}"
+    with open(log_path, "a") as f:
+        f.write(line + "\n")
+    return line
 
 
 def market_watch(ohlc, mids=None, holdings=None, n=50):

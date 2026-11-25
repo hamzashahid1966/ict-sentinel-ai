@@ -4371,7 +4371,7 @@ def trend_paper_state():
             _TREND_MIDS["mids"] = _TREND_MIDS["quotes"] = None
         _TREND_MIDS["t"] = _t.time()
     if not _os.path.exists(tp.DB_PATH):
-        return {"error": "trend paper test has not started (no real_data/trend_paper.db)"}
+        return {"error": "trend paper test has not started (no database yet)"}
     book = tp.PaperBook(tp.DB_PATH)
     try:
         state = tp.dashboard_state(book, _TREND_MIDS["mids"], quotes=_TREND_MIDS["quotes"])
@@ -4409,6 +4409,33 @@ def arm_engines_on_boot(poly_bot, crypto_bot):
         crypto_bot.start()
 
 
+def start_trend_scheduler():
+    """On a server (TREND_PAPER_SCHEDULER=1) run the daily trend paper test's hourly check in this
+    process, at minute 5 of every hour like the Mac's launchd job, plus one check at start-up
+    (catches up any daily close missed while the server was down). The database should sit on a
+    persistent disk (TREND_PAPER_DB); a new disk starts from research/seed/trend_paper_seed.db.
+    Off by default so a local dashboard never runs a second copy beside launchd."""
+    import os
+    if os.environ.get("TREND_PAPER_SCHEDULER", "0") != "1":
+        return None
+    import threading
+    import time as _t
+    from research import trend_paper as tp
+
+    def loop():
+        if tp.ensure_db():
+            print(f"[trend] started {tp.DB_PATH} from the seed snapshot", flush=True)
+        _t.sleep(30)                                        # let the server come up first
+        while True:
+            print("[trend] " + tp.scheduled_check(), flush=True)
+            now = _t.time()
+            _t.sleep(3600 - (now - 300) % 3600 + 1)          # until the next hh:05 UTC
+
+    th = threading.Thread(target=loop, name="trend-paper", daemon=True)
+    th.start()
+    return th
+
+
 def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
     import os
     port = int(os.environ.get("PORT", port))
@@ -4421,6 +4448,7 @@ def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
     print("=" * 84)
     print("[*] Stream active. Press Ctrl+C in terminal to shutdown.\n")
     arm_engines_on_boot(poly_bot=POLY_BOT, crypto_bot=CRYPTO_BOT)
+    start_trend_scheduler()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
