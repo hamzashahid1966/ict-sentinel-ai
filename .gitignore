@@ -39,3 +39,4 @@ crypto_sentinel/crypto_real_paper.db
 real_data/slow/
 real_data/trend_paper.db
 real_data/trend_paper.log
+real_data/pm15m/
