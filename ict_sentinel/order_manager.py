@@ -4,6 +4,7 @@ Manages the two-stage execution architecture, defensive trailing stops, and prof
 """
 
 import uuid
+import time
 import datetime
 from typing import List, Optional, Dict, Any
 from .config import ASSET_SPECS
@@ -19,6 +20,11 @@ class OrderManager:
         self.memory_engine = memory_engine
         self._positions_cache: Optional[List[Position]] = None
         self._asset_cooldowns: Dict[str, datetime.datetime] = {}
+        self._wall_clock_cooldowns: Dict[str, float] = {}
+
+    def _record_exit_cooldown(self, asset: str, exit_dt: datetime.datetime):
+        self._asset_cooldowns[asset] = exit_dt
+        self._wall_clock_cooldowns[asset] = time.time()
 
     def _get_active_positions(self) -> List[Position]:
         if self._positions_cache is None:
@@ -65,17 +71,26 @@ class OrderManager:
                 if asset_trades:
                     t_str = asset_trades[0].exit_time
                     dt_obj = datetime.datetime.strptime(t_str, '%Y-%m-%d %H:%M:%S')
+                    from .config import NY_TZ
+                    dt_obj = dt_obj.replace(tzinfo=NY_TZ)
                     if current_time.tzinfo is not None:
-                        dt_obj = dt_obj.replace(tzinfo=current_time.tzinfo)
-                    last_exit = dt_obj
+                        last_exit = dt_obj.astimezone(current_time.tzinfo)
+                    else:
+                        last_exit = dt_obj.replace(tzinfo=None)
                     self._asset_cooldowns[sig.asset] = last_exit
             except Exception:
                 pass
 
         if last_exit is not None:
-            time_diff = (current_time - last_exit).total_seconds()
-            if 0 <= time_diff < 900:
-                mins_left = int((900 - time_diff) / 60) + 1
+            cur_t = current_time
+            exit_t = last_exit
+            if cur_t.tzinfo is not None and exit_t.tzinfo is None:
+                exit_t = exit_t.replace(tzinfo=cur_t.tzinfo)
+            elif cur_t.tzinfo is None and exit_t.tzinfo is not None:
+                cur_t = cur_t.replace(tzinfo=exit_t.tzinfo)
+            time_diff = (cur_t - exit_t).total_seconds()
+            if time_diff < 900:
+                mins_left = max(1, int((900 - max(0.0, time_diff)) / 60) + 1)
                 log_entry = self.advisor.create_system_log(
                     category="COOLDOWN",
                     message=f"COOLDOWN ACTIVE: Blocked order on {sig.asset}. Waiting {mins_left} min(s) for tape stabilization post-exit.",
@@ -114,7 +129,18 @@ class OrderManager:
         # Defending FVG CE is strictly for explicit BISI or SIBI Fair Value Gaps
         defending_ce = None
         if sig.pd_array and getattr(sig.pd_array, 'array_type', '') in ['BISI', 'SIBI']:
-            defending_ce = sig.pd_array.consequent_encroachment
+            raw_ce = getattr(sig.pd_array, 'consequent_encroachment', None)
+            if raw_ce is not None:
+                is_long = sig.direction == 'LONG'
+                # Invariant Enforcement:
+                # For LONG: defending CE must be strictly below entry price.
+                # For SHORT: defending CE must be strictly above entry price.
+                # If violated (e.g. range midpoint or malformed array), sanitize to None
+                # to prevent immediate self-scratching churn loops.
+                if is_long and raw_ce < sig.entry_price:
+                    defending_ce = raw_ce
+                elif (not is_long) and raw_ce > sig.entry_price:
+                    defending_ce = raw_ce
 
         # 4. Futures Indivisibility & Discrete Single Contract Execution
         # If CME futures and quantity == 1, 1 contract cannot be halved into 0.5 contracts at TP1.
@@ -184,7 +210,8 @@ class OrderManager:
 
             # ---------------- STAGE 0: CHECK EARLY SCRATCH INVALIDATION (FVG 50% CE) ----------------
             if not pos.center_mass_filled and pos.defending_fvg_ce is not None:
-                ce_breached = (current_bar.close < pos.defending_fvg_ce) if is_long else (current_bar.close > pos.defending_fvg_ce)
+                buffer_pts = 1 * spec['tick_size']
+                ce_breached = (current_bar.close < (pos.defending_fvg_ce - buffer_pts) and current_bar.body_bottom < pos.defending_fvg_ce) if is_long else (current_bar.close > (pos.defending_fvg_ce + buffer_pts) and current_bar.body_top > pos.defending_fvg_ce)
                 if ce_breached:
                     exit_price = current_bar.close
                     outcome = 'EARLY_SCRATCH'
@@ -213,7 +240,7 @@ class OrderManager:
                         target_liquidity_pool=pos.target_liquidity_pool
                     )
                     self.storage.record_closed_trade(tr)
-                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                    self._record_exit_cooldown(tr.asset, current_bar.timestamp_et)
                     scratch_log = self.advisor.explain_early_scratch(pos, exit_price, pnl_pts, dollar_pnl, pos.invalidation_reason)
                     self.storage.log_ai_thought(scratch_log)
                     self._remove_position(pos.position_id)
@@ -262,7 +289,7 @@ class OrderManager:
                     target_liquidity_pool=pos.target_liquidity_pool
                 )
                 self.storage.record_closed_trade(tr)
-                self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                self._record_exit_cooldown(tr.asset, current_bar.timestamp_et)
                 close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                 self.storage.log_ai_thought(close_log)
                 self._remove_position(pos.position_id)
@@ -329,7 +356,7 @@ class OrderManager:
                         target_liquidity_pool=pos.target_liquidity_pool
                     )
                     self.storage.record_closed_trade(tr)
-                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                    self._record_exit_cooldown(tr.asset, current_bar.timestamp_et)
                     close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                     self.storage.log_ai_thought(close_log)
                     self._remove_position(pos.position_id)
@@ -367,7 +394,7 @@ class OrderManager:
                         target_liquidity_pool=pos.target_liquidity_pool
                     )
                     self.storage.record_closed_trade(tr)
-                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                    self._record_exit_cooldown(tr.asset, current_bar.timestamp_et)
                     close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                     self.storage.log_ai_thought(close_log)
                     self._remove_position(pos.position_id)
@@ -445,7 +472,7 @@ class OrderManager:
                         target_liquidity_pool=pos.target_liquidity_pool
                     )
                     self.storage.record_closed_trade(tr)
-                    self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                    self._record_exit_cooldown(tr.asset, current_bar.timestamp_et)
                     close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                     self.storage.log_ai_thought(close_log)
                     self._remove_position(pos.position_id)
@@ -486,7 +513,7 @@ class OrderManager:
                             target_liquidity_pool=pos.target_liquidity_pool
                         )
                         self.storage.record_closed_trade(tr)
-                        self._asset_cooldowns[tr.asset] = current_bar.timestamp_et
+                        self._record_exit_cooldown(tr.asset, current_bar.timestamp_et)
                         close_log = self.advisor.explain_trade_closure(pos, exit_price, pnl_pts, dollar_pnl, outcome)
                         self.storage.log_ai_thought(close_log)
                         self._remove_position(pos.position_id)
@@ -537,6 +564,7 @@ class OrderManager:
             ai_reasoning=f"Position liquidated on demand via Dashboard ({reason})."
         )
         self.storage.record_closed_trade(tr)
+        self._record_exit_cooldown(pos.asset, datetime.datetime.now(datetime.timezone.utc))
         self._remove_position(pos.position_id)
         close_log = self.advisor.explain_trade_closure(pos, exit_price, pts, dollar_pnl, outcome)
         self.storage.log_ai_thought(close_log)

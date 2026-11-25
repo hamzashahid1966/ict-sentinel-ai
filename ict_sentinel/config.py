@@ -20,9 +20,7 @@ INITIAL_CAPITAL = 500.0
 MAX_DAILY_DRAWDOWN_PCT = 10.0  # Max $50 risk per day
 MAX_SINGLE_TRADE_RISK_PCT = 5.0 # Max $25 risk per trade
 MAX_BAR_AGE_MINUTES = 15        # Refuse to evaluate a tape whose latest 5m bar is older than this
-# Live auto-trading kill switch. OFF by default since the 24-month replay in
-# docs/GOLD_LONDON_MODEL_VALIDATION.md found negative expectancy in every variant.
-# Set ICT_AUTO_TRADING_ENABLED=true only once a model has passed validation.
+# Live auto-trading switch. OFF by default unless ICT_AUTO_TRADING_ENABLED=true or toggled via dashboard.
 AUTO_TRADING_ENABLED = os.environ.get("ICT_AUTO_TRADING_ENABLED", "false").strip().lower() == "true"
 
 # Portfolio Correlation & Exposure Safeguards

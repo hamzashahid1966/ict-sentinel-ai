@@ -241,7 +241,9 @@ class BotController:
                         if sig:
                             opened = self.order_mgr.open_position_from_signal(sig, c.timestamp_et)
                             if opened:
-                                self._add_activity("ORDER", f"Signal Executed: {sig.asset}", f"{sig.direction} @ {sig.entry_price:.2f} | 50% CE: {sig.pd_array.consequent_encroachment:.2f}", "accent")
+                                ce_val = getattr(sig.pd_array, 'consequent_encroachment', None) if sig.pd_array else None
+                                ce_str = f" | 50% CE: {ce_val:.2f}" if ce_val is not None else ""
+                                self._add_activity("ORDER", f"Signal Executed: {sig.asset}", f"{sig.direction} @ {sig.entry_price:.2f}{ce_str}", "accent")
             self._add_activity("SIMULATION", "Live Simulation Completed", f"Processed live market stream. Strategy tested on real bars.", "success")
         finally:
             self.memory_engine.persist_knowledge = prev_persist
@@ -4221,6 +4223,14 @@ class Handler(BaseHTTPRequestHandler):
             BOT.close_single(body.get("id", "")); self._json({"ok": True})
         elif self.path == "/api/bot/reset":
             BOT.reset_account(); self._json({"ok": True})
+        elif self.path == "/api/bot/toggle-trading":
+            with BOT.lock:
+                BOT.auto_trading_enabled = not BOT.auto_trading_enabled
+                BOT._disabled_notice_sent = False
+                status_str = "ENABLED" if BOT.auto_trading_enabled else "DISABLED"
+                BOT._add_activity("RISK", f"Live Auto-Trading {status_str}", f"Live entry execution is now {status_str}.", "success" if BOT.auto_trading_enabled else "warning")
+            BOT.broadcast_state()
+            self._json({"ok": True, "auto_trading_enabled": BOT.auto_trading_enabled})
         elif self.path == "/api/polymarket/scan":
             POLY_BOT.trigger_sync_async(); self._json({"ok": True, "status": "SYNC_STARTED"})
         elif self.path == "/api/polymarket/research":

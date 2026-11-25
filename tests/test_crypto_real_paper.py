@@ -210,3 +210,25 @@ class TestRealModeConfig(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestNewAccountProfile(unittest.TestCase):
+    def test_new_account_starts_on_the_configured_default_profile(self):
+        from crypto_sentinel.config import DEFAULT_STRATEGY_PROFILE
+        st = CryptoStorageEngine(db_path=":memory:")
+        self.assertEqual(st.get_account().strategy_profile, DEFAULT_STRATEGY_PROFILE)
+        self.assertEqual(DEFAULT_STRATEGY_PROFILE, "FAST_SCALPER")
+
+
+class TestRealPaperReset(unittest.TestCase):
+    def test_reset_in_real_paper_mode_returns_to_initial_capital_not_the_testnet_wallet(self):
+        from unittest.mock import MagicMock
+        from crypto_sentinel.controller import CryptoBotController
+        from crypto_sentinel.config import INITIAL_CAPITAL
+        bot = CryptoBotController()
+        bot.storage = _real_storage(1234.0)
+        bot.order_mgr = CryptoOrderManager(bot.storage)
+        bot.order_mgr.fetch_binance_testnet_account = MagicMock(return_value={"totalWalletBalance": "3543.54"})
+        bot.reset()
+        self.assertEqual(bot.storage.get_account().balance, INITIAL_CAPITAL)
+        bot.order_mgr.fetch_binance_testnet_account.assert_not_called()

@@ -4,6 +4,7 @@ Handles trade execution, partial profit scaling (Target 1: 1.5R @ 50%),
 defensive stop adjustments, and full exit (Target 2: 3.0R @ 50%).
 """
 
+import threading
 import time
 import uuid
 import hmac
@@ -58,6 +59,17 @@ class CryptoOrderManager:
         self._stops_placed: set = set()   # position_ids protected by a resting exchange stop this process
         self._stop_retry_at: Dict[str, float] = {}   # position_id -> earliest next attempt after a failure
         self._funding_checked_at: Dict[str, float] = {}  # position_id -> last funding lookup (REAL_DATA_PAPER)
+        # One lock for every path that books money or closes a trade (bot cycle, dashboard close,
+        # funding, swaps): each re-reads the stored position first, so a stale copy cannot book twice.
+        self.book_lock = threading.RLock()
+
+    def still_open(self, pos: CryptoPosition) -> bool:
+        """True if the stored record is still open; marks the caller's copy closed otherwise."""
+        fresh = self.storage.get_position(pos.position_id)
+        if fresh is None or fresh.status == "CLOSED":
+            pos.status = "CLOSED"
+            return False
+        return True
 
     # ── Exchange transport ─────────────────────────────────────────────
     def _testnet_keys(self) -> bool:
@@ -231,6 +243,14 @@ class CryptoOrderManager:
 
     def update_position_with_price(self, pos: CryptoPosition, current_price: float, account: CryptoAccount,
                                    quote: Optional[tuple] = None):
+        with self.book_lock:
+            if not self.still_open(pos):
+                return
+            account = self.storage.get_account()
+            self._update_position_locked(pos, current_price, account, quote)
+
+    def _update_position_locked(self, pos: CryptoPosition, current_price: float, account: CryptoAccount,
+                                quote: Optional[tuple] = None):
         """
         Double Tap lifecycle management on price updates:
         1. Check Target 1 (1.5R): close 50% and move stop to entry defensive buffer.
@@ -250,7 +270,8 @@ class CryptoOrderManager:
         current_move = (current_price - pos.entry_price) if is_long else (pos.entry_price - current_price)
         r_multiple = (current_move / risk_dist) if risk_dist > 0 else 0.0
 
-        pos.unrealized_pnl = round(current_move * pos.quantity, 2)
+        # Paper keeps the original size after Target 1 and treats half as banked: P&L on the open part only.
+        pos.unrealized_pnl = round(current_move * self._remaining_qty(pos, testnet), 2)
         pos.unrealized_r = round(r_multiple, 2)
 
         # 1. Target 1 Check (1.5R reached)
@@ -432,6 +453,11 @@ class CryptoOrderManager:
 
     def close_position_manually(self, pos_id: str, current_price: float, account: CryptoAccount,
                                 quote: Optional[tuple] = None) -> bool:
+        with self.book_lock:
+            return self._close_manually_locked(pos_id, current_price, self.storage.get_account(), quote)
+
+    def _close_manually_locked(self, pos_id: str, current_price: float, account: CryptoAccount,
+                               quote: Optional[tuple] = None) -> bool:
         """
         Operator manual flatten / panic close.
         """
@@ -489,6 +515,12 @@ class CryptoOrderManager:
         """
         if account.mode != REAL_PAPER_MODE or pos.status == "CLOSED":
             return 0.0
+        with self.book_lock:
+            if not self.still_open(pos):
+                return 0.0
+            return self._settle_funding_locked(pos, now, force, min_interval)
+
+    def _settle_funding_locked(self, pos: CryptoPosition, now: Optional[float], force: bool, min_interval: float) -> float:
         now = time.time() if now is None else now
         if not force and now - self._funding_checked_at.get(pos.position_id, 0.0) < min_interval:
             return 0.0

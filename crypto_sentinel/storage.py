@@ -206,10 +206,12 @@ class CryptoStorageEngine:
             cur.execute("SELECT id FROM crypto_account WHERE id = 1;")
             if not cur.fetchone():
                 conn.execute("""
-                    INSERT INTO crypto_account 
-                    (id, balance, peak_balance, realized_pnl, daily_starting_equity, daily_drawdown_pct, is_locked, mode, updated_at)
-                    VALUES (1, ?, ?, 0.0, ?, 0.0, 0, ?, ?);
-                """, (INITIAL_CAPITAL, INITIAL_CAPITAL, INITIAL_CAPITAL, DEFAULT_EXECUTION_MODE, time.time()))
+                    INSERT INTO crypto_account
+                    (id, balance, peak_balance, realized_pnl, daily_starting_equity, daily_drawdown_pct, is_locked, mode, updated_at,
+                     strategy_profile)
+                    VALUES (1, ?, ?, 0.0, ?, 0.0, 0, ?, ?, ?);
+                """, (INITIAL_CAPITAL, INITIAL_CAPITAL, INITIAL_CAPITAL, DEFAULT_EXECUTION_MODE, time.time(),
+                      DEFAULT_STRATEGY_PROFILE))  # the column's SQL default is the legacy MODERATE_GROWTH
             conn.commit()
 
     # --- Account Methods ---
@@ -328,8 +330,18 @@ class CryptoStorageEngine:
             conn.commit()
 
     # --- Position Methods ---
-    def save_position(self, pos: CryptoPosition):
+    def get_position(self, position_id: str) -> Optional[CryptoPosition]:
         with self._lock, self._get_connection() as conn:
+            r = conn.execute("SELECT * FROM crypto_positions WHERE position_id = ?;", (position_id,)).fetchone()
+            return self._row_to_position(r) if r else None
+
+    def save_position(self, pos: CryptoPosition) -> bool:
+        """Insert or update a position. A CLOSED record is final: it is never reopened or re-closed,
+        so a stale copy held by another thread cannot overwrite how the trade really ended."""
+        with self._lock, self._get_connection() as conn:
+            prev = conn.execute("SELECT status FROM crypto_positions WHERE position_id = ?;", (pos.position_id,)).fetchone()
+            if prev is not None and prev[0] == "CLOSED":
+                return False
             is_stagnant = 1 if getattr(pos, 'is_stagnant', False) else 0
             stagnant_at = getattr(pos, 'stagnant_at', None)
             conn.execute("""
@@ -346,6 +358,7 @@ class CryptoStorageEngine:
                 is_stagnant, stagnant_at, getattr(pos, "funding_paid", 0.0) or 0.0, getattr(pos, "last_funding_ts", None)
             ))
             conn.commit()
+            return True
 
     def get_open_positions(self) -> List[CryptoPosition]:
         with self._lock, self._get_connection() as conn:

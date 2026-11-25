@@ -19,7 +19,7 @@ from crypto_sentinel.engines.liquidation_engine import LiquidationEngine
 from crypto_sentinel.arbitration import SignalArbitrationEngine
 from crypto_sentinel.risk_engine import CryptoRiskEngine
 from crypto_sentinel.order_manager import CryptoOrderManager, paper_entry_fill
-from crypto_sentinel.config import REAL_PAPER_MODE
+from crypto_sentinel.config import REAL_PAPER_MODE, INITIAL_CAPITAL
 
 class CryptoBotController:
     def __init__(self):
@@ -141,12 +141,16 @@ class CryptoBotController:
                     if getattr(pos, 'status', '') == 'DISPATCH_FAILED':
                         continue
 
-                    pos.status = "CLOSED"
-                    pos.exit_time = time.time()
-                    pos.exit_reason = "EXCHANGE_CLOSE"
-                    pos.exit_price = pos.current_price or pos.entry_price
-                    self.order_mgr._record_closed_trade_learning(pos)
-                    self.storage.save_position(pos)
+                    with self.order_mgr.book_lock:
+                        # A manual close may have booked this trade since our list was read.
+                        if not self.order_mgr.still_open(pos):
+                            continue
+                        pos.status = "CLOSED"
+                        pos.exit_time = time.time()
+                        pos.exit_reason = "EXCHANGE_CLOSE"
+                        pos.exit_price = pos.current_price or pos.entry_price
+                        self.order_mgr._record_closed_trade_learning(pos)
+                        self.storage.save_position(pos)
         else:
             open_positions = self.storage.get_open_positions()
             acc_prof = STRATEGY_PROFILES.get(account.strategy_profile, STRATEGY_PROFILES.get("FAST_SCALPER", {}))
@@ -271,6 +275,8 @@ class CryptoBotController:
                             level="SUCCESS"
                         )
                         account = self.storage.get_account()
+                        current_open = [p for p in current_open if p.position_id != eligible_swap_pos.position_id]
+                    elif eligible_swap_pos and not self.order_mgr.still_open(eligible_swap_pos):
                         current_open = [p for p in current_open if p.position_id != eligible_swap_pos.position_id]
                     elif eligible_swap_pos:
                         mins_held = int((time.time() - eligible_swap_pos.entry_time) // 60)
@@ -411,6 +417,11 @@ class CryptoBotController:
             self.storage.log_activity("PROFILE", "CONFIG", f"Switched strategy profile to {p_info['name']} ({p_info['risk_per_trade_pct']}% risk, TP1={t1_r}R, TP2={t2_r}R).", "INFO")
 
     def reset(self):
+        if self.storage.get_account().mode == REAL_PAPER_MODE:
+            # The real-data paper account is independent of the testnet wallet: reset to starting capital.
+            self.storage.reset_system(new_balance=INITIAL_CAPITAL)
+            self.storage.log_activity("RESET", "CORE", f"Real Binance paper account reset to ${INITIAL_CAPITAL:,.2f}.", "WARNING")
+            return
         live_acc = self.order_mgr.fetch_binance_testnet_account()
         wallet_bal = float(live_acc.get("totalWalletBalance")) if (live_acc and live_acc.get("totalWalletBalance")) else None
         self.storage.reset_system(new_balance=wallet_bal)
@@ -499,12 +510,16 @@ class CryptoBotController:
                     if getattr(pos, 'status', '') == 'DISPATCH_FAILED':
                         continue
 
-                    pos.status = "CLOSED"
-                    pos.exit_time = time.time()
-                    pos.exit_reason = "EXCHANGE_CLOSE"
-                    pos.exit_price = pos.current_price or pos.entry_price
-                    self.order_mgr._record_closed_trade_learning(pos)
-                    self.storage.save_position(pos)
+                    with self.order_mgr.book_lock:
+                        # A manual close may have booked this trade since our list was read.
+                        if not self.order_mgr.still_open(pos):
+                            continue
+                        pos.status = "CLOSED"
+                        pos.exit_time = time.time()
+                        pos.exit_reason = "EXCHANGE_CLOSE"
+                        pos.exit_price = pos.current_price or pos.entry_price
+                        self.order_mgr._record_closed_trade_learning(pos)
+                        self.storage.save_position(pos)
 
             for tp in testnet_positions:
                 if not any(p.symbol == tp["symbol"] for p in synced_open):
@@ -548,6 +563,18 @@ class CryptoBotController:
                     synced_open.append(new_synced)
 
             open_positions = synced_open
+        else:
+            # Paper modes: show the live mark (real Binance in REAL_DATA_PAPER), not the stored entry,
+            # with P&L on the part still open (paper treats half as banked after Target 1).
+            for pos in open_positions:
+                px = self.data_feed.get_current_price(pos.symbol)
+                if not px:
+                    continue
+                pos.current_price = px
+                move = (px - pos.entry_price) if pos.direction == "LONG" else (pos.entry_price - px)
+                risk_dist = abs(pos.entry_price - pos.initial_stop)
+                pos.unrealized_pnl = round(move * self.order_mgr._remaining_qty(pos, testnet=False), 2)
+                pos.unrealized_r = round(move / risk_dist, 2) if risk_dist > 0 else 0.0
 
         closed_trades = self.storage.get_closed_positions(limit=15)
         screener = self.storage.get_screener_candidates()
