@@ -780,6 +780,10 @@ svg.es{width:100%;height:100%;overflow:visible}
     <span style="font-size:14px">🪙</span> Crypto Sentinel AI
     <span class="tab-badge" style="background:rgba(245,158,11,.2);color:#FBBF24">BINANCE &amp; 3-ENGINE</span>
   </button>
+  <button id="tabBtnPm15" class="nav-tab" onclick="switchMainTab('pm15')">
+    <span style="font-size:14px">⏱️</span> Polymarket 15M
+    <span class="tab-badge" style="background:rgba(99,102,241,.2);color:#A5B4FC">BTC 15-MIN · PAPER</span>
+  </button>
   <button id="tabBtnTrend" class="nav-tab" onclick="switchMainTab('trend')">
     <span style="font-size:14px">📈</span> Trend Paper Test
     <span class="tab-badge" style="background:rgba(16,185,129,.15);color:var(--gr)">DAILY · FORWARD TEST</span>
@@ -1565,6 +1569,95 @@ svg.es{width:100%;height:100%;overflow:visible}
 </main>
 </div>
 
+<div id="view-pm15" style="display:none">
+<main style="max-width:1300px;display:block">
+    <div class="pn" style="border:1px solid rgba(99,102,241,.35);background:linear-gradient(180deg,rgba(99,102,241,.05),rgba(15,23,42,.7))">
+      <div class="ph" style="background:rgba(99,102,241,.1);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="pt">
+            <span style="font-size:16px">⏱️</span> BTC 15-Minute Trend Bot
+            <span class="tab-badge" style="background:rgba(99,102,241,.2);color:#A5B4FC;margin-left:6px">BTC ONLY · PAPER · NO ORDERS</span>
+          </div>
+          <button id="pm15Toggle" class="btn btn-demo" style="padding:4px 10px;font-size:10px" onclick="pm15Toggle()">…</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:11px;font-family:'JetBrains Mono',monospace;flex-wrap:wrap">
+          <span style="color:var(--tx2)">Bankroll: <b id="pm15Bal" style="color:var(--tx1)">$0.00</b></span>
+          <span style="color:var(--tx2)">P&amp;L: <b id="pm15Pnl" style="color:var(--gr)">+$0.00</b></span>
+          <span style="color:var(--tx2)">Win Rate: <b id="pm15WinRate" style="color:#A5B4FC">-</b></span>
+          <span style="color:var(--tx2)">Fees Paid: <b id="pm15Fees" style="color:#FBBF24">$0.000</b></span>
+          <span style="color:var(--tx2)">Record: <b id="pm15Record" style="color:#38BDF8">0W - 0L</b></span>
+          <span style="color:var(--tx2)">Per trade: <b id="pm15Stake" style="color:var(--tx1)">$0</b></span>
+        </div>
+      </div>
+      <div style="padding:16px">
+        <!-- Live round header with countdown -->
+        <div style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.4),rgba(15,23,42,.6));border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;margin-bottom:12px;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:26px">🟠</span>
+            <div>
+              <div style="font-size:14px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px">
+                <span>BTC Up or Down 15m</span>
+                <span class="tab-badge" style="background:rgba(56,189,248,.15);color:#38BDF8;font-size:9px">LIVE CONTRACT</span>
+              </div>
+              <div style="font-size:11px;color:var(--tx2);margin-top:2px" id="pm15Window">Loading Polymarket schedule...</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:6px 14px">
+            <div>
+              <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;font-weight:700">Price To Beat (Strike)</div>
+              <div style="font-size:13.5px;font-weight:800;color:var(--tx1);font-family:'JetBrains Mono',monospace" id="pm15Ptb">--</div>
+            </div>
+            <div style="border-left:1px solid rgba(255,255,255,.1);padding-left:12px">
+              <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;font-weight:700">Current Spot</div>
+              <div style="font-size:13.5px;font-weight:800;color:#FBBF24;font-family:'JetBrains Mono',monospace" id="pm15Spot">--</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="text-align:right">
+              <div style="font-size:9.5px;color:var(--tx3);text-transform:uppercase;font-weight:700">Candle Closes In</div>
+              <div style="font-size:20px;font-weight:900;color:#38BDF8;font-family:'JetBrains Mono',monospace" id="pm15Timer">00:00</div>
+            </div>
+            <div style="border-left:1px solid rgba(255,255,255,.1);padding-left:12px;text-align:right">
+              <div style="font-size:9.5px;color:#A5B4FC;text-transform:uppercase;font-weight:700">Next Decision</div>
+              <div style="font-size:13px;font-weight:800;color:#A5B4FC;font-family:'JetBrains Mono',monospace" id="pm15NextDecision">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Past / active / upcoming ribbon -->
+        <div style="background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:8px 12px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:10.5px;font-weight:800;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">🌐 Polymarket 15-Minute Rounds (past results · live · next):</span>
+            <a id="pm15Link" href="https://polymarket.com" target="_blank" rel="noopener noreferrer" style="font-size:10.5px;color:#38BDF8;text-decoration:none;font-weight:700">🔗 Verify on Polymarket.com ↗</a>
+          </div>
+          <div class="poly-ribbon-bar" id="pm15Ribbon"><span style="font-size:11px;color:var(--tx3)">Connecting to Polymarket...</span></div>
+        </div>
+
+        <!-- Rule banner -->
+        <div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11.5px;color:var(--tx1);line-height:1.6" id="pm15Rule">Loading rule...</div>
+
+        <!-- Upcoming rounds -->
+        <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px 12px;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:800;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🗓️ Next 15-Minute Sessions</div>
+          <div id="pm15Upcoming" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px"></div>
+        </div>
+
+        <!-- Active slip + history -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+          <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase" id="pm15SlipTitle">Active 15M Bet Slip</div>
+            <div id="pm15Active" style="font-size:12px;color:var(--tx2)">Loading...</div>
+          </div>
+          <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase">Recent 15M Trade History (BTC)</div>
+            <div id="pm15History" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+</main>
+</div>
+
 <style>.trend-trades th,.trend-trades td{padding:2px 3px}.trend-trades th:first-child,.trend-trades td:first-child{padding-left:0}</style>
 <div id="view-trend" style="display:none">
 <main style="max-width:1200px;display:block">
@@ -2055,6 +2148,11 @@ function switchMainTab(tab) {
   if (tabTrend) tabTrend.classList.remove('active');
   if (viewTrend) viewTrend.style.display = 'none';
   if (trendInterval) { clearInterval(trendInterval); trendInterval = null; }
+  const tabPm15 = $('tabBtnPm15');
+  const viewPm15 = $('view-pm15');
+  if (tabPm15) tabPm15.classList.remove('active');
+  if (viewPm15) viewPm15.style.display = 'none';
+  if (pm15Interval) { clearInterval(pm15Interval); pm15Interval = null; }
 
   tabIct.classList.remove('active');
   tabPoly.classList.remove('active');
@@ -2080,12 +2178,148 @@ function switchMainTab(tab) {
     if (viewCrypto) viewCrypto.style.display = 'block';
     loadCryptoState();
     if (!cryptoInterval) { cryptoInterval = setInterval(loadCryptoState, 2500); }
+   } else if (tab === 'pm15') {
+    if (tabPm15) tabPm15.classList.add('active');
+    if (viewPm15) viewPm15.style.display = 'block';
+    loadPm15State();
+    pm15Interval = setInterval(() => { loadPm15State(); }, 1000);
    } else if (tab === 'trend') {
     if (tabTrend) tabTrend.classList.add('active');
     if (viewTrend) viewTrend.style.display = 'block';
     loadTrendState();
     trendInterval = setInterval(loadTrendState, 60000);
   }
+}
+
+// ── Polymarket 15-minute paper bot ─────────────────────────────────────
+let pm15Interval = null;
+let pm15State = null;
+let pm15Timeline = null;
+let pm15LastTimeline = 0;
+
+function pm15Money(v) { return (v >= 0 ? '+' : '-') + '$' + Math.abs(v).toFixed(2); }
+function pm15Time(ts) { return new Date(ts * 1000).toISOString().slice(11, 16) + ' UTC'; }
+function pm15Clock(sec) { sec = Math.max(0, Math.floor(sec)); return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0'); }
+
+async function pm15Toggle() {
+  await fetch('/api/polymarket/15m/toggle', { method: 'POST' });
+  setTimeout(loadPm15State, 300);
+}
+
+function pm15Tick() {
+  const now = Date.now() / 1000;
+  const r = Math.floor(now / 900) * 900;
+  $('pm15Timer').textContent = pm15Clock(r + 900 - now);
+  const d = pm15State;
+  if (!d) return;
+  const entry = (d.rule || {}).entry_seconds || 10;
+  let next = r + entry;
+  if (now > next) next = r + 900 + entry;
+  $('pm15NextDecision').textContent = d.active_trade ? 'in a trade' : ('in ' + pm15Clock(next - now));
+}
+
+function pm15RenderTimeline(tl) {
+  if (!tl) return;
+  const act = tl.active_round || {};
+  $('pm15Window').textContent = act.time_window_et ? act.time_window_et + ' · ' + act.time_window_utc : '15-minute round';
+  if (act.price_to_beat) $('pm15Ptb').textContent = '$' + act.price_to_beat.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  if (act.polymarket_url) $('pm15Link').href = act.polymarket_url;
+  let html = '<div style="display:inline-flex;align-items:center;gap:5px;border-right:1px solid rgba(255,255,255,.1);padding-right:8px;margin-right:4px"><span class="poly-pill-past-btn">Past ▾</span>';
+  (tl.past_rounds || []).forEach(p => {
+    const up = p.outcome === 'UP';
+    html += '<a href="' + p.polymarket_url + '" target="_blank" rel="noopener noreferrer" class="poly-pill-outcome ' + (up ? 'up' : 'down') + '" title="' + p.label + ' - ' + p.outcome + '">' + (up ? '▲' : '▼') + '</a>';
+  });
+  html += '</div>';
+  html += '<a href="' + act.polymarket_url + '" target="_blank" rel="noopener noreferrer" class="poly-pill-active"><span class="poly-pulse-dot" style="width:8px;height:8px;background:#38BDF8;box-shadow:0 0 8px #38BDF8"></span><span>' +
+    (act.label || 'Live') + '</span><span style="font-size:10px;color:#A5B4FC;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:10px">LIVE</span></a>';
+  (tl.upcoming_rounds || []).forEach(u => {
+    html += '<a href="' + u.polymarket_url + '" target="_blank" rel="noopener noreferrer" class="poly-pill-upcoming"><span>' + u.label + '</span><span style="font-size:9.5px;color:var(--tx3)">(' + u.status + ')</span></a>';
+  });
+  $('pm15Ribbon').innerHTML = html;
+  $('pm15Upcoming').innerHTML = (tl.upcoming_rounds || []).map((u, i) =>
+    '<div style="background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:800;color:#38BDF8">' +
+    (i === 0 ? '⏭ NEXT SESSION (+15M)' : 'SESSION +' + (i + 1) * 15 + 'M') + '</span><span class="b b-p" style="font-size:9.5px;padding:2px 7px">' + (u.status || 'SCHEDULED') + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--tx3)">Time (ET):</span><span style="color:#A5B4FC;font-family:\'JetBrains Mono\',monospace;font-weight:700">' + u.time_window_et + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:10.5px"><span style="color:var(--tx3)">Time (UTC):</span><span style="color:var(--tx2);font-family:\'JetBrains Mono\',monospace">' + u.time_window_utc + '</span></div>' +
+    '<div style="border-top:1px dashed rgba(255,255,255,.07);padding-top:5px;display:flex;justify-content:space-between"><span style="font-size:9.5px;color:var(--tx3)">Contract:</span>' +
+    '<a href="' + u.polymarket_url + '" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:#38BDF8;text-decoration:none;font-weight:600">Open on Polymarket ↗</a></div></div>').join('');
+}
+
+async function loadPm15State() {
+  let d;
+  try { d = await (await fetch('/api/polymarket/15m/state')).json(); } catch (e) { return; }
+  pm15State = d;
+  const now = Date.now() / 1000;
+  if (now - pm15LastTimeline > 15) {
+    pm15LastTimeline = now;
+    fetch('/api/polymarket/crypto/timeline?coin=BTC&tf=15m').then(r => r.json()).then(tl => { pm15Timeline = tl; pm15RenderTimeline(tl); }).catch(() => {});
+  }
+  const btn = $('pm15Toggle');
+  btn.textContent = d.is_enabled ? '🟢 15M Bot Active (click to pause)' : '⏸ 15M Bot Paused (click to start)';
+  const pnl = d.realized_pnl || 0;
+  $('pm15Bal').textContent = '$' + d.balance.toFixed(2);
+  $('pm15Pnl').textContent = pm15Money(pnl);
+  $('pm15Pnl').style.color = pnl >= 0 ? 'var(--gr)' : 'var(--rd)';
+  $('pm15WinRate').textContent = d.total_trades ? (100 * d.total_won / d.total_trades).toFixed(1) + '%' : '-';
+  $('pm15Fees').textContent = '$' + (d.fees_paid || 0).toFixed(3);
+  $('pm15Record').textContent = d.total_won + 'W - ' + d.total_lost + 'L';
+  $('pm15Stake').textContent = '$' + d.stake;
+  $('pm15SlipTitle').textContent = 'Active 15M Bet Slip ($' + d.stake + ' per trade · BTC)';
+  if (d.spot) {
+    const ptb = pm15Timeline && pm15Timeline.active_round ? pm15Timeline.active_round.price_to_beat : null;
+    const diff = ptb ? d.spot - ptb : null;
+    $('pm15Spot').innerHTML = '$' + d.spot.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) +
+      (diff != null ? ' <span style="font-size:11px;color:' + (diff >= 0 ? 'var(--gr)' : 'var(--rd)') + '">(' + (diff >= 0 ? '+' : '-') + '$' + Math.abs(diff).toFixed(2) + ')</span>' : '');
+  }
+  const r = d.rule || {};
+  const exits = r.single_tp != null
+    ? 'sell everything at <b>+' + Math.round(r.single_tp * 100) + '%</b>'
+    : 'sell <b>half at +' + Math.round((r.half_at || 0) * 100) + '%</b>, the <b>rest at +' + Math.round((r.rest_at || 0) * 100) + '%</b>';
+  const late = r.late_exit_seconds ? '; in the last ' + r.late_exit_seconds + ' s sell what is left if under 30¢' : '';
+  $('pm15Rule').innerHTML = '🎯 <b style="color:#A5B4FC">RULE:</b> about <b>' + r.entry_seconds + ' s</b> into each 15-minute round, buy the side that won the <b>previous round</b> with <b>$' +
+    d.stake + '</b>, only at <b>' + Math.round((r.min_price || 0) * 100) + '–' + Math.round(r.max_price * 100) + '¢</b>. Then ' + exits + late + '; otherwise hold to the result. Fake money, live Polymarket prices, fees included.';
+  const t = d.active_trade;
+  if (!t) {
+    $('pm15Active').innerHTML = '<div style="font-size:11.5px;color:var(--tx3)">No active position for this 15-minute round. It decides once per round, about ' + r.entry_seconds + ' s after the round opens.</div>';
+  } else {
+    const up = t.side === 'UP';
+    const bid = t.last_bid || 0;
+    const value = bid ? t.shares * bid : t.cost;
+    const upl = bid ? value - t.cost - t.commission + (t.banked || 0) : 0;
+    const pct = (d.stake ? 100 * upl / d.stake : 0).toFixed(1);
+    const color = upl >= 0 ? 'var(--gr)' : 'var(--rd)';
+    $('pm15Active').innerHTML =
+      '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px">🟠</span>' +
+      '<span class="b ' + (up ? 'b-l' : 'b-s') + '" style="font-size:10px;padding:2px 7px">ACTIVE ' + t.side + ' on BTC 15m</span>' + (t.half_sold ? '<span class="b" style="background:rgba(16,185,129,.2);color:var(--gr);font-size:9px;padding:1px 5px">½ SOLD</span>' : '') + '</div>' +
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;font-weight:700;color:var(--tx1);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:4px">$' + d.stake.toFixed(2) + ' Outlay</div></div>' +
+      '<div style="background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 10px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px"><span style="font-size:10px;color:var(--tx3);text-transform:uppercase;font-weight:700">If closed now:</span>' +
+      '<span style="font-size:14px;font-weight:800;color:' + color + ';font-family:\'JetBrains Mono\',monospace">' + pm15Money(upl) + ' <span style="font-size:11px">(' + (upl >= 0 ? '+' : '') + pct + '%)</span></span></div>' +
+      '<div style="font-size:10px;color:var(--tx2)">Odds Movement: <b>' + Math.round(t.entry * 100) + '¢ → <span style="color:#38BDF8">' + (bid ? Math.round(bid * 100) + '¢' : '-') + '</span></b></div></div>' +
+      '<div style="font-size:11px;color:var(--tx2)"><b>' + t.shares.toFixed(2) + '</b> shares left @ $' + t.entry.toFixed(3) + ' | Fee: <b style="color:#FBBF24">$' + t.commission.toFixed(3) + '</b></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:10.5px;border-top:1px dashed rgba(255,255,255,.06);padding-top:4px"><span style="color:var(--tx3)">Max Payout at $1.00:</span>' +
+      '<span style="color:var(--gr);font-weight:700;font-family:\'JetBrains Mono\',monospace">$' + t.shares.toFixed(2) + ' (' + pm15Money(t.shares - t.cost - t.commission + (t.banked || 0)) + ' Net)</span></div>' +
+      ((t.notes || []).length ? '<div style="font-size:10.5px;color:var(--tx3)">' + t.notes.map(trendEsc).join(' · ') + '</div>' : '') + '</div>';
+  }
+  const rows = d.history || [];
+  $('pm15History').innerHTML = rows.length ? rows.map(h => {
+    const won = h.status === 'WON';
+    const notes = (h.notes || []).join(' ');
+    let badge = '';
+    if (notes.indexOf('sold half') >= 0) badge += '<span class="b" style="background:rgba(16,185,129,.2);color:var(--gr);font-size:9px;padding:1px 4px;margin-left:4px">½ SOLD +30%</span>';
+    if (notes.indexOf('sold the rest') >= 0 || notes.indexOf('cashed out') >= 0) badge += '<span class="b" style="background:rgba(245,158,11,.2);color:#FBBF24;font-size:9px;padding:1px 4px;margin-left:4px">💰 CASH OUT</span>';
+    if (notes.indexOf('last minute') >= 0) badge += '<span class="b" style="background:rgba(244,63,94,.2);color:var(--rd);font-size:9px;padding:1px 4px;margin-left:4px">⏱ LATE EXIT</span>';
+    if (notes.indexOf('held to the result') >= 0) badge += '<span class="b" style="background:rgba(56,189,248,.15);color:#38BDF8;font-size:9px;padding:1px 4px;margin-left:4px">⏳ HELD</span>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.02);padding:5px 8px;border-radius:4px;font-size:11px" title="' + trendEsc(notes) + '">' +
+      '<div><span class="b ' + (h.side === 'UP' ? 'b-l' : 'b-s') + '" style="padding:1px 5px;font-size:9.5px">' + h.side + '</span>' +
+      '<b style="color:var(--tx1);margin-left:4px">BTC</b>' + badge +
+      '<span style="font-family:\'JetBrains Mono\',monospace;margin-left:4px;color:var(--tx3)">' + pm15Time(h.round_ts) + '</span>' +
+      '<span style="font-size:9.5px;color:var(--tx3)"> · in @ ' + Math.round(h.entry * 100) + '¢ · ' + trendEsc(h.result) + '</span></div>' +
+      '<span style="color:' + (won ? 'var(--gr)' : 'var(--rd)') + ';font-weight:700;font-family:\'JetBrains Mono\',monospace">' + pm15Money(h.pnl) + ' (' + h.status + ')</span></div>';
+  }).join('') : '<div style="font-size:11.5px;color:var(--tx3)">No completed 15M trades yet.</div>';
+  pm15Tick();
 }
 
 // ── Trend paper test (read-only) ───────────────────────────────────────
@@ -4158,6 +4392,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(CRYPTO_BOT.storage.export_dataset_json())
         elif self.path == "/api/polymarket/state":
             self._json(POLY_BOT.get_full_state())
+        elif self.path == "/api/polymarket/15m/state":
+            st = POLY_BOT.btc_15m.get_state()
+            lb = getattr(POLY_BOT.btc_analyzer, "live_book", None)
+            st["live_book"] = {"healthy": lb.healthy(), "messages": lb.messages} if lb is not None else None
+            self._json(st)
         elif self.path == "/api/polymarket/live/status":
             self._json(POLY_BOT.get_live_account_status())
         elif self.path.startswith("/api/polymarket/crypto/timeline"):
@@ -4413,6 +4652,22 @@ def arm_engines_on_boot(poly_bot, crypto_bot):
         crypto_bot.start()
 
 
+def start_live_order_book():
+    """Feed the Polymarket 5-minute bot live order-book prices over WebSocket (POLY_LIVE_BOOK=0 turns it
+    off). The bot falls back to the REST book by itself whenever the stream is down."""
+    import os
+    if os.environ.get("POLY_LIVE_BOOK", "1") == "0":
+        return None
+    try:
+        from polymarket_sentinel.crypto_5m.clob_stream import ClobBookStream
+        stream = ClobBookStream().start()
+        POLY_BOT.btc_analyzer.live_book = stream
+        return stream
+    except Exception as e:
+        print(f"[live book] not started: {e}", flush=True)
+        return None
+
+
 def start_trend_scheduler():
     """On a server (TREND_PAPER_SCHEDULER=1) run the daily trend paper test's hourly check in this
     process, at minute 5 of every hour like the Mac's launchd job, plus one check at start-up
@@ -4462,6 +4717,7 @@ def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
     print("[*] Stream active. Press Ctrl+C in terminal to shutdown.\n")
     arm_engines_on_boot(poly_bot=POLY_BOT, crypto_bot=CRYPTO_BOT)
     start_trend_scheduler()
+    start_live_order_book()
     POLY_BOT.btc_15m.start()                                 # 15-minute paper bot (this server's rule, $20 a trade)
     try:
         srv.serve_forever()

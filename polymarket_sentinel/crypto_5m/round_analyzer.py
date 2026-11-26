@@ -97,7 +97,15 @@ class MultiCryptoRoundAnalyzer:
             return json.loads(res.read())
 
     def _fetch_clob_book(self, token_id: str) -> Optional[Dict[str, Any]]:
-        """Live order book for one outcome token, cached for CLOB_BOOK_TTL_SECONDS."""
+        """Live order book for one outcome token. Prefers the WebSocket stream (self.live_book, prices
+        ~0.1 s old) when it is attached and healthy; otherwise the REST book cached for
+        CLOB_BOOK_TTL_SECONDS (1-3 s old), exactly as before."""
+        live = getattr(self, "live_book", None)
+        if live is not None:
+            top = live.top(token_id)
+            if top is not None:
+                return {"bids": [{"price": str(top[0]), "size": "1"}], "asks": [{"price": str(top[1]), "size": "1"}],
+                        "source": "ws"}
         now = time.time()
         hit = self._book_cache.get(token_id)
         if hit and now - hit[0] < CLOB_BOOK_TTL_SECONDS:

@@ -40,6 +40,7 @@ class Trend15mBot:
         self.starting_balance = bankroll
         self.balance = bankroll
         self.realized_pnl = 0.0
+        self.fees_paid = 0.0
         self.is_enabled = enabled
         self.active: Optional[Dict[str, Any]] = None
         self.history: List[Dict[str, Any]] = []
@@ -137,6 +138,7 @@ class Trend15mBot:
             self._log("15M: not enough paper balance", f"Need ${self.stake + commission:.2f}, have ${self.balance:.2f}.", "warning")
             return
         self.balance -= self.stake + commission
+        self.fees_paid += commission
         self.active = {"round_ts": r, "side": prev, "entry": px, "shares": shares, "cost": self.stake,
                        "commission": commission, "half_sold": False, "banked": 0.0,
                        "opened": datetime.now(timezone.utc).isoformat(), "notes": []}
@@ -148,7 +150,9 @@ class Trend15mBot:
         t = self.active
         frac = shares / t["shares"]
         part_cost, part_comm = t["cost"] * frac, t["commission"] * frac
-        proceeds = shares * bid - fee(shares, bid)
+        exit_fee = fee(shares, bid)
+        self.fees_paid += exit_fee
+        proceeds = shares * bid - exit_fee
         pnl = proceeds - part_cost - part_comm
         t["shares"] -= shares
         t["cost"] -= part_cost
@@ -190,6 +194,7 @@ class Trend15mBot:
         if not m.get("found") or m.get("price_source") != "clob":
             return
         bid = float(m["bid_up"] if t["side"] == "UP" else m["bid_down"])
+        t["last_bid"] = bid
         if bid <= 0:
             return
         held_cost = t["cost"] + t["commission"]
@@ -217,7 +222,12 @@ class Trend15mBot:
     def get_state(self) -> Dict[str, Any]:
         with self.lock:
             won = sum(1 for h in self.history if h["status"] == "WON")
-            return {"is_enabled": self.is_enabled, "trading_mode": "PAPER", "timeframe": "15m",
+            spot = None
+            try:
+                spot = float(self.analyzer.feed.get_price("BTC"))
+            except Exception:
+                pass
+            return {"spot": spot, "fees_paid": round(self.fees_paid, 3),"is_enabled": self.is_enabled, "trading_mode": "PAPER", "timeframe": "15m",
                     "stake": self.stake, "balance": round(self.balance, 2), "starting_balance": self.starting_balance,
                     "realized_pnl": round(self.realized_pnl, 2), "total_trades": len(self.history),
                     "total_won": won, "total_lost": len(self.history) - won,
