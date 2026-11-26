@@ -184,6 +184,125 @@ class BinanceMarket:
         return {c: (b + a) / 2 for c, (b, a) in self.book_tickers().items()}
 
 
+class ArchiveMarket:
+    """Fallback when Binance bans the server's IP: the official daily candles and funding rates from Binance's
+    public file site (data.binance.vision), which the API ban does not cover. Files appear about a day late,
+    so days are traded as catch-up at the daily close (+ CATCHUP_SLIP), never at live quotes. Funding for
+    the current month is not published until the month ends, so it is missing while this is in use."""
+    BASE = "https://data.binance.vision/data/futures/um"
+    live_quotes = False
+
+    def __init__(self, cache_dir=None, now=None):
+        self.cache_dir = cache_dir or os.path.join(os.path.dirname(DB_PATH), "binance_archive")
+        self.now = int(now if now is not None else time.time())
+        self._rows = {}
+
+    def _file(self, url):
+        """Bytes of a published file (kept on disk: published files never change), or None if not published."""
+        import io
+        import zipfile
+        name = os.path.join(self.cache_dir, url.rsplit("/", 1)[-1].replace(".zip", ".csv"))
+        if os.path.exists(name):
+            with open(name) as f:
+                return f.read()
+        req = urllib.request.Request(url, headers={"User-Agent": "research-paper"})
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    blob = r.read()
+                break
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    return None
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
+        with zipfile.ZipFile(io.BytesIO(blob)) as z:
+            text = z.read(z.namelist()[0]).decode()
+        os.makedirs(self.cache_dir, exist_ok=True)
+        with open(name, "w") as f:
+            f.write(text)
+        return text
+
+    @staticmethod
+    def _months(start_ts, end_ts):
+        y, m = time.gmtime(start_ts)[:2]
+        ey, em = time.gmtime(end_ts)[:2]
+        while (y, m) <= (ey, em):
+            yield y, m
+            y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+
+    def _klines(self, coin, days):
+        """Daily candles (t, o, h, l, c) covering the last `days` days, oldest first."""
+        if coin in self._rows and self._rows[coin][0] >= days:
+            return self._rows[coin][1]
+        import calendar
+        from concurrent.futures import ThreadPoolExecutor
+        sym = f"{coin}USDT"
+        this_month = time.gmtime(self.now)[:2]
+        urls = [f"{self.BASE}/monthly/klines/{sym}/1d/{sym}-1d-{y}-{m:02d}.zip"
+                for y, m in self._months(self.now - (days + 31) * DAY, self.now) if (y, m) != this_month]
+        first = calendar.timegm((this_month[0], this_month[1], 1, 0, 0, 0))
+        urls += [f"{self.BASE}/daily/klines/{sym}/1d/{sym}-1d-{time.strftime('%Y-%m-%d', time.gmtime(d))}.zip"
+                 for d in range(first, self.now - DAY + 1, DAY)]
+        with ThreadPoolExecutor(8) as ex:
+            texts = list(ex.map(self._file, urls))
+        rows = {}
+        for text in texts:
+            for line in (text or "").splitlines():
+                parts = line.split(",")
+                if not parts or not parts[0].isdigit():
+                    continue
+                t = int(parts[0]) // 1000
+                rows[t] = (t, float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4]))
+        out = [rows[t] for t in sorted(rows) if t + DAY <= self.now]
+        self._rows[coin] = (days, out)
+        return out
+
+    def daily(self, coin, limit=200):
+        return [(t, c) for t, o, h, l, c in self._klines(coin, limit)[-limit:]]
+
+    def daily_ohlc(self, coin, limit=OHLC_DAYS):
+        return self._klines(coin, limit)[-limit:]
+
+    def funding(self, coin, since_ts):
+        sym, out = f"{coin}USDT", []
+        this_month = time.gmtime(self.now)[:2]
+        for y, m in self._months(int(since_ts), self.now):
+            if (y, m) == this_month:
+                continue                                         # published only after the month ends
+            text = self._file(f"{self.BASE}/monthly/fundingRate/{sym}/{sym}-fundingRate-{y}-{m:02d}.zip") or ""
+            for line in text.splitlines():
+                parts = line.split(",")
+                if parts and parts[0].isdigit() and len(parts) >= 3 and parts[2]:
+                    out.append((int(parts[0]) // 1000, float(parts[2]), 0.0))
+        return [r for r in out if r[0] > since_ts]
+
+    def book_tickers(self):
+        """No live quotes in the archive: the latest daily close stands in for bid and ask (valuation only)."""
+        out = {}
+        for c in COINS:
+            rows = self._klines(c, 30)
+            if rows:
+                out[c] = (rows[-1][4], rows[-1][4])
+        return out
+
+    def mids(self):
+        return {c: b for c, (b, a) in self.book_tickers().items()}
+
+    def quote(self, coin):
+        raise RuntimeError("the archive has no live quotes")
+
+
+def market_for_now():
+    """The live API normally; Binance's public daily files while Binance has banned this IP."""
+    return ArchiveMarket() if retry_wait() > 0 else BinanceMarket()
+
+
 # ---------------------------------------------------------------- book
 
 class PaperBook:
@@ -342,7 +461,7 @@ def run_once(book, market, now=None, variants=VARIANTS, coins=COINS, capital=CAP
         else:
             pending = list(range(int(last) + DAY, latest + 1, DAY))
         for i, day in enumerate(pending):
-            live = i == len(pending) - 1
+            live = i == len(pending) - 1 and getattr(market, "live_quotes", True)
             _process_day(book, market, v, rule, day, live, now, closes, fund, ohlc)
             log.append(f"{v} {time.strftime('%Y-%m-%d', time.gmtime(day))} {'live' if live else 'catchup'}")
     return log
@@ -479,8 +598,16 @@ def scheduled_check(path=None, market=None, now=None):
     stamp = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now))
     try:
         book = PaperBook(path)
-        log = run_once(book, market or BinanceMarket(), now=now)
-        line = f"[{stamp}] " + ("; ".join(log) if log else "nothing to do")
+        m = market or market_for_now()
+        try:
+            log = run_once(book, m, now=now)
+        except RuntimeError:
+            if market is not None or isinstance(m, ArchiveMarket) or retry_wait() <= 0:
+                raise
+            m = ArchiveMarket(now=now)                       # banned just now: use the public daily files
+            log = run_once(book, m, now=now)
+        src = " (Binance public daily files: API banned)" if isinstance(m, ArchiveMarket) else ""
+        line = f"[{stamp}] " + ("; ".join(log) if log else "nothing to do") + src
     except Exception as e:                                   # network trouble: try again next hour
         line = f"! [{stamp}] error: {type(e).__name__}: {e}"
     with open(log_path, "a") as f:

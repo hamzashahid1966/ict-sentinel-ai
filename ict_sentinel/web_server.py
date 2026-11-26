@@ -2110,7 +2110,7 @@ async function loadTrendState() {
   if (d.error) { cards.innerHTML = `<div class="empty">${trendEsc(d.error)}</div>`; return; }
   $('trendDates').textContent = ` Started ${d.start_day} · day ${d.days_elapsed} · judged ${d.judge_day} (${d.days_left} days left).` +
     ` Last check ${d.last_run || 'unknown'} UTC (it checks every hour; trades only after each daily close at 00:00 UTC).` +
-    (d.binance_wait_until ? ` Binance asked this server to pause until ${d.binance_wait_until} UTC; it resumes and catches up by itself then.` :
+    (d.binance_wait_until ? ` Binance has paused this server's API access until ${d.binance_wait_until} UTC; meanwhile it trades from Binance's public daily files (about a day late, at the daily close) and values positions at the last daily close.` :
      (d.last_problem ? ` Last attempt failed: ${d.last_problem}` : ''));
   cards.innerHTML = Object.keys(TREND_NAMES).map(k => {
     const a = d.accounts[k];
@@ -4366,7 +4366,7 @@ def trend_paper_state():
     from research import trend_paper as tp
     if _t.time() - _TREND_MIDS["t"] > 60:
         try:
-            q = tp.BinanceMarket().book_tickers()
+            q = tp.market_for_now().book_tickers()          # daily closes from the public files while banned
             _TREND_MIDS["quotes"] = q
             _TREND_MIDS["mids"] = {c: (b + a) / 2 for c, (b, a) in q.items()}
         except Exception:
@@ -4379,7 +4379,7 @@ def trend_paper_state():
         state = tp.dashboard_state(book, _TREND_MIDS["mids"], quotes=_TREND_MIDS["quotes"])
         if _t.time() - _TREND_OHLC["t"] > 300:              # daily candles: refresh every 5 minutes
             try:
-                m, now = tp.BinanceMarket(), _t.time()
+                m, now = tp.market_for_now(), _t.time()
                 _TREND_OHLC["ohlc"] = {c: [r for r in m.daily_ohlc(c, tp.OHLC_DAYS) if r[0] + tp.DAY <= now] for c in tp.COINS}
             except Exception:
                 pass
@@ -4430,13 +4430,8 @@ def start_trend_scheduler():
         _t.sleep(30)                                        # let the server come up first
         retries = 0
         while True:
-            wait = tp.retry_wait()
-            if wait > 0:                                     # Binance said stop: stay quiet, then catch up
-                print("[trend] Binance ban: quiet until "
-                      + _t.strftime("%Y-%m-%d %H:%M UTC", _t.gmtime(tp.BAN_UNTIL)), flush=True)
-                _t.sleep(min(wait + 30, 3 * 86400))
-                retries = 0
-                continue
+            # During a Binance IP ban the check reads Binance's public daily files instead of the API
+            # (tp.market_for_now), so it keeps trading (a day late, at the daily close) without knocking.
             line = tp.scheduled_check()
             print("[trend] " + line, flush=True)
             if line.startswith("!") and tp.retry_wait() == 0 and retries < 9:
