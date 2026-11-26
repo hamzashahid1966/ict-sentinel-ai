@@ -3,6 +3,7 @@ Multi-Crypto Paper Execution Engine (BTC, ETH, SOL, XRP).
 Manages $10 max sizing, round execution on best-edge coin at 2-minute mark, and per-coin win/loss ledger.
 """
 
+import os
 import time
 import threading
 from typing import Dict, Any, List, Optional, Set
@@ -26,6 +27,21 @@ class MultiCryptoPaperScalper:
         self.rejected_rounds: Set[str] = set()  # De-duplicate aborted orders for round
         self.trade_history: List[Btc5mTrade] = []
         self.is_enabled: bool = False  # Starts PAUSED by default until user clicks Start button
+        # Paper exits: "HOLD" keeps every paper trade to the 5-minute result (default). "SCALP" uses the old
+        # quick take-profit / 50c stop rules. On 251 recorded live rounds (research/pm_exit_rules.py) the
+        # SCALP exits turned the same entries from +$31 (held) into -$40: small wins, big stop-outs.
+        self.paper_exit_mode: str = os.environ.get("POLY_PAPER_EXIT", "HOLD").strip().upper()
+        # Paper entry strategy. "TREND1" (default, the user's rule, 2026-11-26): BTC only, $1 per round, buy
+        # the side that won the previous 5-minute round if it costs <= 65c, at least 30 s into the round;
+        # cash out once the bid is worth +40% on the stake, otherwise hold to the result. Backtest before
+        # building (research/pm_user_rule.py): -6c to -10c per $1 over ~9,500 rounds, so watch it on paper.
+        # "EDGE" = the original model signals with $5 bets. Live mode always uses EDGE.
+        self.paper_strategy: str = os.environ.get("POLY_PAPER_STRATEGY", "TREND1").strip().upper()
+        self.trend_stake: float = 1.0
+        self.trend_max_price: float = 0.65
+        self.trend_take_profit: float = 0.40
+        self.trend_min_seconds: int = 30
+        self._prev_winner_cache: Dict[int, str] = {}
         self.waiting_for_next_round: bool = False
         self.target_round_ts: int = 0
         self.stagger_interval_seconds: float = 15.0  # Condition timer: at least 15s gap between entering 2 coins
@@ -230,7 +246,10 @@ class MultiCryptoPaperScalper:
             time_since_last_entry = now_time - self.last_entry_time
             can_stagger_enter = (len(self.active_trades) == 0) or (time_since_last_entry >= self.stagger_interval_seconds)
 
-            if self.is_enabled and not self.waiting_for_next_round and len(self.active_trades) < self.max_concurrent_trades and self.balance >= 5.0 and can_stagger_enter:
+            if (self.is_enabled and self.trading_mode != "LIVE" and self.paper_strategy == "TREND1"
+                    and not self.waiting_for_next_round and len(self.active_trades) == 0 and self.balance >= self.trend_stake + 0.05):
+                self._trend1_entry(analysis.get("coins", {}), cur_round_ts, now_ts)
+            elif self.is_enabled and not self.waiting_for_next_round and len(self.active_trades) < self.max_concurrent_trades and self.balance >= 5.0 and can_stagger_enter:
                 all_coins = analysis.get("coins", {})
                 cur_round_ts_str = str(cur_round_ts)
 
@@ -265,6 +284,72 @@ class MultiCryptoPaperScalper:
                     self._execute_entry(candidate_coins[0])
 
             return self.get_state()
+
+    def _previous_winner(self, round_ts: int) -> Optional[str]:
+        """'UP' / 'DOWN' for the BTC round that started at round_ts (from Polymarket; the book sits near
+        0/1 once a round has ended, so it is known seconds after the close). None if not known yet."""
+        if round_ts in self._prev_winner_cache:
+            return self._prev_winner_cache[round_ts]
+        try:
+            m = self.analyzer.fetch_polymarket_market("BTC", round_ts)
+        except Exception:
+            return None
+        if not m or not m.get("found"):
+            return None
+        win = m.get("winning_outcome")
+        if not win:
+            up = m.get("price_up")
+            if up is None or 0.1 < float(up) < 0.9:            # not decided yet
+                return None
+            win = "UP" if float(up) >= 0.5 else "DOWN"
+        self._prev_winner_cache[round_ts] = win
+        if len(self._prev_winner_cache) > 50:
+            self._prev_winner_cache.pop(min(self._prev_winner_cache))
+        return win
+
+    def _trend1_entry(self, coins: Dict[str, Any], cur_round_ts: int, now_ts: int):
+        """The user's rule (paper only): follow the previous round's winner, $1, only at <= 65c."""
+        rd = coins.get("BTC")
+        key = f"{cur_round_ts}_TREND1"
+        if not rd or key in self.rejected_rounds or now_ts < cur_round_ts + self.trend_min_seconds:
+            return
+        if now_ts > cur_round_ts + 240:                         # too late in the round
+            return
+        if any(t.round_id.split("-")[-1] == str(cur_round_ts) for t in self.trade_history):
+            return
+        if getattr(rd, "price_source", "gamma") != "clob":
+            return                                              # no live book: no honest fill price
+        prev = self._previous_winner(cur_round_ts - 300)
+        if prev is None:
+            return                                              # try again next tick
+        px = round(rd.market_price_up if prev == "UP" else rd.market_price_down, 3)
+        if not 0.0 < px <= self.trend_max_price:
+            self.rejected_rounds.add(key)
+            if self.activity_callback:
+                self.activity_callback("5M_SCALP", f"Trend rule: skip round ({prev} costs {px * 100:.0f}c > 65c)",
+                                       "Previous round won by " + prev + "; price above the 65c cap.", "info")
+            return
+        shares = round(self.trend_stake / px, 2)
+        cost = round(shares * px, 4)
+        commission = self.calculate_polymarket_fee(shares, px)
+        if cost + commission > self.balance:
+            return
+        self.rejected_rounds.add(key)                           # one trade per round
+        self.last_entry_time = time.time()
+        self.balance = round(self.balance - cost - commission, 4)
+        self.total_commissions_paid = round(self.total_commissions_paid + commission, 4)
+        reason = (f"[TREND1 $1] Previous round won by {prev}; buy {prev} @ {px * 100:.0f}c (cap 65c). "
+                  f"Cash out at +40%, else hold to the result.")
+        self.active_trades["BTC"] = Btc5mTrade(
+            id=len(self.trade_history) + 1, round_id=rd.round_id, action="BUY", outcome=prev, shares=shares,
+            entry_price=px, cost=cost, pnl=0.0, timestamp=datetime.now(timezone.utc).isoformat(), reason=reason,
+            symbol="BTC", commission=commission, status="OPEN", mode="PAPER")
+        if self.activity_callback:
+            try:
+                self.activity_callback("5M_SCALP", f"Trend rule entered: BUY {prev} on BTC @ {px * 100:.0f}c",
+                                       f"$1 stake ({shares} shares), fee ${commission:.3f}. {reason}", "accent")
+            except Exception:
+                pass
 
     def _execute_entry(self, r: Btc5mRound):
         """Executes a disciplined $5.00 bet on the highest conviction coin with condition timer tracking."""
@@ -573,6 +658,14 @@ class MultiCryptoPaperScalper:
                 continue
 
             # --- PAPER SIMULATION EXECUTION RULES ---
+            if trade.reason.startswith("[TREND1") and top_bid > 0:
+                outlay = trade.cost + trade.commission            # the user's rule: cash out at +40% on the stake
+                value = trade.shares * top_bid - self.calculate_polymarket_fee(trade.shares, top_bid)
+                if value - outlay >= self.trend_take_profit * trade.cost:   # +40% on the $1 stake, after fees
+                    self.cashout_trade(sym, reason="TREND1_TAKE_PROFIT", exit_price=top_bid)
+                continue                                         # otherwise hold to the result
+            if self.paper_exit_mode != "SCALP":
+                continue                    # HOLD: no early exits; settles at the 5-minute result
             # For taking profit in paper simulation:
             eval_px = max(cur_px, top_bid)
             gain = eval_px - trade.entry_price

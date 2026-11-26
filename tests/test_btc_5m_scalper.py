@@ -47,6 +47,7 @@ class TestBtc5mScalper(unittest.TestCase):
         })
 
         self.scalper = Btc5mPaperScalper(self.analyzer, initial_bankroll=100.0, auto_start=False)
+        self.scalper.paper_strategy = "EDGE"  # these tests cover the model-signal strategy
 
     def test_strike_locking(self):
         """Strike price P0 must lock at candle start and remain unchanged throughout the round."""
@@ -261,6 +262,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
     def test_auto_take_profit_and_stop_loss_bailout(self):
         """Validates that positions auto-cashout at >=92¢ (TP) and <=28¢ (emergency SL bailout)."""
+        self.scalper.paper_exit_mode = "SCALP"  # the old quick-exit rules
         self.scalper.is_enabled = True
         self.scalper.waiting_for_next_round = False
         self.scalper.balance = 25.0
@@ -373,6 +375,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
     def test_dual_mode_early_value_and_late_harvest_with_50c_bailout(self):
         """Validates Mode A (Early Value Scalp) and Mode B (Late Yield Harvest) with 50¢ bailout."""
+        self.scalper.paper_exit_mode = "SCALP"  # the old quick-exit rules
         round_ts = self.analyzer.get_current_round_ts()
         self.analyzer.get_or_set_strike("BTC", round_ts, 60000.0)
 
@@ -436,6 +439,23 @@ class TestBtc5mScalper(unittest.TestCase):
         self.assertIn("Auto Stop-Loss Bailout", self.scalper.trade_history[0].reason)
         # On a $5 trade entered at 75¢, exiting at 49¢ salvages ~$3.25, capping loss to ~$1.75!
         self.assertGreater(self.scalper.trade_history[0].pnl, -2.50)
+
+    def test_paper_default_holds_to_result(self):
+        """By default a paper trade is not sold early on a pop or a dip; it waits for the result."""
+        self.assertEqual(self.scalper.paper_exit_mode, "HOLD")
+        from polymarket_sentinel.crypto_5m.models import Btc5mTrade
+        round_ts = 1795600000
+        trade = Btc5mTrade(id=1, round_id="r", action="BUY", outcome="UP", shares=6.5, entry_price=0.76, cost=4.94,
+                           pnl=0.0, timestamp="2026-11-25T00:00:00+00:00", reason="test", symbol="BTC")
+        self.scalper.active_trades["BTC"] = trade
+        for px in (0.90, 0.40):                       # a big pop, then a deep dip: neither sells
+            rd = Btc5mRound(price_source="clob", round_id="r", slug="mock", title="Mock BTC", strike_price=60000.0,
+                            current_btc_price=60000.0, price_delta=0.0, start_time=round_ts, end_time=round_ts + 300,
+                            seconds_remaining=100, market_price_up=px, market_price_down=1 - px,
+                            calculated_prob_up=0.5, calculated_prob_down=0.5, z_score=0.0, ict_fvg_status="NEUTRAL",
+                            signal="ABSTAIN", signal_reason="hold", symbol="BTC")
+            self.scalper._check_dynamic_exits({"BTC": rd})
+            self.assertIn("BTC", self.scalper.active_trades)
 
     def test_staggered_condition_timer_two_coins(self):
         """When 2 coins have signals, they must NOT enter simultaneously; the 2nd coin waits for the condition timer."""
@@ -585,6 +605,7 @@ class TestBtc5mScalper(unittest.TestCase):
     def test_insufficient_balance_blocks_second_coin(self):
         """If balance is < $5.00 (e.g. $9 starting, $5 used by Coin 1 -> $4 left), 2nd coin must NOT be taken."""
         fresh_scalper = Btc5mPaperScalper(self.analyzer, initial_bankroll=9.0, auto_start=False)
+        fresh_scalper.paper_strategy = "EDGE"
         self.assertEqual(fresh_scalper.balance, 9.0)
         fresh_scalper.is_enabled = True
         fresh_scalper.max_concurrent_trades = 2
@@ -641,6 +662,7 @@ class TestBtc5mScalper(unittest.TestCase):
     def test_dynamic_exit_reentrant_lock_no_deadlock(self):
         """Verifies that calling cashout_trade from within process_tick while holding self.lock does not deadlock."""
         s = Btc5mPaperScalper(self.analyzer, initial_bankroll=50.0, auto_start=False)
+        s.paper_exit_mode = "SCALP"  # the old quick-exit rules
         s.is_enabled = True
 
         r_entry = Btc5mRound(
@@ -678,6 +700,7 @@ class TestBtc5mScalper(unittest.TestCase):
         """If a trade is open >= 60 seconds and is in profit (+5¢ or more), it automatically cashes out."""
         from datetime import datetime, timezone, timedelta
         s = Btc5mPaperScalper(self.analyzer, initial_bankroll=50.0, auto_start=False)
+        s.paper_exit_mode = "SCALP"  # the old quick-exit rules
         s.is_enabled = True
 
         r_entry = Btc5mRound(
@@ -709,6 +732,7 @@ class TestBtc5mScalper(unittest.TestCase):
 
     def test_quick_pop_does_not_trigger_on_loss(self):
         """Late entry at 72¢ must NOT trigger quick pop when market price is 70¢ (which is < entry)."""
+        self.scalper.paper_exit_mode = "SCALP"  # the old quick-exit rules
         s = Btc5mPaperScalper(self.analyzer, initial_bankroll=50.0, auto_start=False)
         s.is_enabled = True
 

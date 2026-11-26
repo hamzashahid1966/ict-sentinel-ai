@@ -98,6 +98,7 @@ class TestPaperFillsAtLiveAsk(unittest.TestCase):
 
     def test_paper_exit_prices_off_the_bid(self):
         sc = self._scalper()
+        sc.paper_exit_mode = "SCALP"          # early exits only exist in the old quick-exit mode
         sc.active_trades["BTC"] = Btc5mTrade(id=1, round_id="btc-updown-5m-1795376400", action="BUY", outcome="UP", shares=10.0,
                                              entry_price=0.50, cost=5.0, pnl=0.0, timestamp="2026-11-22T19:40:10+00:00",
                                              reason="[EARLY VALUE SCALP] test", symbol="BTC", mode="PAPER", status="OPEN")

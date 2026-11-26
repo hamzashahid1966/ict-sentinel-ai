@@ -6,6 +6,7 @@ Thread-safe persistence for Crypto positions, trades, screener candidates, analy
 import sqlite3
 import threading
 import time
+import uuid
 import json
 from typing import List, Optional, Dict, Any, Tuple
 from crypto_sentinel.config import (
@@ -21,7 +22,9 @@ from crypto_sentinel.models import (
 class CryptoStorageEngine:
     def __init__(self, db_path: str = CRYPTO_DB_PATH):
         self.db_path = db_path
-        self._shared_mem_uri = f"file:mem_db_{id(self)}?mode=memory&cache=shared"
+        # A unique name per engine: id(self) can be reused after garbage collection while an old
+        # connection still keeps that shared in-memory database alive, leaking one test's rows into another.
+        self._shared_mem_uri = f"file:mem_db_{uuid.uuid4().hex}?mode=memory&cache=shared"
         self._persistent_conn = None
         if self.db_path == ":memory:":
             self._persistent_conn = sqlite3.connect(self._shared_mem_uri, timeout=15.0, uri=True)
