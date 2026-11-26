@@ -18,6 +18,7 @@ class TestTrend1(unittest.TestCase):
     def setUp(self):
         self.an = MagicMock()
         self.s = Btc5mPaperScalper(self.an, initial_bankroll=50.0, auto_start=False)
+        self.s.trend_stake = 1.0                             # the rule's tests use $1 trades
         self.s.is_enabled = True
         self.ts = 1795700100 - 1795700100 % 300
 

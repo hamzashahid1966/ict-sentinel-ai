@@ -63,7 +63,7 @@ class PolymarketController:
         self.btc_analyzer = BtcRoundAnalyzer(self.btc_feed)
         self.btc_scalper = Btc5mPaperScalper(
             self.btc_analyzer,
-            initial_bankroll=50.0,
+            initial_bankroll=200.0,                       # paper: room for $10 trades (2026-11-26)
             auto_start=True,
             activity_callback=self.storage.add_activity
         )
@@ -113,7 +113,7 @@ class PolymarketController:
         if self.worker_thread and self.worker_thread.is_alive():
             self.worker_thread.join(timeout=2.0)
         self.storage.reset_all_data()
-        self.btc_scalper.reset(50.0)
+        self.btc_scalper.reset(200.0)
         self.last_sync_time = None
         self.last_research_time = None
         self.current_working_gig = "Surveillance Active: 5M Crypto Microstructure Scalper ($50 Bankroll · $10 Max Risk per Coin · Staggered Parallel)"

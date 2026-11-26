@@ -37,7 +37,7 @@ class MultiCryptoPaperScalper:
         # building (research/pm_user_rule.py): -6c to -10c per $1 over ~9,500 rounds, so watch it on paper.
         # "EDGE" = the original model signals with $5 bets. Live mode always uses EDGE.
         self.paper_strategy: str = os.environ.get("POLY_PAPER_STRATEGY", "TREND1").strip().upper()
-        self.trend_stake: float = 1.0
+        self.trend_stake: float = 10.0                      # paper stake per trade (user's choice 2026-11-26, was $1)
         self.trend_max_price: float = 0.65
         self.trend_take_profit: float = 0.40
         self.trend_min_seconds: int = 30
