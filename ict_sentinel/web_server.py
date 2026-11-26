@@ -4255,6 +4255,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/polymarket/5m/toggle":
             is_active = POLY_BOT.toggle_5m_scalper()
             self._json({"ok": True, "is_enabled": is_active})
+        elif self.path == "/api/polymarket/15m/toggle":
+            self._json({"ok": True, "is_enabled": POLY_BOT.btc_15m.toggle()})
         elif self.path == "/api/polymarket/5m/cashout":
             body = self._read_body()
             sym = body.get("symbol", "")
@@ -4460,6 +4462,7 @@ def run_web_dashboard(port: int = 8080, host: str = "0.0.0.0"):
     print("[*] Stream active. Press Ctrl+C in terminal to shutdown.\n")
     arm_engines_on_boot(poly_bot=POLY_BOT, crypto_bot=CRYPTO_BOT)
     start_trend_scheduler()
+    POLY_BOT.btc_15m.start()                                 # 15-minute paper bot (this server's rule, $20 a trade)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

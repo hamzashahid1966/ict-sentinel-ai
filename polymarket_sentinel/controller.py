@@ -67,6 +67,14 @@ class PolymarketController:
             auto_start=True,
             activity_callback=self.storage.add_activity
         )
+        # 15-minute BTC rounds: a separate PAPER bot with the SAME rule as this server's 5-minute bot
+        # (previous winner, up to 65c, decide at 30 s, cash out all at +40%, else hold), $20 a trade.
+        # Started by the web server (start of run_web_dashboard), never by imports.
+        from .crypto_5m.trend_15m import Trend15mBot
+        self.btc_15m = Trend15mBot(self.btc_analyzer, activity_callback=self.storage.add_activity,
+                                   stake=20.0, bankroll=400.0, min_price=0.0, max_price=0.65, entry_seconds=30,
+                                   half_at=None, rest_at=None, single_tp=0.40, late_exit_seconds=None,
+                                   enabled=True, auto_start=False)
         self.live_executor = PolymarketLiveExecutor()
         self.btc_scalper.set_live_executor(self.live_executor)
         if self.live_executor.is_live_enabled:
@@ -442,6 +450,7 @@ class PolymarketController:
             "gateway_stats": gateway_stats,
             "activity": activity,
             "btc_5m": btc_5m_state,
+            "btc_15m": self.btc_15m.get_state(),
             "live_account": self.get_live_account_status()
         }
 
