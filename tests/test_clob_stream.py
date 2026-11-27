@@ -2,7 +2,7 @@ import time
 import unittest
 from unittest.mock import MagicMock
 
-from polymarket_sentinel.crypto_5m.clob_stream import ClobBookStream
+from polymarket_sentinel.crypto_5m.clob_stream import ClobBookStream, needs_decoding
 from polymarket_sentinel.crypto_5m.round_analyzer import MultiCryptoRoundAnalyzer
 
 
@@ -33,6 +33,28 @@ class TestClobStream(unittest.TestCase):
         s._connected = False
         s._last_msg = time.time()
         self.assertIsNone(s.top("tok"))
+
+    def test_late_stream_answers_nothing(self):
+        s = self.stream()
+        now_ms = time.time() * 1000
+        s.handle({"event_type": "best_bid_ask", "asset_id": "tok", "best_bid": "0.4", "best_ask": "0.41",
+                  "timestamp": str(int(now_ms - 500))})
+        self.assertEqual(s.top("tok"), (0.4, 0.41))             # half a second behind: fine
+        s.handle({"event_type": "best_bid_ask", "asset_id": "tok", "best_bid": "0.3", "best_ask": "0.31",
+                  "timestamp": str(int(now_ms - 20000))})
+        self.assertGreater(s.lag, 19)
+        self.assertIsNone(s.top("tok"))                         # 20 s behind: let the analyzer use REST
+        s.handle({"event_type": "best_bid_ask", "asset_id": "tok", "best_bid": "0.35", "best_ask": "0.36",
+                  "timestamp": str(int(time.time() * 1000))})
+        self.assertEqual(s.top("tok"), (0.35, 0.36))            # caught up again
+
+    def test_price_change_frames_are_skipped_others_decoded(self):
+        self.assertFalse(needs_decoding('{"market":"m","price_changes":[{"asset_id":"t","best_bid":"0.5"}],'
+                                        '"timestamp":"1","event_type":"price_change"}'))
+        self.assertTrue(needs_decoding('{"event_type":"best_bid_ask","asset_id":"t","best_bid":"0.5","best_ask":"0.51"}'))
+        self.assertTrue(needs_decoding('[{"event_type":"book","asset_id":"t","bids":[],"asks":[]}]'))
+        self.assertTrue(needs_decoding('[{"event_type":"price_change"},{"event_type":"best_bid_ask"}]'))
+        self.assertTrue(needs_decoding('{"event_type":"last_trade_price","price":"0.5"}'))
 
     def test_analyzer_prefers_stream_and_falls_back_to_rest(self):
         an = MultiCryptoRoundAnalyzer.__new__(MultiCryptoRoundAnalyzer)

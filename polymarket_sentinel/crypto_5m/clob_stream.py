@@ -7,6 +7,13 @@ the latest best bid / best ask for every token the analyzer asks about (pushed w
 
 The analyzer reads it through `top(token_id)`. It answers only while the stream is healthy and has a book
 for that token; otherwise it returns None and the analyzer falls back to the REST book exactly as before.
+Speed (2026-11-27): a BTC round's two tokens send ~1,600 messages a second, 94% of them `price_change`
+(every order placed or cancelled). The `best_bid_ask` events (sent when the top of the book moves) and `book`
+snapshots carry everything `top()` needs, so `price_change` frames are counted and dropped before JSON
+decoding. On the free Render server, decoding all of them made the stream fall 15-25 s behind the market.
+As a guard, the stream also tracks how late messages arrive (receive time minus the exchange's timestamp);
+if that is over MAX_LAG_SECONDS, it counts as unhealthy and the analyzer uses the REST book instead.
+
 Nothing here places orders.
 """
 
@@ -19,6 +26,12 @@ from typing import Dict, Optional, Tuple
 CLOB_WS = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 HEALTHY_SECONDS = 20.0      # stream counts as healthy if any message arrived this recently
 FORGET_SECONDS = 900.0      # unsubscribe tokens nobody asked about for 15 minutes
+MAX_LAG_SECONDS = 3.0       # messages arriving later than this behind the exchange: use REST instead
+
+
+def needs_decoding(raw: str) -> bool:
+    """False for frames that only carry `price_change` events (the flood); everything else is decoded."""
+    return "price_change" not in raw or "best_bid_ask" in raw or '"book"' in raw
 
 
 class ClobBookStream:
@@ -32,6 +45,8 @@ class ClobBookStream:
         self._connected = False
         self._thread: Optional[threading.Thread] = None
         self.messages = 0
+        self.skipped = 0                                         # price_change frames dropped undecoded
+        self.lag = 0.0                                           # seconds behind the exchange, last message
 
     # ---------------------------------------------------------------- reader API (any thread)
     def start(self) -> "ClobBookStream":
@@ -41,7 +56,8 @@ class ClobBookStream:
         return self
 
     def healthy(self) -> bool:
-        return self._connected and time.time() - self._last_msg < HEALTHY_SECONDS
+        return (self._connected and time.time() - self._last_msg < HEALTHY_SECONDS
+                and self.lag <= MAX_LAG_SECONDS)
 
     def top(self, token_id: str) -> Optional[Tuple[float, float]]:
         """Latest (best_bid, best_ask) for token_id from the stream, or None (then use REST)."""
@@ -70,6 +86,12 @@ class ClobBookStream:
             if not isinstance(m, dict):
                 continue
             et = m.get("event_type")
+            try:
+                ts = float(m.get("timestamp") or 0) / 1000.0
+            except (TypeError, ValueError):
+                ts = 0.0
+            if ts > 1e9:                                         # a real exchange time (ms since 1970)
+                self.lag = max(0.0, self._last_msg - ts)
             if et == "best_bid_ask":
                 self._set(m.get("asset_id"), m.get("best_bid"), m.get("best_ask"))
             elif et == "book":
@@ -102,7 +124,11 @@ class ClobBookStream:
                     while True:
                         try:
                             raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
-                            if raw and raw not in ("PONG", "pong"):
+                            if raw and raw not in ("PONG", "pong") and not needs_decoding(raw):
+                                self.messages += 1               # price_change only: not needed for top()
+                                self.skipped += 1
+                                self._last_msg = time.time()
+                            elif raw and raw not in ("PONG", "pong"):
                                 try:
                                     self.handle(json.loads(raw))
                                 except ValueError:
